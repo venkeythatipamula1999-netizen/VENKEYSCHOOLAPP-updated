@@ -1,0 +1,36 @@
+{
+  "name": "venkeys-school-app",
+  "version": "2.0.0",
+  "description": "Venkeys International School App - React Native (Expo)",
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "start": "node server.js",
+    "build": "npx expo export --platform web --output-dir dist",
+    "dev": "npx expo start --web --port 5000"
+  },
+  "private": true,
+  "dependencies": {
+    "@expo/metro-runtime": "~4.0.1",
+    "babel-preset-expo": "^55.0.10",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.6",
+    "csv-parser": "^3.2.0",
+    "expo": "~52.0.46",
+    "expo-font": "~13.0.4",
+    "expo-linear-gradient": "~14.0.2",
+    "express": "^4.22.1",
+    "firebase": "^12.10.0",
+    "firebase-admin": "^13.7.0",
+    "google-auth-library": "^10.6.1",
+    "google-spreadsheet": "^5.2.0",
+    "leaflet": "^1.9.4",
+    "multer": "^2.1.0",
+    "pg": "^8.19.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-native": "^0.76.9",
+    "react-native-svg": "^15.15.3",
+    "react-native-web": "^0.19.13",
+    "xlsx": "^0.18.5"
+  }
+}

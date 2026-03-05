@@ -1,0 +1,156 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAdmin() {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'principal'];
+    }
+
+    match /leaveRequests/{leaveId} {
+      allow read: if request.auth != null &&
+        (resource.data.assignedTeacherId == request.auth.uid ||
+         (resource.data.visibleToAdmin == true && isAdmin()) ||
+         resource.data.parentId == request.auth.uid);
+      allow write: if request.auth != null;
+    }
+
+    match /leave_requests/{leaveId} {
+      allow read: if request.auth != null &&
+        (resource.data.assignedTeacherId == request.auth.uid ||
+         resource.data.assignedTeacherUid == request.auth.uid ||
+         (resource.data.visibleToAdmin == true && isAdmin()) ||
+         resource.data.parentId == request.auth.uid ||
+         resource.data.staffId == request.auth.uid);
+      allow write: if request.auth != null;
+    }
+
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && isAdmin();
+    }
+
+    match /students/{studentId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && isAdmin();
+    }
+
+    match /classes/{classId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && isAdmin();
+    }
+
+    match /attendance/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    match /attendance_records/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    match /marks/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    match /timetables/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    match /events/{eventId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && isAdmin();
+    }
+
+    match /teacher_notifications/{docId} {
+      allow read: if request.auth != null &&
+        resource.data.roleId == request.auth.token.role_id;
+      allow write: if request.auth != null;
+    }
+
+    match /parent_notifications/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    match /driver_notifications/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    match /admin_notifications/{docId} {
+      allow read: if request.auth != null && isAdmin();
+      allow write: if request.auth != null;
+    }
+
+    match /fee_reminders/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && isAdmin();
+    }
+
+    match /parent_accounts/{uid} {
+      allow read: if request.auth != null &&
+        (request.auth.uid == uid || isAdmin());
+      allow write: if request.auth != null &&
+        (request.auth.uid == uid || isAdmin());
+    }
+
+    match /salary_settings/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && isAdmin();
+    }
+
+    match /salary_payments/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && isAdmin();
+    }
+
+    match /bus_trips/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    match /live_bus_locations/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    match /trip_summaries/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    match /bus_route_stops/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    match /location_change_requests/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    match /staff_duty/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    match /student_files/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    match /proximity_alert_logs/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    match /leave_balance/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+  }
+}

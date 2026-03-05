@@ -1,0 +1,16 @@
+export const C = {
+  navy:    "#0B1F3A",
+  navyMid: "#122848",
+  navyLt:  "#1A3A60",
+  gold:    "#E8A21A",
+  goldLt:  "#F5C842",
+  teal:    "#00B8A9",
+  tealLt:  "#00D4C4",
+  coral:   "#FF6B6B",
+  purple:  "#7C5CBF",
+  white:   "#FFFFFF",
+  offWht:  "#F4F7FC",
+  muted:   "#8A9DBB",
+  card:    "#162E50",
+  border:  "#213D62",
+};

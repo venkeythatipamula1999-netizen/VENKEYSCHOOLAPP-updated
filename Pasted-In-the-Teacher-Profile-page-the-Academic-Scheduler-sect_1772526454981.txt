@@ -1,0 +1,26 @@
+In the Teacher Profile page, the Academic Scheduler section shows "No classes assigned yet" and "0 classes" even though classes exist in the system. Fix and enhance the entire class assignment and timetable system for teachers as follows:
+1. Fix the "Assign Class" Dropdown — Populate with Real Classes
+The "Is Class Teacher of" dropdown and the Academic Scheduler's "+ Add Class" should both load all available classes from the database (e.g., Grade 2-A, Grade 4-A, Grade 5-A, etc.).
+Do not hardcode class names — fetch them dynamically from the classes table.
+2. Class Teacher Assignment Rules
+Only one teacher can be assigned as Class Teacher of a given class at a time.
+If a class already has a Class Teacher assigned, prevent reassigning it to another teacher and show a clear warning message.
+3. Academic Scheduler — Fix & Full Rebuild
+The "+ Add Class" in the Academic Scheduler must open a form with these fields:
+Class (dropdown — all available classes)
+Subject (dropdown or text)
+Day (Monday to Saturday)
+Start Time (time picker)
+End Time (time picker)
+Conflict Rule: If a teacher is already assigned to any class on the same Day + overlapping time slot, block the assignment and show an error: "This teacher already has a class assigned during this time slot."
+Cross-teacher conflict: Also check if the selected Class already has another teacher assigned to it at the same Day + time slot — prevent double-booking the class too.
+4. Display All Assigned Classes
+After saving, all assigned class slots must be listed clearly in the Academic Scheduler section showing: Class name, Subject, Day, Start Time – End Time.
+The count "0 classes" must update to reflect the real number of assigned slots.
+5. Generate Academic Timetable
+When "Save Timetable & Generate Calendar" is clicked, generate a structured weekly timetable for the teacher showing all their assigned classes organized by Day and Time.
+Save this timetable and make it viewable from the teacher's profile.
+Summary of validation rules to enforce:
+No two classes for the same teacher on the same day at overlapping times.
+No two teachers assigned to the same class at the same day and time.
+Class Teacher assignment is one-to-one (one class, one class teacher

@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "Venkeys International School",
+    "slug": "venkeys-school-app",
+    "version": "2.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "venkeys",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png"
+    },
+    "platforms": ["ios", "android", "web"]
+  }
+}
