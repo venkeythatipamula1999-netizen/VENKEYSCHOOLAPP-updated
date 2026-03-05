@@ -1,0 +1,48 @@
+modules = ["nodejs-20", "web"]
+[agent]
+expertMode = true
+
+[nix]
+channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+FIREBASE_API_KEY = "AIzaSyA-daJ4E8CEVh89BGEU9wRLGOZAT7T3-vM"
+FIREBASE_AUTH_DOMAIN = "school-app-87900.firebaseapp.com"
+FIREBASE_PROJECT_ID = "school-app-87900"
+FIREBASE_STORAGE_BUCKET = "school-app-87900.firebasestorage.app"
+FIREBASE_APP_ID = "1:774655999002:android:6ccc7fd89c5c57598565a3"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node server.js"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["node", "server.js"]
+build = ["bash", "-c", "npx expo export --platform web --output-dir dist"]
