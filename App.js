@@ -1,9 +1,12 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Platform, SafeAreaView, StatusBar } from 'react-native';
 import { C } from './src/theme/colors';
 import { S } from './src/theme/styles';
 import Icon from './src/components/Icon';
 import { INITIAL_LEAVE_REQS } from './src/data/teacher';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
+import { useGlobalErrorListener } from './src/hooks/useGlobalErrorListener';
+import { setErrorReporterUser, clearErrorReporterUser } from './src/services/errorReporter';
 
 import SplashScreen from './src/screens/auth/SplashScreen';
 import SplashIntroScreen from './src/screens/auth/SplashIntroScreen';
@@ -61,6 +64,8 @@ import CompleteProfileScreen from './src/screens/auth/CompleteProfileScreen';
 import { STUDENTS_INIT as STUDENTS_INIT_CLEANER, NOTIFS_INIT as NOTIFS_INIT_CLEANER } from './src/data/cleaner';
 
 export default function App() {
+  useGlobalErrorListener();
+  
   const [screen, setScreen] = useState('splash-intro');
   const [role, setRole] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
@@ -69,6 +74,14 @@ export default function App() {
   const [cleanerStudents, setCleanerStudents] = useState(STUDENTS_INIT_CLEANER);
   const [cleanerNotifs, setCleanerNotifs] = useState(NOTIFS_INIT_CLEANER);
   const scrollRef = useRef(null);
+
+  useEffect(() => {
+    if (currentUser) {
+      setErrorReporterUser(currentUser);
+    } else {
+      clearErrorReporterUser();
+    }
+  }, [currentUser]);
 
   const navigate = (s) => {
     setScreen(s);
@@ -357,18 +370,24 @@ export default function App() {
     </View>
   );
 
-  if (isWeb) {
-    return (
-      <View style={{ flex: 1, backgroundColor: '#050F1E', alignItems: 'center', justifyContent: 'center', paddingVertical: 20 }}>
-        {content}
-      </View>
-    );
-  }
-
-  return (
+  const appContent = isWeb ? (
+    <View style={{ flex: 1, backgroundColor: '#050F1E', alignItems: 'center', justifyContent: 'center', paddingVertical: 20 }}>
+      {content}
+    </View>
+  ) : (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }}>
       <StatusBar barStyle="light-content" backgroundColor={C.navy} />
       {content}
     </SafeAreaView>
+  );
+
+  return (
+    <ErrorBoundary onReset={() => {
+      setScreen('splash-intro');
+      setCurrentUser(null);
+      setRole(null);
+    }}>
+      {appContent}
+    </ErrorBoundary>
   );
 }
