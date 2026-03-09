@@ -3569,6 +3569,41 @@ app.post('/api/bus/end-trip', async (req, res) => {
   }
 });
 
+app.get('/api/trip/onboard-count', verifyAuth, async (req, res) => {
+  try {
+    const { busId, date } = req.query;
+    if (!busId) return res.status(400).json({ error: 'busId required' });
+
+    const now = new Date();
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const today = date || new Date(now.getTime() + istOffset).toISOString().slice(0, 10);
+
+    const scansRef = collection(db, 'trip_scans');
+    const scansQ = query(scansRef, where('date', '==', today), where('schoolId', '==', SCHOOL_ID));
+    const snap = await getDocs(scansQ);
+    const scans = snap.docs.map(d => d.data()).filter(s => s.busId === busId || s.busNumber === busId);
+    const boardCount = scans.filter(s => s.type === 'board').length;
+
+    const busQ = query(collection(db, 'buses'), where('busNumber', '==', busId));
+    const busSnap = await getDocs(busQ);
+    let totalStudents = 0;
+    if (!busSnap.empty) {
+      const busData = busSnap.docs[0].data();
+      totalStudents = (busData.studentIds || []).length;
+    }
+    if (totalStudents === 0) {
+      const studQ = query(collection(db, 'students'), where('schoolId', '==', SCHOOL_ID), where('busRoute', '==', busId));
+      const studSnap = await getDocs(studQ);
+      totalStudents = studSnap.size;
+    }
+
+    res.json({ success: true, boardCount, totalStudents });
+  } catch (err) {
+    console.error('Get onboard count error:', err.message);
+    res.status(500).json({ error: 'Failed to get onboard count' });
+  }
+});
+
 app.get('/api/trip/scans', verifyAuth, async (req, res) => {
   try {
     const { tripId, busNumber, driverId } = req.query;

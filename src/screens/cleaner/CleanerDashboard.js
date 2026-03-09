@@ -12,6 +12,8 @@ export default function CleanerDashboard({ onNavigate, currentUser, students }) 
   const [dutyLoading, setDutyLoading] = useState(false);
   const [clockInTime, setClockInTime] = useState(null);
   const [currentStatus, setCurrentStatus] = useState('Off Duty');
+  const [onboardCount, setOnboardCount] = useState(0);
+  const [totalStudents, setTotalStudents] = useState(0);
 
   const cleanerName = currentUser?.full_name || CLEANER_DEFAULT.name;
   const cleanerId = currentUser?.role_id || CLEANER_DEFAULT.id;
@@ -30,6 +32,26 @@ export default function CleanerDashboard({ onNavigate, currentUser, students }) 
       })
       .catch(() => {});
   }, [cleanerId]);
+
+  useEffect(() => {
+    const fetchScanCount = async () => {
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        const busId = currentUser?.bus_number || busNumber || '';
+        const res = await fetch(`/api/trip/onboard-count?busId=${encodeURIComponent(busId)}&date=${today}`, {
+          headers: { 'x-role-id': cleanerId },
+        });
+        const data = await res.json();
+        if (data.success) {
+          setOnboardCount(data.boardCount || 0);
+          setTotalStudents(data.totalStudents || 0);
+        }
+      } catch (err) {
+        console.error('Failed to fetch scan count:', err.message);
+      }
+    };
+    fetchScanCount();
+  }, [currentUser, busNumber, cleanerId]);
 
   useEffect(() => {
     if (onDuty) {
@@ -173,10 +195,13 @@ export default function CleanerDashboard({ onNavigate, currentUser, students }) 
               <Text style={{ fontWeight: '700', fontSize: 15, color: C.white }}>{session}</Text>
               <Text style={{ color: C.muted, fontSize: 12 }}>Tap to open scanner and scan QR</Text>
             </View>
-            <Text style={{ fontWeight: '800', fontSize: 20, color: C.gold }}>{totalDone}<Text style={{ fontSize: 12, color: C.muted, fontWeight: '400' }}>/{totalMax}</Text></Text>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={{ color: C.teal, fontSize: 28, fontWeight: 'bold' }}>{onboardCount}</Text>
+              <Text style={{ color: C.muted, fontSize: 12 }}>of {totalStudents} students boarded today</Text>
+            </View>
           </View>
           <View style={{ height: 5, borderRadius: 99, backgroundColor: C.border, overflow: 'hidden', marginBottom: 14 }}>
-            <LinearGradient colors={[C.teal, C.gold]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ height: '100%', width: totalMax ? `${(totalDone / totalMax) * 100}%` : '0%', borderRadius: 99 }} />
+            <LinearGradient colors={[C.teal, C.gold]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ height: '100%', width: totalStudents ? `${(onboardCount / totalStudents) * 100}%` : '0%', borderRadius: 99 }} />
           </View>
           <TouchableOpacity onPress={() => onNavigate('cleaner-scanner')} style={{ backgroundColor: C.gold, borderRadius: 16, paddingVertical: 13, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 }}>
             <Icon name="qr" size={18} color={C.navy} />
@@ -220,12 +245,12 @@ export default function CleanerDashboard({ onNavigate, currentUser, students }) 
                 <Text style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>Near OMR Junction</Text>
               </View>
               <View style={{ flex: 1, backgroundColor: C.gold + '14', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: C.gold + '38' }}>
-                <Text style={{ color: C.gold, fontSize: 11, fontWeight: '600', marginBottom: 4 }}>SCANS TODAY</Text>
+                <Text style={{ color: C.gold, fontSize: 11, fontWeight: '600', marginBottom: 4 }}>BOARDED TODAY</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-                  <Text style={{ fontWeight: '700', fontSize: 20, color: C.gold }}>{totalDone}</Text>
-                  <Text style={{ fontSize: 12, color: C.muted }}>/{totalMax}</Text>
+                  <Text style={{ fontWeight: '700', fontSize: 20, color: C.gold }}>{onboardCount}</Text>
+                  <Text style={{ fontSize: 12, color: C.muted }}>/{totalStudents}</Text>
                 </View>
-                <Text style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>{totalMax - totalDone} remaining</Text>
+                <Text style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>{Math.max(0, totalStudents - onboardCount)} remaining</Text>
               </View>
             </View>
           )}
@@ -241,7 +266,7 @@ export default function CleanerDashboard({ onNavigate, currentUser, students }) 
         </View>
         <View style={{ flexDirection: 'row', gap: 10 }}>
           {[
-            { label: 'Scans Done', val: String(totalDone), icon: '\uD83D\uDCF2', color: C.gold },
+            { label: 'Boarded', val: String(onboardCount), icon: '\uD83D\uDCF2', color: C.gold },
             { label: 'Absent', val: String(absent.length), icon: '\u274C', color: C.coral },
             { label: 'Morning Run', val: '45 min', icon: '\uD83C\uDF05', color: C.teal },
           ].map(m => (
