@@ -3526,6 +3526,82 @@ app.post('/api/bus/end-trip', async (req, res) => {
   }
 });
 
+app.post('/api/trip/scan', async (req, res) => {
+  try {
+    const { studentId, driverId, busId, scannedBy, role, timestamp } = req.body;
+    if (!studentId) return res.status(400).json({ error: 'studentId required' });
+
+    let studentName = '';
+    let parentId = '';
+    let parentName = '';
+
+    try {
+      const studentSnap = await getDocFS(doc(db, 'users', String(studentId)));
+      if (studentSnap.exists()) {
+        const studentData = studentSnap.data();
+        studentName = studentData.full_name || studentData.name || '';
+        parentId = studentData.parentId || '';
+      }
+    } catch (e) {
+      console.warn(`[QR Scan] Could not fetch student data for ${studentId}:`, e.message);
+    }
+
+    if (parentId) {
+      try {
+        const parentSnap = await getDocFS(doc(db, 'users', parentId));
+        if (parentSnap.exists()) {
+          const parentData = parentSnap.data();
+          parentName = parentData.full_name || parentData.name || '';
+        }
+      } catch (e) {
+        console.warn(`[QR Scan] Could not fetch parent data for ${parentId}:`, e.message);
+      }
+    }
+
+    const scanDoc = {
+      studentId: String(studentId),
+      studentName: studentName || '',
+      driverId: driverId || '',
+      busId: busId || '',
+      scannedBy: scannedBy || '',
+      role: role || 'cleaner',
+      timestamp: timestamp || new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    };
+
+    const scanRef = await addDoc(collection(db, 'trip_scans'), scanDoc);
+    console.log(`[QR Scan] Student ${studentName || studentId} boarded (scan ID: ${scanRef.id})`);
+
+    if (parentId) {
+      try {
+        await addDoc(collection(db, 'parent_notifications'), {
+          type: 'student_boarded',
+          icon: '🚌',
+          title: 'Child Boarded Bus',
+          message: `${studentName || 'Your child'} has boarded the bus.`,
+          details: {
+            studentId: String(studentId),
+            studentName: studentName || '',
+            busId: busId || '',
+            timestamp: timestamp || new Date().toISOString(),
+          },
+          parentId: parentId,
+          read: false,
+          createdAt: new Date().toISOString(),
+        });
+        console.log(`[QR Scan] Parent notification sent to ${parentName || parentId} for student ${studentName || studentId}`);
+      } catch (notifErr) {
+        console.error('[QR Scan] Parent notification error:', notifErr.message);
+      }
+    }
+
+    res.json({ success: true, scanId: scanRef.id, studentName: studentName || 'Unknown' });
+  } catch (err) {
+    console.error('[QR Scan] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/bus/live-location', async (req, res) => {
   try {
     const { busNumber } = req.query;
