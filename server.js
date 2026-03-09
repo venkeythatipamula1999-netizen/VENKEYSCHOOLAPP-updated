@@ -3558,6 +3558,18 @@ app.post('/api/trip/scan', async (req, res) => {
       }
     }
 
+    // Count previous scans for this student today
+    const today = new Date().toISOString().slice(0, 10);
+    const prevScansQ = query(
+      collection(db, 'trip_scans'),
+      where('studentId', '==', String(studentId)),
+      where('date', '==', today)
+    );
+    const prevScansSnap = await getDocs(prevScansQ);
+    const scanCount = prevScansSnap.size;
+    const isBoarding = scanCount === 0;
+    const scanType = isBoarding ? 'board' : 'alight';
+
     const scanDoc = {
       studentId: String(studentId),
       studentName: studentName || '',
@@ -3565,37 +3577,44 @@ app.post('/api/trip/scan', async (req, res) => {
       busId: busId || '',
       scannedBy: scannedBy || '',
       role: role || 'cleaner',
+      type: scanType,
+      date: today,
       timestamp: timestamp || new Date().toISOString(),
       createdAt: new Date().toISOString(),
     };
 
     const scanRef = await addDoc(collection(db, 'trip_scans'), scanDoc);
-    console.log(`[QR Scan] Student ${studentName || studentId} boarded (scan ID: ${scanRef.id})`);
+    console.log(`[QR Scan] Student ${studentName || studentId} ${scanType} (scan #${scanCount + 1}, scan ID: ${scanRef.id})`);
 
+    // Send correct notification to parent
     if (parentId) {
       try {
+        const isBoardingMsg = `${studentName || 'Your child'} has boarded the bus. 🚌 Have a safe journey!`;
+        const isArrivalMsg = `${studentName || 'Your child'} has arrived at school safely. ✅`;
+
         await addDoc(collection(db, 'parent_notifications'), {
-          type: 'student_boarded',
-          icon: '🚌',
-          title: 'Child Boarded Bus',
-          message: `${studentName || 'Your child'} has boarded the bus.`,
+          type: isBoarding ? 'student_boarded' : 'student_arrived',
+          icon: isBoarding ? '🚌' : '🏫',
+          title: isBoarding ? 'Child Boarded Bus' : 'Child Arrived at School',
+          message: isBoarding ? isBoardingMsg : isArrivalMsg,
           details: {
             studentId: String(studentId),
             studentName: studentName || '',
             busId: busId || '',
+            scanType,
             timestamp: timestamp || new Date().toISOString(),
           },
-          parentId: parentId,
+          parentId,
           read: false,
           createdAt: new Date().toISOString(),
         });
-        console.log(`[QR Scan] Parent notification sent to ${parentName || parentId} for student ${studentName || studentId}`);
+        console.log(`[QR Scan] ${scanType} notification sent for ${studentName} (scan #${scanCount + 1})`);
       } catch (notifErr) {
         console.error('[QR Scan] Parent notification error:', notifErr.message);
       }
     }
 
-    res.json({ success: true, scanId: scanRef.id, studentName: studentName || 'Unknown' });
+    res.json({ success: true, scanId: scanRef.id, studentName: studentName || 'Unknown', scanType, scanNumber: scanCount + 1 });
   } catch (err) {
     console.error('[QR Scan] Error:', err.message);
     res.status(500).json({ error: err.message });
