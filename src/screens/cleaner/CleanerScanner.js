@@ -60,11 +60,13 @@ function IDCard({ student, nextScan, isAbsent }) {
   );
 }
 
-export default function CleanerScanner({ students, setStudents }) {
+export default function CleanerScanner({ students, setStudents, currentUser }) {
   const [phase, setPhase] = useState('idle');
   const [torch, setTorch] = useState(false);
   const [found, setFound] = useState(null);
   const [log, setLog] = useState([]);
+  const [scanning, setScanning] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
   const timer = useRef(null);
 
   const pending = students.filter(s => !s.absent && s.scanCount < 4);
@@ -72,15 +74,50 @@ export default function CleanerScanner({ students, setStudents }) {
   const totalMax = students.filter(s => !s.absent).length * 4;
   const absentStudents = students.filter(s => s.absent);
 
-  const startScan = () => {
-    if (phase === 'scanning') return;
+  const handleScan = async (scannedData) => {
+    if (!scannedData || scanning) return;
+    setScanning(true);
     setPhase('scanning');
+    try {
+      const res = await fetch('/api/trip/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentId: scannedData,
+          driverId: currentUser?.driverId || currentUser?.roleId || '',
+          busId: currentUser?.busId || '',
+          scannedBy: currentUser?.roleId || '',
+          role: 'cleaner',
+          timestamp: new Date().toISOString()
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Scan failed');
+      setScanResult({ success: true, studentName: data.studentName || scannedData });
+      
+      const foundStudent = students.find(s => s.id === scannedData || s.id === parseInt(scannedData));
+      if (foundStudent) {
+        setFound(foundStudent);
+        setPhase(foundStudent.absent ? 'absent' : 'result');
+      } else {
+        setScanResult({ success: false, error: 'Student not found in roster' });
+        setPhase('idle');
+      }
+    } catch (err) {
+      setScanResult({ success: false, error: err.message });
+      setPhase('idle');
+      console.error('Scan error:', err.message);
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const startScan = () => {
+    if (scanning || phase === 'scanning') return;
+    setPhase('scanning');
+    setScanning(true);
     timer.current = setTimeout(() => {
-      const allPending = students.filter(s => s.scanCount < 4 && !s.absent);
-      if (allPending.length === 0) { setPhase('all_done'); return; }
-      const student = allPending[Math.floor(Math.random() * allPending.length)];
-      setFound(student);
-      setPhase(student.absent ? 'absent' : 'result');
+      handleScan('STU_' + Math.floor(Math.random() * 10000));
     }, 1700 + Math.random() * 600);
   };
 
