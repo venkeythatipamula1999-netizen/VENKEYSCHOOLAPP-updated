@@ -81,26 +81,32 @@ export default function CleanerScanner({ students, setStudents, currentUser }) {
     try {
       const res = await fetch('/api/trip/scan', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-role-id': currentUser?.roleId || currentUser?.role_id || '' },
         body: JSON.stringify({
-          studentId: scannedData,
+          qrData: scannedData,
           driverId: currentUser?.driverId || currentUser?.roleId || '',
-          busId: currentUser?.busId || '',
-          scannedBy: currentUser?.roleId || '',
+          busId: currentUser?.busId || currentUser?.bus_number || '',
+          scannedBy: currentUser?.roleId || currentUser?.role_id || '',
           role: 'cleaner',
           timestamp: new Date().toISOString()
         })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Scan failed');
-      setScanResult({ success: true, studentName: data.studentName || scannedData });
-      
+      setScanResult({
+        success: true,
+        studentName: data.studentName,
+        studentClass: data.studentClass,
+        scanType: data.scanType,
+        isWrongBus: data.isWrongBus,
+        message: data.message
+      });
+
       const foundStudent = students.find(s => s.id === scannedData || s.id === parseInt(scannedData));
       if (foundStudent) {
         setFound(foundStudent);
         setPhase(foundStudent.absent ? 'absent' : 'result');
       } else {
-        setScanResult({ success: false, error: 'Student not found in roster' });
         setPhase('idle');
       }
     } catch (err) {
@@ -226,6 +232,24 @@ export default function CleanerScanner({ students, setStudents, currentUser }) {
                   <Text style={{ color: C.muted, fontSize: 11 }}>Next scan will register</Text>
                   <Text style={{ fontWeight: '700', fontSize: 13, color: C.gold }}>{PHASE_INFO[pending[0]?.scanCount ?? 0]?.label} · {PHASE_INFO[pending[0]?.scanCount ?? 0]?.session}</Text>
                 </View>
+              </View>
+            )}
+
+            {scanResult && (
+              <View style={{
+                backgroundColor: scanResult.isWrongBus ? '#FF000022' : scanResult.success ? C.teal + '22' : '#FF000022',
+                borderRadius: 12, padding: 16, marginBottom: 12, width: '100%',
+                borderWidth: 1, borderColor: scanResult.isWrongBus ? C.coral : scanResult.success ? C.teal : C.coral
+              }}>
+                <Text style={{ color: scanResult.isWrongBus ? C.coral : scanResult.success ? C.teal : C.coral, fontWeight: '700', fontSize: 16 }}>
+                  {scanResult.isWrongBus ? '\u26A0\uFE0F Wrong Bus Alert!' : scanResult.success ? '\u2705 Scan Successful' : '\u274C Scan Failed'}
+                </Text>
+                <Text style={{ color: C.white, marginTop: 6 }}>{scanResult.message || scanResult.error}</Text>
+                {scanResult.studentName && (
+                  <Text style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>
+                    {scanResult.studentName} {scanResult.studentClass ? '\u00B7 ' + scanResult.studentClass : ''}
+                  </Text>
+                )}
               </View>
             )}
 

@@ -3627,6 +3627,60 @@ app.get('/api/admin/buses', verifyAuth, async (req, res) => {
   }
 });
 
+app.post('/api/admin/buses/add', verifyAdmin, async (req, res) => {
+  try {
+    const { busNumber, busId, route, routeId, driverId, driverName, cleanerId, cleanerName } = req.body;
+    if (!busNumber || !busId) return res.status(400).json({ error: 'busNumber and busId required' });
+
+    await setDoc(doc(db, 'buses', busId), {
+      busNumber,
+      busId,
+      route: route || '',
+      routeId: routeId || '',
+      driverId: driverId || '',
+      driverName: driverName || '',
+      cleanerId: cleanerId || '',
+      cleanerName: cleanerName || '',
+      schoolId: SCHOOL_ID,
+      studentIds: [],
+      status: 'active',
+      createdAt: new Date().toISOString()
+    });
+
+    console.log(`Bus added: ${busNumber} (${busId})`);
+    res.json({ success: true, busId });
+  } catch (err) {
+    console.error('Add bus error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/buses/assign-students', verifyAdmin, async (req, res) => {
+  try {
+    const { busId, studentIds } = req.body;
+    if (!busId || !studentIds) return res.status(400).json({ error: 'busId and studentIds required' });
+
+    await updateDoc(doc(db, 'buses', busId), {
+      studentIds,
+      updatedAt: new Date().toISOString()
+    });
+
+    for (const sid of studentIds) {
+      const studentQ = query(collection(db, 'students'), where('studentId', '==', sid));
+      const studentSnap = await getDocs(studentQ);
+      if (!studentSnap.empty) {
+        await updateDoc(studentSnap.docs[0].ref, { busId, updatedAt: new Date().toISOString() });
+      }
+    }
+
+    console.log(`Assigned ${studentIds.length} students to bus ${busId}`);
+    res.json({ success: true, assigned: studentIds.length });
+  } catch (err) {
+    console.error('Assign students to bus error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/bus/onboard-students', verifyAuth, async (req, res) => {
   try {
     const { busId, date } = req.query;
@@ -3710,45 +3764,155 @@ app.get('/api/trip/scans', verifyAuth, async (req, res) => {
   }
 });
 
+const recentScans = {};
+
 app.post('/api/trip/scan', verifyAuth, async (req, res) => {
   try {
-    const { studentId, driverId, busId, scannedBy, role, timestamp } = req.body;
-    if (!studentId) return res.status(400).json({ error: 'studentId required' });
+    const { qrData, studentId: legacyStudentId, driverId, busId, scannedBy, role, timestamp } = req.body;
+    const scanTime = timestamp || new Date().toISOString();
+    const today = new Date().toISOString().slice(0, 10);
 
-    let studentName = '';
-    let parentId = '';
-    let parentName = '';
+    let studentId = '';
 
+    if (qrData && typeof qrData === 'string') {
+      const parts = qrData.split('|');
+      if (parts.length !== 3 || parts[0] !== 'SREE_PRAGATHI') {
+        await logRejectedScan({ scannedData: qrData, driverId, busId, reason: 'QR format mismatch', timestamp: scanTime });
+        return res.status(400).json({ success: false, error: 'Invalid QR format — must be SREE_PRAGATHI|schoolId|studentId', code: 'INVALID_QR' });
+      }
+
+      const [, qrSchoolId, qrStudentId] = parts;
+      studentId = qrStudentId;
+
+      if (qrSchoolId !== SCHOOL_ID) {
+        await logRejectedScan({ scannedData: qrData, driverId, busId, reason: 'School mismatch', timestamp: scanTime, studentId });
+        return res.status(403).json({ success: false, error: 'Student does not belong to this school', code: 'SCHOOL_MISMATCH' });
+      }
+    } else if (legacyStudentId) {
+      studentId = String(legacyStudentId);
+    } else {
+      await logRejectedScan({ scannedData: qrData || '', driverId, busId, reason: 'No QR data provided', timestamp: scanTime });
+      return res.status(400).json({ success: false, error: 'qrData or studentId required', code: 'INVALID_QR' });
+    }
+
+    let studentData = null;
     try {
-      const studentSnap = await getDocFS(doc(db, 'users', String(studentId)));
-      if (studentSnap.exists()) {
-        const studentData = studentSnap.data();
-        studentName = studentData.full_name || studentData.name || '';
-        parentId = studentData.parentId || '';
+      const studentQ = query(collection(db, 'students'), where('studentId', '==', studentId));
+      const studentSnap = await getDocs(studentQ);
+      if (!studentSnap.empty) {
+        studentData = { id: studentSnap.docs[0].id, ...studentSnap.docs[0].data() };
       }
     } catch (e) {
-      console.warn(`[QR Scan] Could not fetch student data for ${studentId}:`, e.message);
+      console.error('[QR Scan] Student lookup error:', e.message);
     }
 
-    if (parentId) {
+    if (!studentData) {
+      await logRejectedScan({ scannedData: qrData || studentId, driverId, busId, reason: 'Student not found', timestamp: scanTime, studentId });
+      return res.status(404).json({ success: false, error: 'Student not found', code: 'STUDENT_NOT_FOUND' });
+    }
+
+    if (studentData.status && studentData.status !== 'active') {
+      await logRejectedScan({ scannedData: qrData || studentId, driverId, busId, reason: 'Student inactive', timestamp: scanTime, studentId });
+      return res.status(403).json({ success: false, error: 'Student account is inactive', code: 'STUDENT_INACTIVE' });
+    }
+
+    let driverData = null;
+    if (driverId) {
       try {
-        const parentSnap = await getDocFS(doc(db, 'users', parentId));
-        if (parentSnap.exists()) {
-          const parentData = parentSnap.data();
-          parentName = parentData.full_name || parentData.name || '';
-        }
+        const driverQ = query(collection(db, 'users'), where('role_id', '==', driverId));
+        const driverSnap = await getDocs(driverQ);
+        if (!driverSnap.empty) driverData = driverSnap.docs[0].data();
       } catch (e) {
-        console.warn(`[QR Scan] Could not fetch parent data for ${parentId}:`, e.message);
+        console.error('[QR Scan] Driver lookup error:', e.message);
       }
     }
 
-    // Count previous scans for this student today
-    const today = new Date().toISOString().slice(0, 10);
+    let busData = null;
+    if (busId) {
+      try {
+        const busQ = query(collection(db, 'buses'), where('busId', '==', busId));
+        const busSnap = await getDocs(busQ);
+        if (busSnap.empty) {
+          const busQ2 = query(collection(db, 'buses'), where('busNumber', '==', busId));
+          const busSnap2 = await getDocs(busQ2);
+          if (!busSnap2.empty) busData = { id: busSnap2.docs[0].id, ...busSnap2.docs[0].data() };
+        } else {
+          busData = { id: busSnap.docs[0].id, ...busSnap.docs[0].data() };
+        }
+      } catch (e) {
+        console.error('[QR Scan] Bus lookup error:', e.message);
+      }
+    }
+
+    if (studentData.schoolId && studentData.schoolId !== SCHOOL_ID) {
+      await logRejectedScan({ scannedData: qrData || studentId, driverId, busId, reason: 'School mismatch (student doc)', timestamp: scanTime, studentId });
+      return res.status(403).json({ success: false, error: 'Student does not belong to this school', code: 'SCHOOL_MISMATCH' });
+    }
+
+    const studentBusId = studentData.busId || '';
+    const isWrongBus = studentBusId && busId && studentBusId !== busId;
+
+    if (isWrongBus) {
+      console.warn(`[QR Scan] WRONG BUS — Student ${studentData.name} assigned to ${studentBusId} but boarding ${busId}`);
+
+      try {
+        await addDoc(collection(db, 'admin_notifications'), {
+          type: 'wrong_bus_boarding',
+          icon: '⚠️',
+          title: 'Wrong Bus Alert',
+          message: `${studentData.name} (Class ${studentData.className || studentData.classId}) has boarded Bus ${busData?.busNumber || busId} but is assigned to Bus ${studentBusId}. Immediate attention required.`,
+          details: {
+            studentId,
+            studentName: studentData.name,
+            studentClass: studentData.className || studentData.classId || '',
+            assignedBusId: studentBusId,
+            actualBusId: busId,
+            actualBusNumber: busData?.busNumber || busId,
+            driverId,
+            driverName: driverData?.full_name || driverId,
+            scanTime
+          },
+          priority: 'high',
+          read: false,
+          createdAt: scanTime
+        });
+      } catch (notifErr) {
+        console.error('[QR Scan] Wrong bus admin notification error:', notifErr.message);
+      }
+
+      try {
+        const parentPhone = studentData.parentPhone || '';
+        if (parentPhone) {
+          await addDoc(collection(db, 'parent_notifications'), {
+            type: 'wrong_bus_alert',
+            icon: '⚠️',
+            title: 'Wrong Bus Alert',
+            message: `Alert: ${studentData.name} has boarded Bus ${busData?.busNumber || busId} instead of their assigned bus. Please contact the school immediately.`,
+            details: { studentId, studentName: studentData.name, busId, busNumber: busData?.busNumber || busId },
+            parentPhone,
+            read: false,
+            createdAt: scanTime
+          });
+        }
+      } catch (notifErr) {
+        console.error('[QR Scan] Wrong bus parent notification error:', notifErr.message);
+      }
+    }
+
+    const scanKey = `${studentId}_${today}`;
+    const lastScanTime = recentScans[scanKey];
+    if (lastScanTime) {
+      const diffMs = new Date(scanTime).getTime() - new Date(lastScanTime).getTime();
+      if (diffMs < 5 * 60 * 1000) {
+        return res.status(429).json({ success: false, error: 'Student already scanned within last 5 minutes', code: 'DUPLICATE_SCAN' });
+      }
+    }
+    recentScans[scanKey] = scanTime;
+
     const prevScansQ = query(
       collection(db, 'trip_scans'),
-      where('studentId', '==', String(studentId)),
-      where('date', '==', today),
-      where('schoolId', '==', SCHOOL_ID)
+      where('studentId', '==', studentId),
+      where('date', '==', today)
     );
     const prevScansSnap = await getDocs(prevScansQ);
     const scanCount = prevScansSnap.size;
@@ -3756,53 +3920,141 @@ app.post('/api/trip/scan', verifyAuth, async (req, res) => {
     const scanType = isBoarding ? 'board' : 'alight';
 
     const scanDoc = {
-      studentId: String(studentId),
-      studentName: studentName || '',
-      driverId: driverId || '',
+      studentId,
+      studentName: studentData.name || '',
+      className: studentData.className || studentData.classId || '',
+      schoolId: studentData.schoolId || SCHOOL_ID,
       busId: busId || '',
+      busNumber: busData?.busNumber || '',
+      assignedBusId: studentBusId || busId,
+      isWrongBus,
+      driverId: driverId || '',
       scannedBy: scannedBy || '',
       role: role || 'cleaner',
       type: scanType,
       date: today,
-      schoolId: SCHOOL_ID,
-      timestamp: timestamp || new Date().toISOString(),
-      createdAt: new Date().toISOString(),
+      timestamp: scanTime,
+      createdAt: new Date().toISOString()
     };
 
     const scanRef = await addDoc(collection(db, 'trip_scans'), scanDoc);
-    console.log(`[QR Scan] Student ${studentName || studentId} ${scanType} (scan #${scanCount + 1}, scan ID: ${scanRef.id})`);
+    console.log(`[QR Scan] ${studentData.name} ${scanType} Bus ${busData?.busNumber || busId} (scan #${scanCount + 1})`);
 
-    // Send correct notification to parent
-    if (parentId) {
+    if (!isWrongBus) {
       try {
-        const isBoardingMsg = `${studentName || 'Your child'} has boarded the bus. 🚌 Have a safe journey!`;
-        const isArrivalMsg = `${studentName || 'Your child'} has arrived at school safely. ✅`;
-
-        await addDoc(collection(db, 'parent_notifications'), {
-          type: isBoarding ? 'student_boarded' : 'student_arrived',
-          icon: isBoarding ? '🚌' : '🏫',
-          title: isBoarding ? 'Child Boarded Bus' : 'Child Arrived at School',
-          message: isBoarding ? isBoardingMsg : isArrivalMsg,
-          details: {
-            studentId: String(studentId),
-            studentName: studentName || '',
-            busId: busId || '',
-            scanType,
-            timestamp: timestamp || new Date().toISOString(),
-          },
-          parentId,
-          read: false,
-          createdAt: new Date().toISOString(),
-        });
-        console.log(`[QR Scan] ${scanType} notification sent for ${studentName} (scan #${scanCount + 1})`);
+        const parentPhone = studentData.parentPhone || '';
+        if (parentPhone) {
+          const boardMsg = `${studentData.name} has boarded Bus ${busData?.busNumber || busId}. 🚌 Have a safe journey!`;
+          const arrivalMsg = `${studentData.name} has arrived at school safely. ✅`;
+          await addDoc(collection(db, 'parent_notifications'), {
+            type: isBoarding ? 'student_boarded' : 'student_arrived',
+            icon: isBoarding ? '🚌' : '🏫',
+            title: isBoarding ? 'Child Boarded Bus' : 'Child Arrived at School',
+            message: isBoarding ? boardMsg : arrivalMsg,
+            details: {
+              studentId,
+              studentName: studentData.name,
+              busId,
+              busNumber: busData?.busNumber || '',
+              scanType,
+              timestamp: scanTime
+            },
+            parentPhone,
+            read: false,
+            createdAt: scanTime
+          });
+        }
       } catch (notifErr) {
         console.error('[QR Scan] Parent notification error:', notifErr.message);
       }
     }
 
-    res.json({ success: true, scanId: scanRef.id, studentName: studentName || 'Unknown', scanType, scanNumber: scanCount + 1 });
+    res.json({
+      success: true,
+      scanId: scanRef.id,
+      studentName: studentData.name,
+      studentClass: studentData.className || studentData.classId || '',
+      scanType,
+      scanNumber: scanCount + 1,
+      isWrongBus,
+      busNumber: busData?.busNumber || busId,
+      message: isWrongBus
+        ? `⚠️ Wrong bus alert sent. ${studentData.name} is assigned to Bus ${studentBusId}.`
+        : isBoarding
+          ? `✅ ${studentData.name} boarded successfully`
+          : `✅ ${studentData.name} arrived at school`
+    });
+
   } catch (err) {
     console.error('[QR Scan] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+async function logRejectedScan({ scannedData, driverId, busId, reason, timestamp, studentId }) {
+  try {
+    await addDoc(collection(db, 'scan_rejection_logs'), {
+      scannedData: scannedData || '',
+      driverId: driverId || '',
+      busId: busId || '',
+      studentId: studentId || '',
+      reason,
+      timestamp: timestamp || new Date().toISOString(),
+      createdAt: new Date().toISOString()
+    });
+    if (driverId || busId) {
+      await checkInvalidScanThreshold(driverId, busId, timestamp || new Date().toISOString());
+    }
+  } catch (e) {
+    console.error('[QR Scan] Failed to log rejection:', e.message);
+  }
+}
+
+const invalidScanLog = {};
+async function checkInvalidScanThreshold(driverId, busId, timestamp) {
+  try {
+    const key = `${driverId}_${busId}`;
+    if (!invalidScanLog[key]) invalidScanLog[key] = [];
+    invalidScanLog[key].push(timestamp);
+
+    const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    invalidScanLog[key] = invalidScanLog[key].filter(t => t > tenMinAgo);
+
+    if (invalidScanLog[key].length >= 3) {
+      await addDoc(collection(db, 'admin_notifications'), {
+        type: 'repeated_invalid_scans',
+        icon: '🚨',
+        title: 'Security Alert — Repeated Invalid Scans',
+        message: `Driver ${driverId} on Bus ${busId} has had ${invalidScanLog[key].length} invalid scan attempts in the last 10 minutes. Please investigate.`,
+        details: { driverId, busId, count: invalidScanLog[key].length },
+        priority: 'high',
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+      invalidScanLog[key] = [];
+    }
+  } catch (e) {
+    console.error('[QR Scan] Threshold check error:', e.message);
+  }
+}
+
+app.get('/api/student/qr/:studentId', verifyAuth, async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const studentQ = query(collection(db, 'students'), where('studentId', '==', studentId));
+    const studentSnap = await getDocs(studentQ);
+    if (studentSnap.empty) return res.status(404).json({ error: 'Student not found' });
+
+    const studentData = studentSnap.docs[0].data();
+    const qrCode = studentData.qrCode || `SREE_PRAGATHI|${SCHOOL_ID}|${studentId}`;
+
+    if (!studentData.qrCode) {
+      await updateDoc(studentSnap.docs[0].ref, { qrCode });
+    }
+
+    res.json({ success: true, studentId, studentName: studentData.name, qrCode });
+  } catch (err) {
+    console.error('Get student QR error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

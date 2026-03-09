@@ -148,6 +148,23 @@ FIREBASE_APP_ID=1:774655999002:android:6ccc7fd89c5c57598565a3
 - **Data flow**: Cleaner scans QR → `POST /api/trip/scan` → saves to `trip_scans` → driver dashboard polls `GET /api/trip/scans` → updates `boardedCount` and `recentScans`
 - **All three driver screens** (Dashboard, ProximityAlerts, StudentLocations) now use real Firestore data via `/api/bus/route-students` instead of hardcoded `ADMIN_DATA`/`ADMIN_CLASS_STUDENTS`
 
+## Strict QR Scan Validation (`POST /api/trip/scan`)
+- **QR Format**: `SREE_PRAGATHI|{schoolId}|{studentId}` — validated on scan
+- **Validation Rules**:
+  1. School match — QR schoolId must match `SCHOOL_ID`
+  2. Student exists — looked up from `students` collection (not `users`)
+  3. Active status — rejects inactive students
+  4. Wrong bus detection — allows boarding but sends admin + parent notifications
+  5. Duplicate prevention — 5-minute cooldown per student per day (in-memory)
+- **Rejection logging**: All rejected scans logged to `scan_rejection_logs` collection
+- **Invalid scan threshold**: 3+ rejected scans in 10 minutes triggers admin security alert
+- **Backward compatible**: Accepts legacy `studentId` field if `qrData` not provided
+
+## Bus Management Routes
+- `POST /api/admin/buses/add` (verifyAdmin) — creates bus document with setDoc
+- `POST /api/admin/buses/assign-students` (verifyAdmin) — assigns students to bus, updates both bus and student docs
+- `GET /api/student/qr/:studentId` (verifyAuth) — returns/generates QR code for student
+
 ## Student Document Structure (`students` collection)
 ```javascript
 {
