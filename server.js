@@ -2604,6 +2604,34 @@ app.post('/api/leave-request/submit', async (req, res) => {
       submittedAt: new Date().toISOString(),
     };
     const ref = await addDoc(collection(db, 'leave_requests'), newReq);
+    
+    // Admin notification — staff leave submitted
+    try {
+      const roleLabel = role === 'driver' ? 'Driver' : role === 'cleaner' ? 'Cleaner' : 'Staff';
+      await addDoc(collection(db, 'admin_notifications'), {
+        type: 'staff_leave_submitted',
+        icon: '📋',
+        title: `${roleLabel} Leave Request`,
+        message: `${staffName || 'A staff member'} (${roleLabel}) has applied for leave from ${effectiveFrom} to ${effectiveTo}. Reason: ${customReason || reasonLabel || 'Not specified'}.`,
+        details: {
+          staffId: staffId || '',
+          staffName: staffName || '',
+          role: role || '',
+          fromDate: effectiveFrom,
+          toDate: effectiveTo,
+          days: effectiveDays,
+          reason: customReason || reasonLabel || '',
+          leaveType: leaveType || ''
+        },
+        priority: 'normal',
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+      console.log('[Leave Submit] Admin notification sent for staff leave:', staffId);
+    } catch (notifErr) {
+      console.error('Admin staff leave notification error:', notifErr.message);
+    }
+    
     res.json({ success: true, id: ref.id });
     safeSync('syncLeaveRequest', () => syncLeaveRequest({ leaveId: ref.id, type: 'staff', applicantId: staffId, applicantName: staffName, class: dept || '', leaveType: leaveType || 'casual', fromDate: effectiveFrom, toDate: effectiveTo, reason: customReason || '', status: 'Pending', submittedAt: newReq.submittedAt }), { leaveId: ref.id }).catch(() => {});
   } catch (err) {
