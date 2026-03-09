@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 
@@ -122,10 +123,21 @@ export default function TeacherBusMonitor({ onBack }) {
                   {t.startTime && (
                     <Text style={{ fontSize: 12, color: C.muted }}>{'🕐 '}{t.tripType === 'evening' ? 'Evening' : 'Morning'} · {formatTime(t.startTime)}</Text>
                   )}
-                  {t.lastLat && t.lastLng ? (
-                    <Text style={{ fontSize: 12, color: C.teal }}>{'📍 Live location active'}</Text>
-                  ) : null}
                 </View>
+
+                {t.lastLat && t.lastLng ? (
+                  <View style={{ width: '100%', height: 200, borderRadius: 10, overflow: 'hidden', marginTop: 8 }}>
+                    <WebView
+                      source={{
+                        uri: `https://maps.google.com/maps?q=${t.lastLat},${t.lastLng}&z=15&output=embed`
+                      }}
+                      style={{ flex: 1 }}
+                      scrollEnabled={false}
+                    />
+                  </View>
+                ) : (
+                  <Text style={{ color: C.muted, fontSize: 12, marginTop: 8 }}>📍 Location not available</Text>
+                )}
               </View>
             );
           })
