@@ -6,6 +6,17 @@ const bcrypt = require('bcryptjs');
 // School Identity — single source of truth
 const SCHOOL_ID = 'school_001';
 
+// Basic auth middleware — verifies roleId exists
+const verifyAuth = async (req, res, next) => {
+  try {
+    const roleId = req.headers['x-role-id'] || req.body?.roleId || req.query?.roleId || req.body?.markedBy || req.body?.scannedBy || req.body?.studentId;
+    if (!roleId) return res.status(401).json({ error: 'Unauthorized — roleId required' });
+    next();
+  } catch (err) {
+    res.status(401).json({ error: 'Unauthorized' });
+  }
+};
+
 const { initializeApp } = require('firebase/app');
 const { getFirestore, collection, query, where, getDocs, addDoc, doc, writeBatch, serverTimestamp, updateDoc, getDoc: getDocFS, deleteDoc, setDoc, orderBy } = require('firebase/firestore');
 const { getStorage, ref, uploadBytes, getDownloadURL } = require('firebase/storage');
@@ -1292,7 +1303,7 @@ function normalizeSubjectName(name) {
   return map[key] || name;
 }
 
-app.post('/api/marks/save', async (req, res) => {
+app.post('/api/marks/save', verifyAuth, async (req, res) => {
   try {
     const { records, subject: rawSubject, examType, teacherId, classId, className } = req.body;
     const subject = normalizeSubjectName(rawSubject);
@@ -2579,7 +2590,7 @@ app.get('/api/attendance/class-stats', async (req, res) => {
 });
 
 
-app.post('/api/leave-request/submit', async (req, res) => {
+app.post('/api/leave-request/submit', verifyAuth, async (req, res) => {
   try {
     const { staffId, staffName, role, dept, reasonId, reasonLabel, reasonIcon, customReason, dates, leaveType, fromDate, toDate } = req.body;
     if (!staffId || !staffName || !reasonId) {
@@ -2843,7 +2854,7 @@ function normalizeClassName(name) {
   return name?.toLowerCase().replace(/\s+/g, '').replace('grade', '').trim() || '';
 }
 
-app.post('/api/leave-request/student/submit', async (req, res) => {
+app.post('/api/leave-request/student/submit', verifyAuth, async (req, res) => {
   try {
     const { studentId, studentName, rollNumber, studentClass, schoolId, parentId, parentName, reasonId, reasonLabel, reasonIcon, customReason, dates, from, to } = req.body;
     if (!studentId || !studentName || !studentClass || !from) {
@@ -3530,7 +3541,7 @@ app.post('/api/bus/end-trip', async (req, res) => {
   }
 });
 
-app.post('/api/trip/scan', async (req, res) => {
+app.post('/api/trip/scan', verifyAuth, async (req, res) => {
   try {
     const { studentId, driverId, busId, scannedBy, role, timestamp } = req.body;
     if (!studentId) return res.status(400).json({ error: 'studentId required' });
