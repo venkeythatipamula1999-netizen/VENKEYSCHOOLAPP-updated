@@ -136,6 +136,12 @@ FIREBASE_APP_ID=1:774655999002:android:6ccc7fd89c5c57598565a3
 - **ExploreScreen**: Fetches from `/api/school-info`, shows name, tagline, stats, description, principal, board, and gallery images (falls back to emoji placeholders)
 - **ContactScreen**: Fetches from `/api/school-info`, shows phone, email, address, website (if set)
 
+## Driver Real-Time Onboard Count
+- **API**: `GET /api/trip/scans` (protected by `verifyAuth`) — returns today's scans filtered by `driverId`/`busNumber`
+- **Polling**: DriverDashboard polls every 5 seconds when trip is active
+- **Data flow**: Cleaner scans QR → `POST /api/trip/scan` → saves to `trip_scans` → driver dashboard polls `GET /api/trip/scans` → updates `boardedCount` and `recentScans`
+- **All three driver screens** (Dashboard, ProximityAlerts, StudentLocations) now use real Firestore data via `/api/bus/route-students` instead of hardcoded `ADMIN_DATA`/`ADMIN_CLASS_STUDENTS`
+
 ## Notes
 - All API calls use relative `/api` path (proxied by Express)
 - Profile completion is mandatory on first login

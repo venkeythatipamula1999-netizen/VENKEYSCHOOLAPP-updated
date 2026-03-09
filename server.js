@@ -3569,6 +3569,50 @@ app.post('/api/bus/end-trip', async (req, res) => {
   }
 });
 
+app.get('/api/trip/scans', verifyAuth, async (req, res) => {
+  try {
+    const { tripId, busNumber, driverId } = req.query;
+    const now = new Date();
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const today = new Date(now.getTime() + istOffset).toISOString().slice(0, 10);
+
+    if (!tripId && !busNumber && !driverId) {
+      return res.status(400).json({ error: 'tripId, busNumber, or driverId required' });
+    }
+
+    const scansRef = collection(db, 'trip_scans');
+    const baseQ = query(scansRef, where('date', '==', today), where('schoolId', '==', SCHOOL_ID));
+    const snap = await getDocs(baseQ);
+
+    let resolvedBusNumber = busNumber || '';
+    if (!resolvedBusNumber && driverId) {
+      const userQ = query(collection(db, 'users'), where('role_id', '==', driverId));
+      const userSnap = await getDocs(userQ);
+      if (!userSnap.empty) {
+        resolvedBusNumber = userSnap.docs[0].data().bus_number || '';
+      }
+    }
+
+    let scans = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    if (resolvedBusNumber) {
+      scans = scans.filter(s => s.busId === resolvedBusNumber || s.busNumber === resolvedBusNumber);
+    } else if (driverId) {
+      scans = scans.filter(s => s.driverId === driverId);
+    }
+
+    scans.sort((a, b) => (b.timestamp || b.createdAt || '').localeCompare(a.timestamp || a.createdAt || ''));
+
+    const boardCount = scans.filter(s => s.type === 'board').length;
+    const alightCount = scans.filter(s => s.type === 'alight').length;
+
+    res.json({ success: true, scans, boardCount, alightCount, total: scans.length });
+  } catch (err) {
+    console.error('Get trip scans error:', err.message);
+    res.status(500).json({ error: 'Failed to get trip scans' });
+  }
+});
+
 app.post('/api/trip/scan', verifyAuth, async (req, res) => {
   try {
     const { studentId, driverId, busId, scannedBy, role, timestamp } = req.body;

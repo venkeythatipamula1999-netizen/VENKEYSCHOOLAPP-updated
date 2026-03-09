@@ -3,8 +3,7 @@ import { View, Text, TouchableOpacity, Platform, ActivityIndicator } from 'react
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
-import { DRIVER_DEFAULT, TODAY_SCANS } from '../../data/driver';
-import { ADMIN_DATA, ADMIN_CLASS_STUDENTS } from '../../data/admin';
+import { DRIVER_DEFAULT } from '../../data/driver';
 
 export default function DriverDashboard({ onNavigate, currentUser }) {
   const [tripActive, setTripActive] = useState(false);
@@ -26,6 +25,7 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
   const [alertCount, setAlertCount] = useState(0);
   const [todaySummary, setTodaySummary] = useState(null);
   const [boardedCount, setBoardedCount] = useState(0);
+  const [recentScans, setRecentScans] = useState([]);
   const watchRef = useRef(null);
   const intervalRef = useRef(null);
   const elapsedRef = useRef(null);
@@ -50,28 +50,36 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
     return null;
   };
 
-  const loadRouteStudents = useCallback(() => {
+  const loadRouteStudents = useCallback(async () => {
     const routeKey = getRouteKey();
-    if (!routeKey) return;
-    const students = [];
-    const classes = ADMIN_DATA.classes;
-    Object.entries(ADMIN_CLASS_STUDENTS).forEach(([classId, classStudents]) => {
-      const cls = classes.find(c => c.id === Number(classId));
-      classStudents.forEach(s => {
-        if (s.bus === routeKey) {
-          students.push({ ...s, className: cls?.name || `Class ${classId}` });
-        }
-      });
-    });
-    setRouteStudents(students);
+    const did = currentUser?.role_id || currentUser?.roleId || driverId;
+    try {
+      const res = await fetch(`/api/bus/route-students?driverId=${encodeURIComponent(did)}&route=${encodeURIComponent(routeKey || '')}`);
+      const data = await res.json();
+      if (data.success && data.students) {
+        setRouteStudents(data.students);
+      }
+      if (data.stops) setStopStatus(data.stops);
+    } catch (e) {
+      console.error('Load route students error:', e.message);
+    }
+  }, [busRoute, driverId]);
 
-    fetch(`/api/bus/route-students?route=${encodeURIComponent(routeKey)}`)
-      .then(r => r.json())
-      .then(data => {
-        if (data.stops) setStopStatus(data.stops);
-      })
-      .catch(e => console.error('Load stops error:', e.message));
-  }, [busRoute]);
+  const fetchTripScans = async (currentTripId) => {
+    try {
+      const res = await fetch(`/api/trip/scans?tripId=${encodeURIComponent(currentTripId)}&driverId=${encodeURIComponent(driverId)}`, {
+        headers: { 'x-role-id': driverId },
+      });
+      const data = await res.json();
+      if (data.success) {
+        const boardScans = data.scans.filter(s => s.type === 'board');
+        setBoardedCount(boardScans.length);
+        setRecentScans(data.scans.slice(0, 3));
+      }
+    } catch (err) {
+      console.error('Failed to fetch trip scans:', err.message);
+    }
+  };
 
   useEffect(() => {
     loadRouteStudents();
@@ -103,6 +111,20 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
       if (elapsedRef.current) clearInterval(elapsedRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    let scanInterval = null;
+    if (tripActive && tripId) {
+      fetchTripScans(tripId);
+      scanInterval = setInterval(() => fetchTripScans(tripId), 5000);
+    } else {
+      setBoardedCount(0);
+      setRecentScans([]);
+    }
+    return () => {
+      if (scanInterval) clearInterval(scanInterval);
+    };
+  }, [tripActive, tripId]);
 
   useEffect(() => {
     fetch(`/api/duty/status?roleId=${encodeURIComponent(driverId)}`)
@@ -380,7 +402,6 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
     setSettingStop(null);
   };
 
-  const boardCount = TODAY_SCANS.filter(s => s.type === 'board').length;
   const stopsSet = Object.keys(stopStatus).length;
 
   return (
@@ -654,23 +675,27 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
             <Text style={{ fontSize: 13, color: C.teal }}>See All</Text>
           </TouchableOpacity>
         </View>
-        {TODAY_SCANS.slice(0, 3).map(scan => (
-          <View key={scan.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.navyMid, borderWidth: 1, borderColor: C.border, borderRadius: 14, padding: 12, marginBottom: 8 }}>
+        {recentScans.length > 0 ? recentScans.map((scan, i) => (
+          <View key={scan.id || i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.navyMid, borderWidth: 1, borderColor: C.border, borderRadius: 14, padding: 12, marginBottom: 8 }}>
             <View style={{ width: 38, height: 38, borderRadius: 12, flexShrink: 0, backgroundColor: scan.type === 'board' ? C.teal + '22' : C.coral + '22', alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontWeight: '700', fontSize: 12, color: scan.type === 'board' ? C.teal : C.coral }}>{scan.photo}</Text>
+              <Text style={{ fontWeight: '700', fontSize: 12, color: scan.type === 'board' ? C.teal : C.coral }}>{(scan.studentName || 'S').charAt(0)}</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontWeight: '600', fontSize: 13, color: C.white }}>{scan.student}</Text>
-              <Text style={{ color: C.muted, fontSize: 11 }}>{scan.stop}</Text>
+              <Text style={{ fontWeight: '600', fontSize: 13, color: C.white }}>{scan.studentName || 'Student'}</Text>
+              <Text style={{ color: C.muted, fontSize: 11 }}>Scan #{(i + 1)}</Text>
             </View>
             <View style={{ alignItems: 'flex-end' }}>
               <View style={{ paddingVertical: 4, paddingHorizontal: 8, borderRadius: 50, backgroundColor: scan.type === 'board' ? C.teal + '26' : C.coral + '26' }}>
-                <Text style={{ fontSize: 10, fontWeight: '600', color: scan.type === 'board' ? C.teal : C.coral }}>{scan.type === 'board' ? 'Boarded' : 'Alighted'}</Text>
+                <Text style={{ fontSize: 10, fontWeight: '600', color: scan.type === 'board' ? C.teal : C.coral }}>{scan.type === 'board' ? 'Boarded' : 'Arrived'}</Text>
               </View>
-              <Text style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>{scan.time}</Text>
+              <Text style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>{new Date(scan.timestamp || scan.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</Text>
             </View>
           </View>
-        ))}
+        )) : (
+          <View style={{ backgroundColor: C.navyMid, borderWidth: 1, borderColor: C.border, borderRadius: 14, padding: 16, alignItems: 'center' }}>
+            <Text style={{ color: C.muted, fontSize: 13 }}>{tripActive ? 'No scans yet for this trip' : 'Start a trip to see live scans'}</Text>
+          </View>
+        )}
       </View>
 
       <View style={{ padding: 16, paddingHorizontal: 20, paddingBottom: 0 }}>
