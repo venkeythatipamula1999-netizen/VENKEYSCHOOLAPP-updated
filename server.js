@@ -2,6 +2,10 @@ const express = require('express');
 const path = require('path');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
+
+// School Identity — single source of truth
+const SCHOOL_ID = 'school_001';
+
 const { initializeApp } = require('firebase/app');
 const { getFirestore, collection, query, where, getDocs, addDoc, doc, writeBatch, serverTimestamp, updateDoc, getDoc: getDocFS, deleteDoc, setDoc, orderBy } = require('firebase/firestore');
 const { getStorage, ref, uploadBytes, getDownloadURL } = require('firebase/storage');
@@ -2200,7 +2204,7 @@ app.post('/api/attendance/save', async (req, res) => {
           markedBy,
           teacherName: teacherName || markedBy,
           className: resolvedClassName,
-          schoolId: records[0]?.schoolId || 'school_001',
+          schoolId: records[0]?.schoolId || SCHOOL_ID,
           submittedAt,
           timestamp: serverTimestamp(),
         }
@@ -2219,7 +2223,7 @@ app.post('/api/attendance/save', async (req, res) => {
           status: record.status,
           classId: record.classId,
           className: record.className || '',
-          schoolId: record.schoolId || 'school_001',
+          schoolId: record.schoolId || SCHOOL_ID,
           rollNumber: record.rollNumber || 0,
           studentName: record.studentName,
           recordedBy: markedBy,
@@ -2368,7 +2372,7 @@ app.post('/api/attendance/edit', async (req, res) => {
       rollNumber: rollNumber || 0,
       classId,
       className: className || '',
-      schoolId: 'school_001',
+      schoolId: SCHOOL_ID,
       date,
       month: date.substring(0, 7),
       status: newStatus,
@@ -2404,7 +2408,7 @@ app.post('/api/attendance/edit', async (req, res) => {
           status: newStatus,
           classId,
           className: className || '',
-          schoolId: 'school_001',
+          schoolId: SCHOOL_ID,
           rollNumber: rollNumber || 0,
           studentName: studentName || '',
           recordedBy: editedBy || 'teacher',
@@ -2470,7 +2474,7 @@ app.post('/api/attendance/edit', async (req, res) => {
 
     let sheetSync = { success: false };
     try {
-      const record = { studentId, studentName, classId, className, status: newStatus, markedBy: editedBy || 'teacher', date, month: date.substring(0, 7), schoolId: 'VIS001', rollNumber: rollNumber || 0 };
+      const record = { studentId, studentName, classId, className, status: newStatus, markedBy: editedBy || 'teacher', date, month: date.substring(0, 7), schoolId: SCHOOL_ID, rollNumber: rollNumber || 0 };
       sheetSync = await syncAttendance([record], date);
     } catch (syncErr) {
       console.error('Sheet re-sync on edit failed:', syncErr.message);
@@ -2726,7 +2730,7 @@ app.post('/api/leave-request/update-status', async (req, res) => {
               dates.push(d.toISOString().slice(0, 10));
             }
           }
-          const schoolId = leaveData.schoolId || 'school_001';
+          const schoolId = leaveData.schoolId || SCHOOL_ID;
           const attBatch = writeBatch(db);
           for (const dateStr of dates) {
             const docId = `${leaveData.studentId}_${dateStr}`;
@@ -2897,7 +2901,7 @@ app.post('/api/leave-request/student/submit', async (req, res) => {
       rollNumber: rollNumber || 0,
       studentClass,
       studentClassNormalized,
-      schoolId: schoolId || 'school_001',
+      schoolId: schoolId || SCHOOL_ID,
       parentId: parentId || '',
       parentName: parentName || '',
       reasonId: reasonId || 'other',
@@ -3563,7 +3567,8 @@ app.post('/api/trip/scan', async (req, res) => {
     const prevScansQ = query(
       collection(db, 'trip_scans'),
       where('studentId', '==', String(studentId)),
-      where('date', '==', today)
+      where('date', '==', today),
+      where('schoolId', '==', SCHOOL_ID)
     );
     const prevScansSnap = await getDocs(prevScansQ);
     const scanCount = prevScansSnap.size;
@@ -3579,6 +3584,7 @@ app.post('/api/trip/scan', async (req, res) => {
       role: role || 'cleaner',
       type: scanType,
       date: today,
+      schoolId: SCHOOL_ID,
       timestamp: timestamp || new Date().toISOString(),
       createdAt: new Date().toISOString(),
     };
@@ -4171,7 +4177,7 @@ async function buildParentSession(parentAccount) {
     studentName: activeStudent?.name || '',
     studentClass: activeStudent?.className || activeStudent?.classId || '',
     rollNumber: activeStudent?.rollNumber || 0,
-    schoolId: activeStudent?.schoolId || 'school_001',
+    schoolId: activeStudent?.schoolId || SCHOOL_ID,
     studentIds,
     children: childrenData,
     hasPIN: !!parentAccount.pinHash,
@@ -4246,7 +4252,8 @@ app.get('/api/student/bus-tracking', async (req, res) => {
       const scansQ = query(
         collection(db, 'trip_scans'),
         where('studentId', '==', String(studentId)),
-        where('date', '==', today)
+        where('date', '==', today),
+        where('schoolId', '==', SCHOOL_ID)
       );
       const scansSnap = await getDocs(scansQ);
       const scans = scansSnap.docs.map(d => d.data()).sort((a, b) =>
