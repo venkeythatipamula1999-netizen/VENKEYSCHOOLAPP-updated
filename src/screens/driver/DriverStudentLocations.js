@@ -3,7 +3,6 @@ import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Platform, 
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { DRIVER_DEFAULT } from '../../data/driver';
-import { ADMIN_DATA, ADMIN_CLASS_STUDENTS } from '../../data/admin';
 
 export default function DriverStudentLocations({ onBack, currentUser }) {
   const [routeStudents, setRouteStudents] = useState([]);
@@ -28,33 +27,23 @@ export default function DriverStudentLocations({ onBack, currentUser }) {
 
   const loadData = useCallback(async () => {
     const routeKey = getRouteKey();
-    if (!routeKey) {
-      setLoading(false);
-      return;
-    }
-
-    const students = [];
-    const classes = ADMIN_DATA.classes;
-    Object.entries(ADMIN_CLASS_STUDENTS).forEach(([classId, classStudents]) => {
-      const cls = classes.find(c => c.id === Number(classId));
-      classStudents.forEach(s => {
-        if (s.bus === routeKey) {
-          students.push({ ...s, className: cls?.name || `Class ${classId}` });
-        }
-      });
-    });
-    setRouteStudents(students);
+    const did = currentUser?.role_id || currentUser?.roleId || driverId;
 
     try {
-      const stopsRes = await fetch(`/api/bus/route-students?route=${encodeURIComponent(routeKey)}`);
-      const stopsData = await stopsRes.json();
-      if (stopsData.stops) setStopStatus(stopsData.stops);
+      const studentsRes = await fetch(`/api/bus/route-students?driverId=${encodeURIComponent(did)}&route=${encodeURIComponent(routeKey || '')}`);
+      const studentsData = await studentsRes.json();
+      if (studentsData.success && studentsData.students) {
+        setRouteStudents(studentsData.students);
+      }
+      if (studentsData.stops) {
+        setStopStatus(studentsData.stops);
+      }
     } catch (e) {
-      console.error('Load stops error:', e.message);
+      console.error('Load students error:', e.message);
     }
 
     try {
-      const reqRes = await fetch(`/api/bus/pending-requests?route=${encodeURIComponent(routeKey)}`);
+      const reqRes = await fetch(`/api/bus/pending-requests?route=${encodeURIComponent(routeKey || '')}`);
       const reqData = await reqRes.json();
       if (reqData.requests) {
         const reqMap = {};
@@ -66,7 +55,7 @@ export default function DriverStudentLocations({ onBack, currentUser }) {
     }
 
     setLoading(false);
-  }, [busRoute]);
+  }, [busRoute, driverId]);
 
   useEffect(() => {
     loadData();

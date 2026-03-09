@@ -3749,13 +3749,89 @@ app.get('/api/bus/active-trips', async (req, res) => {
 
 app.get('/api/bus/route-students', async (req, res) => {
   try {
-    const { route } = req.query;
-    if (!route) return res.status(400).json({ error: 'route required' });
-    const q = query(collection(db, 'student_stops'), where('route', '==', route));
-    const snap = await getDocs(q);
+    const { route, driverId } = req.query;
+
+    let busRoute = route || '';
+    let busNumber = '';
+    let busId = '';
+    let assignedStudentIds = [];
+
+    if (driverId) {
+      const userQ = query(collection(db, 'users'), where('role_id', '==', driverId));
+      const userSnap = await getDocs(userQ);
+      if (!userSnap.empty) {
+        const userData = userSnap.docs[0].data();
+        busRoute = userData.route || busRoute;
+        busNumber = userData.bus_number || '';
+      }
+
+      const busQ = query(collection(db, 'buses'), where('driverId', '==', driverId));
+      const busSnap = await getDocs(busQ);
+      if (!busSnap.empty) {
+        const busData = busSnap.docs[0].data();
+        busId = busSnap.docs[0].id;
+        busNumber = busData.busNumber || busNumber;
+        busRoute = busData.route || busRoute;
+        assignedStudentIds = busData.studentIds || [];
+      }
+    }
+
+    if (!busRoute && !driverId) return res.status(400).json({ error: 'route or driverId required' });
+
     const stops = {};
-    snap.docs.forEach(d => { const data = d.data(); stops[data.studentId] = { ...data, id: d.id }; });
-    res.json({ stops });
+    if (busRoute) {
+      const stopQ = query(collection(db, 'student_stops'), where('route', '==', busRoute));
+      const stopSnap = await getDocs(stopQ);
+      stopSnap.docs.forEach(d => { const data = d.data(); stops[data.studentId] = { ...data, id: d.id }; });
+    }
+
+    const students = [];
+    if (assignedStudentIds.length > 0) {
+      for (const studentId of assignedStudentIds) {
+        try {
+          const studentSnap = await getDocFS(doc(db, 'students', studentId));
+          if (studentSnap.exists()) {
+            const sData = studentSnap.data();
+            students.push({
+              id: studentId,
+              name: sData.name || sData.full_name || 'Unknown',
+              className: sData.className || sData.class || '',
+              roll: sData.rollNumber || sData.roll || '',
+              parent: sData.parentName || sData.parent || '',
+              phone: sData.parentPhone || sData.phone || '',
+              bus: busRoute,
+              photo: (sData.name || 'S').charAt(0),
+            });
+          }
+        } catch (e) {
+          console.warn('Could not fetch student:', studentId);
+        }
+      }
+    }
+
+    if (students.length === 0 && busRoute) {
+      const routeMatch = busRoute.match(/Route\s*(\d+)/i);
+      const routeKey = routeMatch ? `Route ${routeMatch[1]}` : busRoute;
+
+      const allStudentsSnap = await getDocs(collection(db, 'students'));
+      allStudentsSnap.docs.forEach(d => {
+        const sData = d.data();
+        if (sData.busRoute === routeKey || sData.bus === routeKey || sData.busRoute === busRoute) {
+          students.push({
+            id: d.id,
+            name: sData.name || sData.full_name || 'Unknown',
+            className: sData.className || sData.class || '',
+            roll: sData.rollNumber || sData.roll || '',
+            parent: sData.parentName || sData.parent || '',
+            phone: sData.parentPhone || sData.phone || '',
+            bus: routeKey,
+            photo: (sData.name || 'S').charAt(0),
+          });
+        }
+      });
+    }
+
+    res.json({ success: true, students, stops, busId, busNumber, busRoute });
   } catch (err) {
     console.error('Get route students error:', err.message);
     res.status(500).json({ error: 'Failed to get route students' });

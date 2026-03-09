@@ -6,7 +6,6 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from '../../components/Icon';
 import { C } from '../../theme/colors';
-import { ADMIN_CLASS_STUDENTS, ADMIN_DATA } from '../../data/admin';
 import { DRIVER_DEFAULT } from '../../data/driver';
 
 function haversine(lat1, lng1, lat2, lng2) {
@@ -64,29 +63,20 @@ export default function DriverProximityAlerts({ onBack, currentUser }) {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const students = [];
-      if (routeKey) {
-        const classes = ADMIN_DATA.classes;
-        Object.entries(ADMIN_CLASS_STUDENTS).forEach(([classId, classStudents]) => {
-          const cls = classes.find(c => c.id === Number(classId));
-          classStudents.forEach(s => {
-            if (s.bus === routeKey) {
-              students.push({ ...s, className: cls?.name || `Class ${classId}` });
-            }
-          });
-        });
+      const did = currentUser?.role_id || currentUser?.roleId || driverId;
+      const routeParam = routeKey || '';
+      const studentsRes = await fetch(`/api/bus/route-students?driverId=${encodeURIComponent(did)}&route=${encodeURIComponent(routeParam)}`);
+      const studentsData = await studentsRes.json();
+      if (studentsData.success && studentsData.students) {
+        setRouteStudents(studentsData.students);
       }
-      setRouteStudents(students);
-
-      if (routeKey) {
-        const r = await fetch(`/api/bus/route-students?route=${encodeURIComponent(routeKey)}`);
-        const d = await r.json();
-        if (d.stops) setStopStatus(d.stops);
+      if (studentsData.stops) {
+        setStopStatus(studentsData.stops);
       }
 
       const [alertsRes, pendingRes] = await Promise.all([
         fetch(`/api/bus/proximity-alerts-today?busNumber=${encodeURIComponent(busNumber)}`),
-        fetch(`/api/bus/pending-requests?route=${encodeURIComponent(routeKey || '')}`),
+        fetch(`/api/bus/pending-requests?route=${encodeURIComponent(routeParam)}`),
       ]);
       const alertsData = await alertsRes.json();
       const pendingData = await pendingRes.json();
@@ -100,7 +90,7 @@ export default function DriverProximityAlerts({ onBack, currentUser }) {
       console.error('DriverProximityAlerts load error:', e.message);
     }
     setLoading(false);
-  }, [routeKey, busNumber]);
+  }, [routeKey, busNumber, driverId]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
