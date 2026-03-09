@@ -4160,6 +4160,84 @@ async function buildParentSession(parentAccount) {
   };
 }
 
+app.get('/api/student/bus-tracking', async (req, res) => {
+  try {
+    const { studentId } = req.query;
+    if (!studentId) return res.status(400).json({ error: 'studentId required' });
+
+    let studentData = {};
+    let busRoute = '';
+    let busNumber = '';
+    let tripStatus = 'not_active';
+    let tripStartTime = null;
+    let boardedTime = null;
+    let busLocation = null;
+    let events = [];
+
+    try {
+      const studentSnap = await getDocFS(doc(db, 'users', String(studentId)));
+      if (studentSnap.exists()) {
+        studentData = studentSnap.data();
+        busRoute = studentData.bus_route || '';
+        busNumber = studentData.bus_number || '';
+      }
+    } catch (e) {
+      console.warn('Could not fetch student data:', e.message);
+    }
+
+    if (busNumber) {
+      try {
+        const activeQ = query(collection(db, 'live_bus_locations'), where('busNumber', '==', busNumber), where('status', '==', 'active'));
+        const activeSnap = await getDocs(activeQ);
+        if (!activeSnap.empty) {
+          const busData = activeSnap.docs[0].data();
+          tripStatus = 'active';
+          tripStartTime = busData.updatedAt || new Date().toISOString();
+          busLocation = { lat: busData.lat, lng: busData.lng, speed: busData.speed, updatedAt: busData.updatedAt };
+          events.push({ time: tripStartTime, event: 'Bus departed from school', icon: '🚌', done: true });
+        }
+      } catch (e) {
+        console.warn('Could not fetch active trip:', e.message);
+      }
+
+      try {
+        const scansQ = query(collection(db, 'trip_scans'), where('studentId', '==', String(studentId)), orderBy('createdAt', 'desc'), limit(1));
+        const scansSnap = await getDocs(scansQ);
+        if (!scansSnap.empty) {
+          const scanData = scansSnap.docs[0].data();
+          boardedTime = scanData.createdAt || scanData.timestamp || new Date().toISOString();
+          const timeStr = new Date(boardedTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+          events.push({ time: timeStr, event: `${studentData.full_name || 'Child'} boarded the bus`, icon: '✅', done: true });
+        }
+      } catch (e) {
+        console.warn('Could not fetch scan data:', e.message);
+      }
+    }
+
+    if (!boardedTime) {
+      events.push({ time: 'Pending', event: `${studentData.full_name || 'Child'} waiting to board`, icon: '⏳', done: false });
+    }
+    events.push({ time: '~Est. arrival', event: 'Arrival at home stop', icon: '🏠', done: false });
+    events.push({ time: '~Est. dropoff', event: 'Deboarded', icon: '👋', done: false });
+
+    res.json({
+      success: true,
+      studentId: String(studentId),
+      studentName: studentData.full_name || studentData.name || 'Student',
+      busNumber: busNumber,
+      busRoute: busRoute,
+      tripStatus: tripStatus,
+      tripStartTime: tripStartTime,
+      boardedTime: boardedTime,
+      busLocation: busLocation,
+      events: events,
+    });
+  } catch (err) {
+    console.error('Bus tracking error:', err.message);
+    res.status(500).json({ error: 'Failed to get bus tracking data' });
+  }
+});
+
 app.get('/api/parent/check-student', async (req, res) => {
   try {
     const { studentId } = req.query;
