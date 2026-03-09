@@ -2891,6 +2891,32 @@ app.post('/api/leave-request/student/submit', async (req, res) => {
     };
     console.log('STEP 4 - Saving leave request with:', newReq);
     const ref = await addDoc(collection(db, 'leaveRequests'), newReq);
+    
+    // Admin notification — student leave submitted
+    try {
+      await addDoc(collection(db, 'admin_notifications'), {
+        type: 'leave_submitted',
+        icon: '📋',
+        title: 'Leave Request Submitted',
+        message: `Leave request submitted for ${studentName || 'a student'} (Class ${studentClass || ''}) from ${effectiveFrom} to ${effectiveTo}. Reason: ${customReason || 'Not specified'}.`,
+        details: {
+          studentId,
+          studentName: studentName || '',
+          studentClass: studentClass || '',
+          startDate: effectiveFrom,
+          endDate: effectiveTo,
+          reason: customReason || '',
+          assignedTeacherId: assignedTeacherId || ''
+        },
+        priority: 'normal',
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+      console.log('[Leave Submit] Admin notification sent for student leave:', studentId);
+    } catch (notifErr) {
+      console.error('Admin leave notification error:', notifErr.message);
+    }
+    
     const result = { success: true, id: ref.id, assignedTeacherName: assignedTeacherName || null, noClassTeacherAssigned };
     console.log('STEP 5 - Save result:', result);
     res.json(result);
