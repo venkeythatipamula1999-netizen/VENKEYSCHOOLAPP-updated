@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Activi
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 
-export default function AdminSettings({ onBack }) {
+export default function AdminSettings({ onBack, currentUser }) {
   const [school, setSchool] = useState({
     name: 'Venkeys International School',
     tagline: 'Excellence in Education Since 1995',
@@ -45,7 +45,7 @@ export default function AdminSettings({ onBack }) {
     try {
       const res = await fetch('/api/school-info', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-role-id': currentUser?.role_id || currentUser?.roleId || '' },
         body: JSON.stringify(school),
       });
       const data = await res.json();
@@ -82,6 +82,7 @@ export default function AdminSettings({ onBack }) {
 
       const res = await fetch('/api/school-info/upload-image', {
         method: 'POST',
+        headers: { 'x-role-id': currentUser?.role_id || currentUser?.roleId || '' },
         body: formData,
       });
       const data = await res.json();

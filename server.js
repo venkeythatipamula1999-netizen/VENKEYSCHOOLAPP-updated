@@ -17,6 +17,34 @@ const verifyAuth = async (req, res, next) => {
   }
 };
 
+const verifyAdmin = async (req, res, next) => {
+  try {
+    const roleId = req.headers['x-role-id'] || req.body?.roleId || req.query?.roleId;
+    if (!roleId) return res.status(401).json({ error: 'Unauthorized — roleId required' });
+
+    const userSnap = await getDocs(query(
+      collection(db, 'users'),
+      where('role_id', '==', roleId)
+    ));
+
+    if (userSnap.empty) {
+      const adminSnap = await getDocs(query(
+        collection(db, 'admins'),
+        where('role_id', '==', roleId)
+      ));
+      if (adminSnap.empty) return res.status(403).json({ error: 'Forbidden — admin access only' });
+    } else {
+      const userData = userSnap.docs[0].data();
+      if (userData.role !== 'admin' && userData.role !== 'principal') {
+        return res.status(403).json({ error: 'Forbidden — admin access only' });
+      }
+    }
+    next();
+  } catch (err) {
+    res.status(403).json({ error: 'Forbidden' });
+  }
+};
+
 const { initializeApp } = require('firebase/app');
 const { getFirestore, collection, query, where, getDocs, addDoc, doc, writeBatch, serverTimestamp, updateDoc, getDoc: getDocFS, deleteDoc, setDoc, orderBy } = require('firebase/firestore');
 const { getStorage, ref, uploadBytes, getDownloadURL } = require('firebase/storage');
@@ -3651,7 +3679,7 @@ app.get('/api/school-info', async (req, res) => {
   }
 });
 
-app.post('/api/school-info', async (req, res) => {
+app.post('/api/school-info', verifyAdmin, async (req, res) => {
   try {
     const info = req.body;
     await setDoc(doc(db, 'settings', SCHOOL_ID), info, { merge: true });
@@ -3661,7 +3689,7 @@ app.post('/api/school-info', async (req, res) => {
   }
 });
 
-app.post('/api/school-info/upload-image', upload.single('image'), async (req, res) => {
+app.post('/api/school-info/upload-image', verifyAdmin, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No image provided' });
 

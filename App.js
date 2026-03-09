@@ -312,7 +312,7 @@ export default function App() {
       case 'admin-reports': return <AdminReports onBack={() => navigate('admin-home')} />;
       case 'admin-alerts': return <AdminAlerts onBack={() => navigate('admin-home')} />;
       case 'admin-activities': return <AdminActivities onBack={() => navigate('admin-home')} currentUser={currentUser} />;
-      case 'admin-settings': return <AdminSettings onBack={() => navigate('admin-home')} />;
+      case 'admin-settings': return <AdminSettings onBack={() => navigate('admin-home')} currentUser={currentUser} />;
       case 'admin-leaves': return <AdminLeaveScreen onBack={() => navigate('admin-home')} currentUser={currentUser} />;
       case 'admin-fees': return <AdminFeeScreen onBack={() => navigate('admin-home')} currentUser={currentUser} />;
     case 'admin-salary': return <AdminSalaryScreen onBack={() => navigate('admin-home')} />;
