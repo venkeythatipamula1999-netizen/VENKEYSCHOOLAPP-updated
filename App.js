@@ -300,7 +300,7 @@ export default function App() {
       case 'driver-leave': return <DriverLeave onBack={() => navigate('driver-home')} currentUser={currentUser} />;
       case 'driver-proximity': return <DriverProximityAlerts onBack={() => navigate('driver-home')} currentUser={currentUser} />;
       case 'cleaner-home': return <CleanerDashboard onNavigate={navigate} currentUser={currentUser} students={cleanerStudents} />;
-      case 'cleaner-scanner': return <CleanerScanner students={cleanerStudents} setStudents={setCleanerStudents} />;
+      case 'cleaner-scanner': return <CleanerScanner currentUser={currentUser} onBack={() => navigate('cleaner-home')} />;
       case 'cleaner-duration': return <CleanerDuration onBack={() => navigate('cleaner-home')} currentUser={currentUser} />;
       case 'cleaner-alerts': return <CleanerAlerts onBack={() => navigate('cleaner-home')} notifs={cleanerNotifs} setNotifs={setCleanerNotifs} />;
       case 'cleaner-profile': return <CleanerProfile onBack={() => navigate('cleaner-home')} currentUser={currentUser} onLogout={handleLogout} />;

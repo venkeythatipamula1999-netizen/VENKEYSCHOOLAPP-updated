@@ -258,7 +258,7 @@ function generateReport() {
     ]],
     ['Cleaner', [
       ['CleanerDashboard', 'Check-in/check-out buttons, daily task list, work status'],
-      ['CleanerScanner', 'QR scanner for student boarding — sends qrData to /api/trip/scan with strict validation, shows scan result banners'],
+      ['CleanerScanner', 'Real camera QR scanner using expo-camera — scans student QR codes, sends to /api/trip/scan with strict validation, scan history, wrong-bus alerts'],
       ['CleanerDuration', 'Daily work duration display (currently static)'],
       ['CleanerLeave', 'Personal leave application — persisted to Firestore leave_requests collection via /api/leave-request/submit'],
       ['CleanerAlerts', 'Supervisor alerts feed'],
@@ -590,7 +590,7 @@ function generateReport() {
     <span class="tag tag-warn">CleanerDuration — static display</span>
     <span class="tag tag-warn">CompleteProfileScreen — imported but unreachable in nav</span>
     <span class="tag tag-warn">AdminStudents — imported but unrouted in nav</span>
-    <span class="tag tag-warn">QR scanning still simulated (no real camera) in CleanerScanner</span>
+    <span class="tag tag-warn">Camera QR scanning requires device with camera (web preview may prompt for permission)</span>
     <span class="tag tag-warn">Firebase API key hardcoded as fallback in config.js</span>
     <span class="tag tag-warn">In-memory scan dedup (recentScans) resets on server restart</span>
   </div>

@@ -13,6 +13,13 @@
       "output": "single",
       "favicon": "./assets/favicon.png"
     },
-    "platforms": ["ios", "android", "web"]
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "plugins": [
+      "expo-barcode-scanner"
+    ]
   }
 }
