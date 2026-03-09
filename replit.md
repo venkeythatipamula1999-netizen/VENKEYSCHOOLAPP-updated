@@ -148,6 +148,27 @@ FIREBASE_APP_ID=1:774655999002:android:6ccc7fd89c5c57598565a3
 - **Data flow**: Cleaner scans QR → `POST /api/trip/scan` → saves to `trip_scans` → driver dashboard polls `GET /api/trip/scans` → updates `boardedCount` and `recentScans`
 - **All three driver screens** (Dashboard, ProximityAlerts, StudentLocations) now use real Firestore data via `/api/bus/route-students` instead of hardcoded `ADMIN_DATA`/`ADMIN_CLASS_STUDENTS`
 
+## Student Document Structure (`students` collection)
+```javascript
+{
+  studentId: "STU1741555123456",
+  name: "Ravi Kumar",
+  rollNumber: 12,
+  classId: "class_6A",
+  className: "Class 6-A",
+  parentPhone: "9876543210",
+  schoolId: "school_001",          // links to school
+  busId: "TN-07-1234",            // assigned bus
+  routeId: "Route 7",             // assigned route
+  status: "active",               // active/inactive
+  qrCode: "SREE_PRAGATHI|school_001|STU1741555123456",  // QR format
+  createdAt: serverTimestamp()
+}
+```
+- QR code format: `SREE_PRAGATHI|{schoolId}|{studentId}`
+- Both individual add (`POST /api/students`) and CSV bulk import write identical fields
+- CSV import recognizes bus/route columns: `busid`, `bus id`, `bus number`, `routeid`, `route id`, `bus route`, etc.
+
 ## Notes
 - All API calls use relative `/api` path (proxied by Express)
 - Profile completion is mandatory on first login

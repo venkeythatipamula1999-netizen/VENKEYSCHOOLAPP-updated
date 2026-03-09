@@ -749,7 +749,7 @@ app.post('/api/classes/delete', async (req, res) => {
 
 app.post('/api/students', async (req, res) => {
   try {
-    const { name, rollNumber, classId, className, parentPhone } = req.body;
+    const { name, rollNumber, classId, className, parentPhone, busId, routeId } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Student name is required' });
     if (!classId) return res.status(400).json({ error: 'classId is required' });
     if (!rollNumber) return res.status(400).json({ error: 'Roll number is required' });
@@ -767,8 +767,13 @@ app.post('/api/students', async (req, res) => {
       name: name.trim(),
       rollNumber: Number(rollNumber),
       classId,
-      className: className || '',
-      parentPhone: parentPhone || '',
+      className: String(className || '').trim(),
+      parentPhone: String(parentPhone || '').trim(),
+      schoolId: SCHOOL_ID,
+      busId: String(busId || '').trim(),
+      routeId: String(routeId || '').trim(),
+      status: 'active',
+      qrCode: `SREE_PRAGATHI|${SCHOOL_ID}|${studentId}`,
       createdAt: serverTimestamp(),
     });
     console.log('Student added:', name.trim(), '| Class:', className, '| Roll:', rollNumber);
@@ -892,6 +897,8 @@ app.post('/api/students/bulk-upload/:classId', upload.single('file'), async (req
         }
 
         const studentId = 'STU' + Date.now() + Math.floor(Math.random() * 9000 + 1000);
+        const busIdVal = String(normalize(row, ['busid', 'bus id', 'bus', 'bus_id', 'busnumber', 'bus number']) || '').trim();
+        const routeIdVal = String(normalize(row, ['routeid', 'route id', 'route', 'route_id', 'busroute', 'bus route']) || '').trim();
 
         await addDoc(collection(db, 'students'), {
           studentId,
@@ -900,6 +907,11 @@ app.post('/api/students/bulk-upload/:classId', upload.single('file'), async (req
           classId,
           className: resolvedClassName,
           parentPhone,
+          schoolId: SCHOOL_ID,
+          busId: busIdVal,
+          routeId: routeIdVal,
+          status: 'active',
+          qrCode: `SREE_PRAGATHI|${SCHOOL_ID}|${studentId}`,
           createdAt: serverTimestamp(),
         });
         existingRolls.add(rollNumber);
