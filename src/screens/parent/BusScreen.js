@@ -96,6 +96,44 @@ export default function BusScreen({ onBack, currentUser }) {
             <Text style={{ color: C.muted, fontSize: 13 }}>No trip data available</Text>
           )}
         </View>
+
+        {/* Travel Duration */}
+        {busData?.travelDuration && (
+          <View style={{
+            backgroundColor: C.navy,
+            borderRadius: 12,
+            padding: 16,
+            marginTop: 12,
+            borderWidth: 1,
+            borderColor: C.teal
+          }}>
+            <Text style={{ color: C.muted, fontSize: 12, marginBottom: 8 }}>
+              TRAVEL DURATION TODAY
+            </Text>
+
+            <Text style={{ color: C.teal, fontSize: 28, fontWeight: 'bold' }}>
+              {busData.travelDuration.label}
+            </Text>
+
+            {busData.travelDuration.boardTime && (
+              <Text style={{ color: C.gold, fontSize: 13, marginTop: 6 }}>
+                🚌 Boarded: {new Date(busData.travelDuration.boardTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+              </Text>
+            )}
+
+            {busData.travelDuration.alightTime && (
+              <Text style={{ color: C.teal, fontSize: 13, marginTop: 4 }}>
+                🏫 Arrived: {new Date(busData.travelDuration.alightTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+              </Text>
+            )}
+
+            {!busData.travelDuration.alightTime && (
+              <Text style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>
+                Still in transit — arrival time will appear after school scan
+              </Text>
+            )}
+          </View>
+        )}
       </View>
     </ScrollView>
   );
