@@ -3604,6 +3604,56 @@ app.get('/api/trip/onboard-count', verifyAuth, async (req, res) => {
   }
 });
 
+app.get('/api/admin/buses', verifyAuth, async (req, res) => {
+  try {
+    const snap = await getDocs(collection(db, 'buses'));
+    const buses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    res.json({ success: true, buses });
+  } catch (err) {
+    console.error('Get admin buses error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/bus/onboard-students', verifyAuth, async (req, res) => {
+  try {
+    const { busId, date } = req.query;
+    if (!busId) return res.status(400).json({ error: 'busId required' });
+    const now = new Date();
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const today = date || new Date(now.getTime() + istOffset).toISOString().slice(0, 10);
+    const scansQ = query(
+      collection(db, 'trip_scans'),
+      where('date', '==', today),
+      where('schoolId', '==', SCHOOL_ID)
+    );
+    const snap = await getDocs(scansQ);
+    const scans = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(s => s.busId === busId || s.busNumber === busId);
+
+    const studentMap = {};
+    for (const scan of scans) {
+      if (!studentMap[scan.studentId] || scan.timestamp > studentMap[scan.studentId].timestamp) {
+        studentMap[scan.studentId] = scan;
+      }
+    }
+
+    const students = Object.values(studentMap).map(scan => ({
+      studentId: scan.studentId,
+      studentName: scan.studentName || '',
+      status: scan.type === 'board' ? 'Onboard' : 'Arrived at School',
+      boardTime: scan.type === 'board' ? scan.timestamp : null,
+      arrivalTime: scan.type === 'alight' ? scan.timestamp : null,
+      lastScan: scan.timestamp
+    }));
+
+    students.sort((a, b) => (a.studentName || '').localeCompare(b.studentName || ''));
+    res.json({ success: true, students, total: students.length, date: today });
+  } catch (err) {
+    console.error('Get onboard students error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/trip/scans', verifyAuth, async (req, res) => {
   try {
     const { tripId, busNumber, driverId } = req.query;

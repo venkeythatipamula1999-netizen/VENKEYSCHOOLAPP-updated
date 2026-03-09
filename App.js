@@ -308,7 +308,7 @@ export default function App() {
       case 'admin-home': return <AdminOverview onNavigate={navigate} currentUser={currentUser} />;
       case 'admin-users': return <AdminUsers onBack={() => navigate('admin-home')} />;
       case 'admin-classes': return <AdminClasses onBack={() => navigate('admin-home')} currentUser={currentUser} />;
-      case 'admin-buses': return <AdminBuses onBack={() => navigate('admin-home')} />;
+      case 'admin-buses': return <AdminBuses onBack={() => navigate('admin-home')} currentUser={currentUser} />;
       case 'admin-reports': return <AdminReports onBack={() => navigate('admin-home')} />;
       case 'admin-alerts': return <AdminAlerts onBack={() => navigate('admin-home')} />;
       case 'admin-activities': return <AdminActivities onBack={() => navigate('admin-home')} currentUser={currentUser} />;

@@ -136,6 +136,12 @@ FIREBASE_APP_ID=1:774655999002:android:6ccc7fd89c5c57598565a3
 - **ExploreScreen**: Fetches from `/api/school-info`, shows name, tagline, stats, description, principal, board, and gallery images (falls back to emoji placeholders)
 - **ContactScreen**: Fetches from `/api/school-info`, shows phone, email, address, website (if set)
 
+## Admin Bus Management
+- **API**: `GET /api/admin/buses` (protected by `verifyAuth`) — returns all buses from Firestore `buses` collection
+- **API**: `GET /api/bus/onboard-students` (protected by `verifyAuth`) — returns today's scanned students per bus, grouped by latest scan status (Onboard/Arrived)
+- **Screen**: `AdminBuses.js` — fetches real bus data from API, shows bus list with route/driver/student count, "View Onboard" button opens modal showing per-student scan status and timestamps
+- **Navigation**: `admin-buses` route in App.js, button in AdminOverview
+
 ## Driver Real-Time Onboard Count
 - **API**: `GET /api/trip/scans` (protected by `verifyAuth`) — returns today's scans filtered by `driverId`/`busNumber`
 - **Polling**: DriverDashboard polls every 5 seconds when trip is active

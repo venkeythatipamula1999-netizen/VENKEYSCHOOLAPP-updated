@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform, ActivityIndicator, Modal } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
-import { ADMIN_DATA } from '../../data/admin';
 
 function StopsMap({ stops, onLockStop }) {
   const mapRef = useRef(null);
@@ -105,15 +104,32 @@ function StopsMap({ stops, onLockStop }) {
   );
 }
 
-export default function AdminBuses({ onBack }) {
+export default function AdminBuses({ onBack, currentUser }) {
   const [expanded, setExpanded] = useState(null);
   const [tab, setTab] = useState('buses');
   const [stops, setStops] = useState([]);
   const [loadingStops, setLoadingStops] = useState(false);
   const [lockingId, setLockingId] = useState(null);
   const [filterRoute, setFilterRoute] = useState('All');
+  const [buses, setBuses] = useState([]);
+  const [loadingBuses, setLoadingBuses] = useState(true);
+  const [selectedBus, setSelectedBus] = useState(null);
+  const [onboardStudents, setOnboardStudents] = useState([]);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
-  const statusColor = (s) => ({ 'En Route': C.gold, 'At School': '#22d38a', 'Returning': C.teal, 'Parked': C.muted }[s] || C.muted);
+  const statusColor = (s) => ({ 'En Route': C.gold, 'At School': '#22d38a', 'Returning': C.teal, 'Parked': C.muted, 'active': C.teal }[s] || C.muted);
+
+  useEffect(() => {
+    setLoadingBuses(true);
+    fetch('/api/admin/buses', { headers: { 'x-role-id': currentUser?.role_id || '' } })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) setBuses(data.buses || []);
+      })
+      .catch(e => console.error('Failed to load buses:', e.message))
+      .finally(() => setLoadingBuses(false));
+  }, []);
 
   const fetchStops = useCallback(async () => {
     setLoadingStops(true);
@@ -145,9 +161,28 @@ export default function AdminBuses({ onBack }) {
     setLockingId(null);
   }, []);
 
+  const openBusModal = async (bus) => {
+    setSelectedBus(bus);
+    setShowModal(true);
+    setModalLoading(true);
+    try {
+      const res = await fetch(`/api/bus/onboard-students?busId=${encodeURIComponent(bus.busNumber || bus.busId || bus.id)}`, {
+        headers: { 'x-role-id': currentUser?.role_id || '' },
+      });
+      const data = await res.json();
+      if (data.success) setOnboardStudents(data.students || []);
+    } catch (err) {
+      console.error('Failed to fetch onboard students:', err.message);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
   const routes = ['All', ...new Set(stops.map(s => s.route).filter(Boolean))];
   const filteredStops = filterRoute === 'All' ? stops : stops.filter(s => s.route === filterRoute);
   const lockedCount = stops.filter(s => s.locked).length;
+  const enRouteCount = buses.filter(b => b.status === 'En Route' || b.status === 'active').length;
+  const totalBusStudents = buses.reduce((s, b) => s + ((b.studentIds || []).length || b.students || 0), 0);
 
   return (
     <ScrollView style={styles.container}>
@@ -161,9 +196,9 @@ export default function AdminBuses({ onBack }) {
       <View style={styles.content}>
         <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
           {[
-            { val: ADMIN_DATA.buses.length, lbl: 'Total', icon: '\uD83D\uDE8C', color: C.teal },
-            { val: ADMIN_DATA.buses.filter((b) => b.status === 'En Route').length, lbl: 'En Route', icon: '\u25B6\uFE0F', color: C.gold },
-            { val: ADMIN_DATA.buses.reduce((s, b) => s + b.students, 0), lbl: 'Students', icon: '\uD83D\uDC68\u200D\uD83C\uDF93', color: C.purple },
+            { val: buses.length, lbl: 'Total', icon: '\uD83D\uDE8C', color: C.teal },
+            { val: enRouteCount, lbl: 'Active', icon: '\u25B6\uFE0F', color: C.gold },
+            { val: totalBusStudents, lbl: 'Students', icon: '\uD83D\uDC68\u200D\uD83C\uDF93', color: C.purple },
           ].map((s) => (
             <View key={s.lbl} style={[styles.metricCard, { borderColor: s.color + '33', borderTopWidth: 3, borderTopColor: s.color }]}>
               <Text style={{ fontSize: 18, marginBottom: 4 }}>{s.icon}</Text>
@@ -194,41 +229,46 @@ export default function AdminBuses({ onBack }) {
 
         {tab === 'buses' && (
           <>
-            {ADMIN_DATA.buses.map((b) => (
-              <TouchableOpacity key={b.id} style={styles.card} onPress={() => setExpanded(expanded === b.id ? null : b.id)} activeOpacity={0.7}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                  <View>
-                    <Text style={{ fontWeight: '800', fontSize: 14, color: C.white }}>{b.bus}</Text>
-                    <Text style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>{b.route}</Text>
-                  </View>
-                  <View style={[styles.statusChip, { backgroundColor: statusColor(b.status) + '22', borderColor: statusColor(b.status) + '44' }]}>
-                    <Text style={{ fontSize: 10, fontWeight: '700', color: statusColor(b.status) }}>{b.status}</Text>
-                  </View>
-                </View>
-                {b.delay > 0 && (
-                  <View style={styles.delayBanner}>
-                    <Text style={{ fontSize: 11, color: C.coral }}>{'\u26A0\uFE0F'} Running {b.delay} min late</Text>
-                  </View>
-                )}
-                <View style={{ flexDirection: 'row', gap: 16, marginBottom: expanded === b.id ? 12 : 0 }}>
-                  <Text style={{ fontSize: 11, color: C.muted }}>{'\uD83E\uDDD1\u200D\u2708\uFE0F'} <Text style={{ color: C.white }}>{b.driver}</Text></Text>
-                  <Text style={{ fontSize: 11, color: C.muted }}>{'\uD83D\uDC64'} <Text style={{ color: C.white }}>{b.pet}</Text></Text>
-                  <Text style={{ fontSize: 11, color: C.teal, fontWeight: '700' }}>{'\uD83D\uDC68\u200D\uD83C\uDF93'} {b.students}</Text>
-                </View>
-                {expanded === b.id && (
-                  <View style={{ borderTopWidth: 1, borderTopColor: C.border, paddingTop: 12 }}>
-                    <View style={{ flexDirection: 'row', gap: 8 }}>
-                      <TouchableOpacity style={[styles.actionBtn, { backgroundColor: C.teal }]}>
-                        <Text style={{ color: C.navy, fontSize: 13, fontWeight: '800' }}>{'\uD83D\uDCDE'} Call Driver</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={[styles.actionBtn, { backgroundColor: C.navyMid, borderWidth: 1, borderColor: C.border }]}>
-                        <Text style={{ color: C.white, fontSize: 13, fontWeight: '700' }}>{'\uD83D\uDCE2'} Alert Parents</Text>
-                      </TouchableOpacity>
+            {loadingBuses ? (
+              <ActivityIndicator size="large" color={C.teal} style={{ marginTop: 40 }} />
+            ) : buses.length === 0 ? (
+              <View style={{ backgroundColor: C.navyMid, borderRadius: 16, borderWidth: 1, borderColor: C.border, borderStyle: 'dashed', padding: 30, alignItems: 'center' }}>
+                <Text style={{ fontSize: 36, marginBottom: 8 }}>{'\uD83D\uDE8C'}</Text>
+                <Text style={{ fontWeight: '700', fontSize: 14, color: C.white }}>No Buses Registered</Text>
+                <Text style={{ color: C.muted, fontSize: 12, textAlign: 'center', marginTop: 4 }}>Add buses in the Firebase console to see them here</Text>
+              </View>
+            ) : (
+              buses.map((b, i) => (
+                <TouchableOpacity key={b.id || i} style={styles.card} onPress={() => setExpanded(expanded === (b.id || i) ? null : (b.id || i))} activeOpacity={0.7}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontWeight: '800', fontSize: 14, color: C.white }}>{'\uD83D\uDE8C'} {b.busNumber || b.vehicleNo || 'Bus ' + (i + 1)}</Text>
+                      <Text style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>Route: {b.route || b.busRoute || '\u2014'}</Text>
+                    </View>
+                    <View style={[styles.statusChip, { backgroundColor: statusColor(b.status) + '22', borderColor: statusColor(b.status) + '44' }]}>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: statusColor(b.status) }}>{b.status === 'active' ? '\uD83D\uDFE2 Active' : b.status || 'Inactive'}</Text>
                     </View>
                   </View>
-                )}
-              </TouchableOpacity>
-            ))}
+                  <View style={{ flexDirection: 'row', gap: 16, marginBottom: expanded === (b.id || i) ? 12 : 0 }}>
+                    <Text style={{ fontSize: 11, color: C.muted }}>{'\uD83E\uDDD1\u200D\u2708\uFE0F'} <Text style={{ color: C.white }}>{b.driverName || b.driver || '\u2014'}</Text></Text>
+                    <Text style={{ fontSize: 11, color: C.muted }}>{'\uD83D\uDC64'} <Text style={{ color: C.white }}>{b.cleanerName || b.pet || '\u2014'}</Text></Text>
+                    <Text style={{ fontSize: 11, color: C.teal, fontWeight: '700' }}>{'\uD83D\uDC68\u200D\uD83C\uDF93'} {(b.studentIds || []).length || b.students || 0}</Text>
+                  </View>
+                  {expanded === (b.id || i) && (
+                    <View style={{ borderTopWidth: 1, borderTopColor: C.border, paddingTop: 12 }}>
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <TouchableOpacity onPress={() => openBusModal(b)} style={[styles.actionBtn, { backgroundColor: C.teal }]}>
+                          <Text style={{ color: C.navy, fontSize: 13, fontWeight: '800' }}>{'\uD83D\uDC65'} View Onboard</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: C.navyMid, borderWidth: 1, borderColor: C.border }]}>
+                          <Text style={{ color: C.white, fontSize: 13, fontWeight: '700' }}>{'\uD83D\uDCDE'} Call Driver</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))
+            )}
           </>
         )}
 
@@ -336,6 +376,53 @@ export default function AdminBuses({ onBack }) {
           </>
         )}
       </View>
+
+      <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
+        <View style={{ flex: 1, backgroundColor: '#000000aa', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: C.navy, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '80%' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <View>
+                <Text style={{ color: C.white, fontWeight: '700', fontSize: 17 }}>
+                  {'\uD83D\uDE8C'} {selectedBus?.busNumber || 'Bus'} — Today's Onboard
+                </Text>
+                <Text style={{ color: C.muted, fontSize: 12, marginTop: 2 }}>
+                  {onboardStudents.length} students scanned today
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowModal(false)}>
+                <Icon name="x" size={20} color={C.muted} />
+              </TouchableOpacity>
+            </View>
+
+            {modalLoading ? (
+              <ActivityIndicator size="large" color={C.teal} style={{ marginVertical: 30 }} />
+            ) : onboardStudents.length === 0 ? (
+              <Text style={{ color: C.muted, textAlign: 'center', marginVertical: 30 }}>No students scanned today</Text>
+            ) : (
+              <ScrollView>
+                {onboardStudents.map((student, i) => (
+                  <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: i < onboardStudents.length - 1 ? 1 : 0, borderBottomColor: C.border }}>
+                    <View>
+                      <Text style={{ color: C.white, fontWeight: '600', fontSize: 14 }}>{student.studentName}</Text>
+                      <Text style={{ color: C.muted, fontSize: 12, marginTop: 2 }}>
+                        {student.status === 'Onboard' ? '\uD83D\uDE8C On the bus' : '\uD83C\uDFEB Arrived at school'}
+                      </Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <View style={{ backgroundColor: student.status === 'Onboard' ? C.teal + '22' : C.gold + '22', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 99 }}>
+                        <Text style={{ color: student.status === 'Onboard' ? C.teal : C.gold, fontSize: 11, fontWeight: '600' }}>{student.status}</Text>
+                      </View>
+                      <Text style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>
+                        {student.lastScan ? new Date(student.lastScan).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : ''}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
