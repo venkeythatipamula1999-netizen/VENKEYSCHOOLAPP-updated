@@ -4239,6 +4239,45 @@ app.get('/api/student/bus-tracking', async (req, res) => {
     events.push({ time: '~Est. arrival', event: 'Arrival at home stop', icon: '🏠', done: false });
     events.push({ time: '~Est. dropoff', event: 'Deboarded', icon: '👋', done: false });
 
+    // Calculate travel duration from boarding to arrival
+    let travelDuration = null;
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const scansQ = query(
+        collection(db, 'trip_scans'),
+        where('studentId', '==', String(studentId)),
+        where('date', '==', today)
+      );
+      const scansSnap = await getDocs(scansQ);
+      const scans = scansSnap.docs.map(d => d.data()).sort((a, b) =>
+        (a.timestamp || '').localeCompare(b.timestamp || '')
+      );
+
+      const boardScan = scans.find(s => s.type === 'board');
+      const alightScan = scans.find(s => s.type === 'alight');
+
+      if (boardScan && alightScan) {
+        const boardMs = new Date(boardScan.timestamp).getTime();
+        const alightMs = new Date(alightScan.timestamp).getTime();
+        const diffMin = Math.round((alightMs - boardMs) / 60000);
+        travelDuration = {
+          minutes: diffMin,
+          boardTime: boardScan.timestamp,
+          alightTime: alightScan.timestamp,
+          label: `${diffMin} min`
+        };
+      } else if (boardScan) {
+        travelDuration = {
+          minutes: null,
+          boardTime: boardScan.timestamp,
+          alightTime: null,
+          label: 'In transit'
+        };
+      }
+    } catch (durErr) {
+      console.error('[Bus Tracking] Duration calc error:', durErr.message);
+    }
+
     res.json({
       success: true,
       studentId: String(studentId),
@@ -4250,6 +4289,7 @@ app.get('/api/student/bus-tracking', async (req, res) => {
       boardedTime: boardedTime,
       busLocation: busLocation,
       events: events,
+      travelDuration: travelDuration,
     });
   } catch (err) {
     console.error('Bus tracking error:', err.message);
