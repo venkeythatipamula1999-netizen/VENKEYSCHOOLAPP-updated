@@ -36,80 +36,178 @@ function generateReport() {
   const now = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
 
   const apiRoutes = [
+    ['POST', '/api/register', 'Register new staff user with Firebase Auth'],
     ['POST', '/api/login', 'Login for teacher, driver, cleaner — returns session token and user profile'],
-    ['POST', '/api/admin/login', 'Admin/Principal login with email + password'],
-    ['POST', '/api/parent/login', 'Parent login with phone number + 4-digit PIN'],
-    ['POST', '/api/parent/register', 'Register new parent, link to children by studentId'],
-    ['POST', '/api/parent/set-pin', 'Set or change parent login PIN'],
-    ['GET', '/api/teacher/profile', 'Fetch teacher profile, subject, assignedClasses, timetable'],
-    ['GET', '/api/teacher/permissions', 'Fetch allowed subjects and class map for marks entry permission'],
-    ['GET', '/api/teacher/students', 'List all students assigned to teacher class'],
-    ['GET', '/api/teacher/calendar', 'Fetch teacher personal event calendar'],
+    ['POST', '/api/complete-profile', 'Complete user profile after registration'],
+    ['GET', '/api/available-classes', 'List classes available for assignment'],
+    ['POST', '/api/check-timetable-conflict', 'Check for timetable conflicts before saving'],
+    ['POST', '/api/set-class-teacher', 'Assign a teacher as class teacher'],
+    ['GET', '/api/class-teacher', 'Get class teacher for a specific class'],
+    ['POST', '/api/fee-reminder', 'Send fee reminder notification to parent'],
+    ['GET', '/api/fee-reminders', 'Get all fee reminders'],
+    ['POST', '/api/fee-reminder/acknowledge', 'Acknowledge a fee reminder'],
     ['GET', '/api/classes', 'List all classes with student count'],
     ['POST', '/api/classes/add', 'Add a new class to the school'],
     ['DELETE', '/api/classes/:id', 'Delete a class by ID'],
     ['POST', '/api/classes/delete', 'Alternative class deletion endpoint'],
+    ['POST', '/api/students', 'Add a new student with schoolId, busId, routeId, qrCode fields'],
     ['GET', '/api/students/:classId', 'Get all students in a specific class'],
-    ['POST', '/api/students/add', 'Add a new student record to a class'],
-    ['GET', '/api/attendance/:classId', 'Get attendance records for a class'],
-    ['POST', '/api/attendance/mark', 'Mark or update attendance for a student'],
-    ['GET', '/api/attendance/student/:studentId', 'Get attendance history for a student (parent view)'],
-    ['POST', '/api/marks/save', 'Save marks for a subject + exam type (normalizes subject names)'],
+    ['DELETE', '/api/students/:id', 'Delete a student record'],
+    ['POST', '/api/students/bulk-upload/:classId', 'CSV bulk import students with schoolId/busId/routeId/qrCode'],
+    ['POST', '/api/assign-classes', 'Assign classes to a teacher'],
+    ['GET', '/api/teacher-classes', 'Get classes assigned to a teacher'],
+    ['GET', '/api/teacher/profile', 'Fetch teacher profile, subject, assignedClasses, timetable'],
+    ['GET', '/api/teacher/permissions', 'Fetch allowed subjects and class map for marks entry'],
+    ['POST', '/api/save-timetable', 'Save teacher timetable'],
+    ['GET', '/api/teacher-notifications', 'Get teacher notification feed'],
+    ['POST', '/api/teacher-notifications/mark-read', 'Mark teacher notifications as read'],
+    ['GET', '/api/teacher-timetable', 'Fetch teacher timetable'],
+    ['GET', '/api/teacher-calendar', 'Fetch teacher personal event calendar'],
+    ['POST', '/api/marks/save', 'Save marks for a subject + exam type (verifyAuth, normalizes subjects)'],
+    ['GET', '/api/marks/submitted-exams', 'Get list of submitted exam types'],
+    ['POST', '/api/marks/edit', 'Edit previously saved marks'],
     ['GET', '/api/marks/view', 'View marks filtered by examType and classId'],
     ['GET', '/api/marks/summary', 'School-wide subject averages from student_marks collection'],
     ['GET', '/api/marks/class/:classId', 'Full marks breakdown for a class: per-student, per-subject, per-exam'],
     ['GET', '/api/marks/student/:studentId', 'All marks for a specific student grouped by exam and subject'],
-    ['POST', '/api/leave/request', 'Submit student leave request — routes to assigned teacher'],
-    ['GET', '/api/leave/teacher', 'Get all pending leave requests assigned to a teacher'],
-    ['POST', '/api/leave/update-status', 'Approve or reject a student leave request'],
-    ['GET', '/api/leave/parent', 'Get student leave history for parent view'],
-    ['GET', '/api/leave/admin', 'Get all leave requests for admin overview'],
-    ['POST', '/api/leave/staff', 'Submit leave request for staff (teacher/driver/cleaner)'],
-    ['GET', '/api/leave/staff/:roleId', 'Get leave records for a specific staff member'],
-    ['GET', '/api/admin/leaves', 'Admin: combined view of all staff and student leaves'],
-    ['POST', '/api/admin/leaves/approve', 'Admin: approve a staff leave request'],
-    ['POST', '/api/admin/leaves/reject', 'Admin: reject a staff leave request'],
-    ['GET', '/api/trip/active', 'Get currently active bus trip'],
-    ['POST', '/api/trip/start', 'Driver starts a new trip (morning/evening auto-detected by IST hour)'],
-    ['POST', '/api/trip/end', 'Driver ends the active trip'],
-    ['POST', '/api/trip/scan', 'Driver scans student QR code during trip'],
-    ['GET', '/api/trip/student-status', 'Get trip boarding status for a specific student (parent)'],
-    ['GET', '/api/trip/history', 'Trip history log'],
-    ['GET', '/api/trip/daily-summary', 'Admin: daily trip summary across all buses'],
-    ['GET', '/api/salary/driver', 'Driver salary details and payment history'],
-    ['POST', '/api/salary/driver/pay', 'Mark driver monthly salary as paid'],
-    ['GET', '/api/admin/salary', 'Admin: all staff salaries'],
-    ['POST', '/api/admin/salary/update', 'Admin: update a staff salary amount'],
-    ['GET', '/api/fees', 'Get fee records for the school'],
-    ['POST', '/api/fees/pay', 'Record a fee payment'],
-    ['GET', '/api/activities', 'List school activities and events'],
-    ['POST', '/api/activities', 'Create a new school activity/event'],
-    ['GET', '/api/events', 'List calendar events'],
-    ['POST', '/api/events', 'Create a calendar event'],
-    ['GET', '/api/alerts/driver', 'Proximity/geofence alerts for driver'],
-    ['GET', '/api/admin/alerts', 'All system alerts for admin view'],
-    ['POST', '/api/admin/import-csv', 'Bulk import students and marks from a CSV file'],
     ['GET', '/api/onboarded-users', 'List all users onboarded by the principal'],
-    ['POST', '/api/users/create', 'Create/onboard a new user (teacher, driver, cleaner)'],
-    ['GET', '/api/report', 'Generate and download this full codebase report as HTML/PDF'],
+    ['POST', '/api/onboard-teacher', 'Onboard a new teacher with Firebase Auth'],
+    ['POST', '/api/add-logistics-staff', 'Onboard driver or cleaner with Firebase Auth'],
+    ['GET', '/api/logistics-staff', 'List all logistics staff (drivers/cleaners)'],
+    ['POST', '/api/delete-user', 'Delete a staff user'],
+    ['POST', '/api/attendance/save', 'Save daily attendance for a class'],
+    ['GET', '/api/attendance/submission-status', 'Check if attendance submitted for a date'],
+    ['POST', '/api/attendance/edit', 'Edit attendance records'],
+    ['GET', '/api/admin/notifications', 'Get admin notification feed'],
+    ['POST', '/api/admin/notifications/mark-read', 'Mark admin notifications as read'],
+    ['GET', '/api/attendance/records', 'Get attendance records for a class and date range'],
+    ['GET', '/api/attendance/class-stats', 'Get attendance statistics for a class'],
+    ['POST', '/api/leave-request/submit', 'Submit staff leave request (verifyAuth)'],
+    ['GET', '/api/leave-requests/mine', 'Get own leave requests'],
+    ['GET', '/api/leave-requests', 'Get all leave requests (admin view)'],
+    ['POST', '/api/leave-request/update-status', 'Approve or reject a leave request'],
+    ['POST', '/api/leave-request/student/submit', 'Submit student leave request — routes to teacher (verifyAuth)'],
+    ['GET', '/api/leave-requests/students', 'Get student leave requests for teacher'],
+    ['GET', '/api/leave-requests/student-class', 'Get student leaves by class'],
+    ['POST', '/api/leave-requests/backfill-teacher', 'Backfill teacher assignment on old leave requests'],
+    ['POST', '/api/forgot-password', 'Send password reset email'],
+    ['POST', '/api/change-password', 'Change user password'],
+    ['POST', '/api/admin/update-profile', 'Update admin profile'],
+    ['POST', '/api/admin/upload-photo', 'Upload admin profile photo'],
+    ['POST', '/api/bus/start-trip', 'Driver starts a new trip (morning/evening auto-detected by IST)'],
+    ['POST', '/api/bus/update-location', 'Update bus GPS location during trip'],
+    ['POST', '/api/bus/end-trip', 'Driver ends the active trip'],
+    ['GET', '/api/trip/onboard-count', 'Get onboard student count for active trip (verifyAuth)'],
+    ['GET', '/api/admin/buses', 'List all buses with route info (verifyAuth)'],
+    ['POST', '/api/admin/buses/add', 'Create a new bus with route/driver/cleaner (verifyAdmin)'],
+    ['POST', '/api/admin/buses/assign-students', 'Assign students to a bus, updates both docs (verifyAdmin)'],
+    ['GET', '/api/bus/onboard-students', 'Get onboarded students for a bus trip (verifyAuth)'],
+    ['GET', '/api/trip/scans', 'Get QR scan events for a trip (verifyAuth)'],
+    ['POST', '/api/trip/scan', 'Strict QR scan: format/school/student/active/wrong-bus validation (verifyAuth)'],
+    ['GET', '/api/student/qr/:studentId', 'Get or generate QR code for a student (verifyAuth)'],
+    ['GET', '/api/school-info', 'Get school information'],
+    ['POST', '/api/school-info', 'Update school information (verifyAdmin)'],
+    ['POST', '/api/school-info/upload-image', 'Upload school image (verifyAdmin)'],
+    ['GET', '/api/bus/live-location', 'Get live bus location for parent tracking'],
+    ['GET', '/api/bus/active-trips', 'Get all active bus trips'],
+    ['GET', '/api/bus/route-students', 'Get students on a bus route with stop info'],
+    ['POST', '/api/bus/set-stop', 'Set student bus stop location'],
+    ['POST', '/api/bus/lock-stop', 'Lock a student bus stop (prevent changes)'],
+    ['POST', '/api/bus/request-location-change', 'Parent requests bus stop location change'],
+    ['GET', '/api/bus/location-change-requests', 'Get pending location change requests'],
+    ['POST', '/api/bus/approve-location-change', 'Approve a bus stop location change'],
+    ['POST', '/api/bus/reject-location-change', 'Reject a bus stop location change'],
+    ['GET', '/api/bus/pending-requests', 'Get pending bus-related requests'],
+    ['GET', '/api/bus/all-stops', 'Get all bus stops'],
+    ['POST', '/api/duty/clock-in', 'Staff clock-in for duty'],
+    ['POST', '/api/duty/clock-out', 'Staff clock-out from duty'],
+    ['POST', '/api/duty/update-status', 'Update duty status'],
+    ['GET', '/api/duty/status', 'Get current duty status'],
+    ['GET', '/api/duty/week-log', 'Get weekly duty log'],
+    ['GET', '/api/duty/all-staff', 'Admin: get all staff duty records'],
+    ['POST', '/api/duty/auto-clockout', 'Auto clock-out all staff at 7 PM'],
+    ['POST', '/api/student-files/upload', 'Upload student digital folder file'],
+    ['GET', '/api/student-files', 'Get student digital folder files'],
+    ['GET', '/api/student/bus-tracking', 'Parent: real-time bus tracking for child'],
+    ['GET', '/api/parent/check-student', 'Check if student exists for parent registration'],
+    ['POST', '/api/parent/register', 'Register new parent with Firebase Auth'],
+    ['POST', '/api/parent/email-login', 'Parent email login'],
+    ['POST', '/api/parent/forgot-password', 'Parent password reset'],
+    ['POST', '/api/parent/verify-pin', 'Verify parent PIN'],
+    ['POST', '/api/parent/set-pin', 'Set parent login PIN'],
+    ['POST', '/api/parent/remove-pin', 'Remove parent PIN'],
+    ['POST', '/api/parent/add-child', 'Link additional child to parent account'],
+    ['POST', '/api/parent/switch-child', 'Switch active child in parent session'],
+    ['GET', '/api/admin/parent-accounts', 'Admin: list all parent accounts'],
+    ['POST', '/api/admin/parent-accounts/:uid/status', 'Admin: enable/disable parent account'],
+    ['GET', '/api/attendance/student-monthly', 'Get monthly attendance for a student'],
+    ['GET', '/api/parent-notifications', 'Get parent notification feed'],
+    ['POST', '/api/parent-notifications/read', 'Mark parent notifications as read'],
+    ['GET', '/api/events', 'List school calendar events'],
+    ['POST', '/api/events/create', 'Create a calendar event'],
+    ['PUT', '/api/events/:id', 'Update a calendar event'],
+    ['DELETE', '/api/events/:id', 'Delete a calendar event'],
+    ['POST', '/api/events/:id/renotify', 'Re-send event notification'],
+    ['GET', '/api/report', 'Generate and download this full codebase report as HTML'],
+    ['GET', '/api/payroll/my-salary', 'Get own salary details and leave balance'],
+    ['GET', '/api/payroll/my-payslip', 'Get monthly payslip with attendance breakdown'],
+    ['GET', '/api/payroll/my-year', 'Get yearly salary summary'],
+    ['GET', '/api/payroll/payslip-html', 'Generate printable payslip HTML'],
+    ['POST', '/api/payroll/mark-credited', 'Mark salary as credited for a month'],
+    ['GET', '/api/leave-balance', 'Get leave balance for a staff member'],
+    ['GET', '/api/payroll/employees', 'Admin: list all employees for payroll'],
+    ['GET', '/api/payroll/attendance', 'Admin: get payroll attendance data'],
+    ['POST', '/api/payroll/salary', 'Admin: save/update salary settings'],
+    ['POST', '/api/payroll/attendance/override', 'Admin: override attendance record'],
+    ['POST', '/api/payroll/toggle', 'Admin: toggle payroll active/inactive'],
+    ['GET', '/api/admin/sync-status', 'Admin: get Google Sheets sync status'],
+    ['GET', '/api/bus/proximity-alerts-today', 'Get today proximity alerts for driver'],
+    ['GET', '/api/bus/today-summary', 'Get today bus trip summary'],
+    ['GET', '/api/bus/trip-duration-week', 'Get weekly trip duration stats'],
+    ['GET', '/api/bus/driver-notifications', 'Get driver notification feed'],
+    ['POST', '/api/bus/driver-notifications/read', 'Mark driver notifications as read'],
+    ['GET', '/api/admin/bus-alerts', 'Admin: get all bus-related alerts'],
   ];
 
   const collections = [
     ['users', 'All staff users. Fields: role_id, role (teacher/driver/cleaner), email, full_name, subject, classTeacherOf, assignedClasses, timetable[], salary, onboarded_by'],
-    ['students', 'Student records. Fields: studentId, name, classId, rollNumber, parentPhone, schoolId (school_001)'],
+    ['admins', 'Admin/principal accounts. Fields: email, role, full_name, schoolId'],
+    ['onboarded_users', 'Users onboarded by principal. Fields: role_id, role, email, full_name, subject, assignedClasses, onboarded_by, createdAt'],
+    ['logistics_staff', 'Driver and cleaner staff records. Fields: role_id, role, full_name, email, bus_number, route'],
+    ['students', 'Student records. Fields: studentId, name, classId, rollNumber, parentPhone, schoolId, busId, routeId, status (active), qrCode (SREE_PRAGATHI|schoolId|studentId)'],
     ['classes', 'Class definitions. Fields: name (e.g. "4-A"), schoolId, createdAt'],
     ['student_marks', 'Marks per student. Fields: studentId, studentName, classId, subject (normalized), examType, marksObtained, maxMarks, recordedBy, timestamp'],
-    ['attendance', 'Daily attendance records. Fields: studentId, classId, date (YYYY-MM-DD), status (present/absent/late), markedBy'],
-    ['leaveRequests', 'Student leave requests (new camelCase collection). Fields: studentId, studentName, studentClass, studentClassNormalized, assignedTeacherId, reason, startDate, endDate, status (Pending/Approved/Rejected), requestedAt'],
-    ['leave_requests', 'Staff leave requests (legacy underscore collection). Fields: roleId, name, role, reason, from, to, status, days'],
-    ['trips', 'Bus trip records. Fields: driverId, tripType (morning/evening), status (active/completed), startTime, endTime, schoolId'],
-    ['trip_scans', 'QR scan events within trips. Fields: tripId, studentId, studentName, timestamp (IST), type (board/alight)'],
-    ['salaries', 'Staff salary records. Fields: roleId, name, role, baseSalary, paidMonths[], deductions'],
-    ['fees', 'Student fee records. Fields: studentId, amount, dueDate, status (paid/unpaid), paidDate'],
+    ['marks_edit_logs', 'Audit log for marks edits. Fields: studentId, classId, subject, examType, oldMarks, newMarks, editedBy, timestamp'],
+    ['student_attendance', 'Daily student attendance. Fields: studentId, classId, date, status (present/absent/late), markedBy'],
+    ['attendance_records', 'Attendance records per class/date. Fields: classId, date, records[], submittedBy'],
+    ['attendance_submissions', 'Tracks which classes have submitted attendance. Fields: classId, date, submittedBy, timestamp'],
+    ['attendance_edits', 'Audit log for attendance edits. Fields: classId, date, studentId, oldStatus, newStatus, editedBy'],
+    ['attendance_overrides', 'Admin attendance overrides for staff. Fields: roleId, month, date, status, overriddenBy'],
+    ['leaveRequests', 'Student leave requests (camelCase). Fields: studentId, studentName, studentClass, assignedTeacherId, reason, startDate, endDate, status, requestedAt'],
+    ['leave_requests', 'Staff leave requests (underscore). Fields: roleId, name, role, reason, from, to, status, days'],
+    ['buses', 'Bus records. Fields: busId, busNumber, route, routeId, driverId, driverName, cleanerId, cleanerName, schoolId, studentIds[], status'],
+    ['bus_trips', 'Bus trip records. Fields: driverId, busId, tripType (morning/evening), status (active/completed), startTime, endTime, schoolId'],
+    ['trip_scans', 'QR scan events. Fields: tripId, studentId, studentName, className, busId, scannedBy, timestamp, type, isWrongBus, assignedBusId'],
+    ['scan_rejection_logs', 'Rejected scan attempts. Fields: scannedData, driverId, busId, studentId, reason, timestamp'],
+    ['tripLogs', 'Trip log entries. Fields: tripId, driverId, action, timestamp'],
+    ['trip_summaries', 'Daily trip summary aggregates. Fields: date, busId, totalScans, tripCount'],
+    ['live_bus_locations', 'Real-time bus GPS locations. Fields: busId, driverId, lat, lng, heading, speed, updatedAt'],
+    ['student_stops', 'Student bus stop locations. Fields: studentId, lat, lng, address, locked'],
+    ['proximity_alert_logs', 'Geofence proximity alerts. Fields: driverId, busId, studentId, distance, timestamp'],
+    ['location_change_requests', 'Parent bus stop change requests. Fields: studentId, parentId, newLat, newLng, status, requestedAt'],
+    ['salary_settings', 'Staff salary configuration. Fields: basicSalary, hra, ta, da, pf, tax, lopRate, specialAllowance'],
+    ['salary_payments', 'Monthly salary payment records. Fields: roleId, month, status, paidAt'],
+    ['staff_duty', 'Staff clock-in/out records. Fields: roleId, dateKey, clockIn, clockOut, hoursWorked, status'],
+    ['fee_reminders', 'Fee reminder notifications. Fields: studentId, parentPhone, message, acknowledged, sentAt'],
     ['events', 'School calendar events. Fields: title, date, description, category, schoolId'],
-    ['activities', 'School activities (gallery/announcements). Fields: title, description, date, category, media[]'],
-    ['alerts', 'System/proximity alerts. Fields: type, message, driverId, studentId, timestamp, read'],
-    ['parent_children', 'Maps parent phone number to array of studentIds for multi-child support'],
+    ['admin_notifications', 'Admin notification feed. Fields: type (wrong_bus_boarding, repeated_invalid_scans, etc.), message, priority, read, timestamp'],
+    ['parent_notifications', 'Parent notification feed. Fields: parentPhone, type, message, studentId, read, timestamp'],
+    ['teacher_notifications', 'Teacher notification feed. Fields: teacherId, type, message, read, timestamp'],
+    ['teacher_calendar', 'Teacher personal calendar events. Fields: teacherId, title, date, type'],
+    ['driver_notifications', 'Driver notification feed. Fields: driverId, type, message, read, timestamp'],
+    ['parent_accounts', 'Parent auth accounts. Fields: uid, phone, email, pin, childStudentIds, status'],
+    ['student_files', 'Digital folder files for students. Fields: studentId, fileName, fileUrl, uploadedBy, uploadedAt'],
+    ['sync_errors', 'Google Sheets sync error logs. Fields: type, error, timestamp'],
   ];
 
   const screens = [
@@ -135,7 +233,7 @@ function generateReport() {
       ['TeacherAlertsScreen', 'Incoming student leave requests — pending/approved/rejected tabs, approve or reject with comments, real-time refetch on tab focus'],
       ['TeacherPersonalScreen', 'Teacher personal leave application — date range picker, reason, submit to admin'],
       ['TeacherScheduleScreen', 'Class timetable display — period-by-period schedule for the week'],
-      ['TeacherBusMonitor', 'Bus monitoring screen (currently shows hardcoded mock data — not connected to live trips)'],
+      ['TeacherBusMonitor', 'Bus monitoring screen — connected to live Firestore trip data via /api/bus/active-trips'],
       ['TeacherProfile', 'Teacher profile with subject and class assignment display, change password'],
     ]],
     ['Parent', [
@@ -152,7 +250,7 @@ function generateReport() {
     ['Driver', [
       ['DriverDashboard', 'Trip controls: Start Trip / End Trip buttons, live scan count, trip duration timer, morning/evening auto-detection'],
       ['DriverDuration', 'Historical daily trip duration log'],
-      ['DriverLeave', 'Personal leave application form (currently local state only — not persisted to Firestore)'],
+      ['DriverLeave', 'Personal leave application — persisted to Firestore leave_requests collection via /api/leave-request/submit'],
       ['DriverScans', 'List of QR scan events from current and past trips'],
       ['DriverStudentLocations', 'Map view of student pickup/dropoff locations'],
       ['DriverProximityAlerts', 'Geofence alerts when driver approaches a student stop'],
@@ -160,9 +258,9 @@ function generateReport() {
     ]],
     ['Cleaner', [
       ['CleanerDashboard', 'Check-in/check-out buttons, daily task list, work status'],
-      ['CleanerScanner', 'QR scanner for cleaning area verification (currently static/hardcoded)'],
+      ['CleanerScanner', 'QR scanner for student boarding — sends qrData to /api/trip/scan with strict validation, shows scan result banners'],
       ['CleanerDuration', 'Daily work duration display (currently static)'],
-      ['CleanerLeave', 'Personal leave application (currently local state only — not persisted)'],
+      ['CleanerLeave', 'Personal leave application — persisted to Firestore leave_requests collection via /api/leave-request/submit'],
       ['CleanerAlerts', 'Supervisor alerts feed'],
       ['CleanerProfile', 'Cleaner profile and assignment details'],
     ]],
@@ -369,9 +467,9 @@ function generateReport() {
   <div class="cover-stats">
     <div class="stat"><div class="val">5</div><div class="lbl">User Roles</div></div>
     <div class="stat"><div class="val">68+</div><div class="lbl">Source Files</div></div>
-    <div class="stat"><div class="val">~24k</div><div class="lbl">Lines of Code</div></div>
-    <div class="stat"><div class="val">15</div><div class="lbl">Firestore Collections</div></div>
-    <div class="stat"><div class="val">52</div><div class="lbl">API Routes</div></div>
+    <div class="stat"><div class="val">~6.2k</div><div class="lbl">Server Lines</div></div>
+    <div class="stat"><div class="val">${collections.length}</div><div class="lbl">Firestore Collections</div></div>
+    <div class="stat"><div class="val">${apiRoutes.length}</div><div class="lbl">API Routes</div></div>
     <div class="stat"><div class="val">Firebase</div><div class="lbl">Database &amp; Auth</div></div>
   </div>
 </div>
@@ -380,8 +478,8 @@ function generateReport() {
   <h3>📋 Table of Contents</h3>
   <div class="toc-grid">
     <div class="toc-item">1. <strong>Project Overview &amp; Architecture</strong></div>
-    <div class="toc-item">2. <strong>API Routes Reference (52 routes)</strong></div>
-    <div class="toc-item">3. <strong>Firestore Collections (15)</strong></div>
+    <div class="toc-item">2. <strong>API Routes Reference (${apiRoutes.length} routes)</strong></div>
+    <div class="toc-item">3. <strong>Firestore Collections (${collections.length})</strong></div>
     <div class="toc-item">4. <strong>Screen &amp; Component Inventory</strong></div>
     <div class="toc-item">5. <strong>Code Quality Analysis</strong></div>
     <div class="toc-item">6. <strong>Source Code — Root Files</strong></div>
@@ -400,9 +498,9 @@ function generateReport() {
   <div class="analysis-card">
     <h4>Technology Stack</h4>
     <p><strong>Frontend:</strong> React Native (Expo SDK 50) compiled to web via <code>npx expo export --platform web</code>. Output served as static files from <code>dist/</code> by Express.js.</p>
-    <p style="margin-top:6px"><strong>Backend:</strong> Node.js + Express.js (<code>server.js</code>, ~4,950 lines). Single file containing all 52 API routes, Firebase SDK calls, Google Sheets sync, and static file serving.</p>
-    <p style="margin-top:6px"><strong>Database:</strong> Firebase Firestore (NoSQL, 15 collections). No SQL database.</p>
-    <p style="margin-top:6px"><strong>Auth:</strong> Firebase Authentication (Email/Password for staff, Phone+PIN for parents). No JWT middleware on API routes.</p>
+    <p style="margin-top:6px"><strong>Backend:</strong> Node.js + Express.js (<code>server.js</code>, ~6,200 lines). Single file containing all ${apiRoutes.length} API routes, Firebase SDK calls, Google Sheets sync, and static file serving.</p>
+    <p style="margin-top:6px"><strong>Database:</strong> Firebase Firestore (NoSQL, ${collections.length} collections). No SQL database.</p>
+    <p style="margin-top:6px"><strong>Auth:</strong> Firebase Authentication (Email/Password for staff, Phone+PIN for parents). verifyAuth middleware on protected routes, verifyAdmin for admin-only routes. Firestore security rules deployed.</p>
     <p style="margin-top:6px"><strong>External Sync:</strong> Google Sheets via service account key — marks and attendance sync automatically after each save.</p>
   </div>
   <div class="analysis-card">
@@ -468,19 +566,33 @@ function generateReport() {
     <span class="tag tag-ok">Firebase Auth (all 5 roles)</span>
     <span class="tag tag-ok">Class creation/deletion</span>
     <span class="tag tag-ok">IST timezone for trip timestamps</span>
+    <span class="tag tag-ok">DriverLeave — Firestore persistence via /api/leave-request/submit</span>
+    <span class="tag tag-ok">CleanerLeave — Firestore persistence via /api/leave-request/submit</span>
+    <span class="tag tag-ok">TeacherBusMonitor — live Firestore data via /api/bus/active-trips</span>
+    <span class="tag tag-ok">CleanerScanner — strict QR validation, wrong-bus alerts, result banners</span>
+    <span class="tag tag-ok">verifyAuth middleware (role_id presence check) on protected routes</span>
+    <span class="tag tag-ok">verifyAdmin middleware on admin-only routes</span>
+    <span class="tag tag-ok">schoolId consistency (SCHOOL_ID constant, student/bus docs)</span>
+    <span class="tag tag-ok">Firestore security rules deployed</span>
+    <span class="tag tag-ok">Bus management (add buses, assign students)</span>
+    <span class="tag tag-ok">Strict QR scan validation (format/school/student/active/wrong-bus)</span>
+    <span class="tag tag-ok">Scan rejection logging and invalid scan threshold alerts</span>
+    <span class="tag tag-ok">Staff duty clock-in/clock-out with auto-clockout at 7 PM</span>
+    <span class="tag tag-ok">Payroll system (salary settings, payslips, yearly summary)</span>
+    <span class="tag tag-ok">Student digital folder (file upload/download)</span>
+    <span class="tag tag-ok">Bus stop management and location change requests</span>
+    <span class="tag tag-ok">Parent bus tracking with live location</span>
+    <span class="tag tag-ok">Event management (CRUD + re-notify)</span>
+    <span class="tag tag-ok">Fee reminders with acknowledgment</span>
   </div>
   <div class="analysis-card">
     <h4>⚠️ Known Incomplete / Hardcoded Features</h4>
-    <span class="tag tag-warn">DriverLeave — local state only, no Firestore save</span>
-    <span class="tag tag-warn">CleanerLeave — local state only, no Firestore save</span>
-    <span class="tag tag-warn">TeacherBusMonitor — fully hardcoded mock data</span>
-    <span class="tag tag-warn">CleanerScanner — hardcoded QR flow</span>
     <span class="tag tag-warn">CleanerDuration — static display</span>
     <span class="tag tag-warn">CompleteProfileScreen — imported but unreachable in nav</span>
     <span class="tag tag-warn">AdminStudents — imported but unrouted in nav</span>
-    <span class="tag tag-warn">No JWT middleware on any API route</span>
-    <span class="tag tag-warn">Hardcoded schoolId 'school_001' in several places</span>
+    <span class="tag tag-warn">QR scanning still simulated (no real camera) in CleanerScanner</span>
     <span class="tag tag-warn">Firebase API key hardcoded as fallback in config.js</span>
+    <span class="tag tag-warn">In-memory scan dedup (recentScans) resets on server restart</span>
   </div>
   <div class="analysis-card">
     <h4>📌 Important Notes for Developers</h4>
@@ -489,7 +601,7 @@ function generateReport() {
       <li>Student leaves → <code>leaveRequests</code> collection (camelCase). Staff leaves → <code>leave_requests</code> (underscore). Both are queried in admin views.</li>
       <li>Subject names are normalized by <code>normalizeSubjectName()</code> in server.js — covers math/maths/Mathematics etc.</li>
       <li>Trip timestamps use IST: <code>new Date(Date.now() + 330 * 60000)</code></li>
-      <li>The Firestore rules file (<code>firestore.rules</code>) exists but must be deployed via Firebase CLI</li>
+      <li>Firestore security rules are deployed and enforced. The rules file is at <code>firestore.rules</code></li>
     </ul>
   </div>
 </div>
