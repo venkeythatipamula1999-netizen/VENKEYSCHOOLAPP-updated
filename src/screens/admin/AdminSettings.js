@@ -10,12 +10,26 @@ export default function AdminSettings({ onBack }) {
     phone: '+91 44 2345 6789',
     email: 'info@venkeys.edu',
     board: 'CBSE',
+    address: '123 School Road, Chennai - 600001',
+    studentCount: '1200+',
+    staffCount: '85+',
+    yearsCount: '20+'
   });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [selectedBoard, setSelectedBoard] = useState(false);
-  const boards = ['CBSE', 'ICSE', 'State Board (Tamil Nadu)', 'IB', 'Cambridge IGCSE'];
 
-  const save = () => { setSaved(true); setTimeout(() => setSaved(false), 2500); };
+  useEffect(() => {
+    fetch('/api/school-info')
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.info) {
+          setSchool(data.info);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <ScrollView style={styles.container}>
@@ -29,29 +43,48 @@ export default function AdminSettings({ onBack }) {
       <View style={styles.content}>
         <View style={styles.secHead}><Text style={styles.secTitle}>School Information</Text></View>
         <View style={styles.card}>
-          {[['School Name', 'name'], ['Tagline', 'tagline'], ['Phone', 'phone'], ['Email', 'email']].map(([lbl, key]) => (
-            <View key={key} style={{ marginBottom: 12 }}>
-              <Text style={styles.label}>{lbl}</Text>
-              <TextInput style={styles.input} value={school[key]} onChangeText={(v) => setSchool((p) => ({ ...p, [key]: v }))} placeholderTextColor={C.muted} />
-            </View>
-          ))}
-          <Text style={styles.label}>Board of Affiliation</Text>
-          <TouchableOpacity onPress={() => setSelectedBoard(!selectedBoard)} style={styles.input}>
-            <Text style={{ color: C.white, fontSize: 14 }}>{school.board}</Text>
-          </TouchableOpacity>
-          {selectedBoard && (
-            <View style={{ marginTop: 4, backgroundColor: C.navyMid, borderRadius: 12, borderWidth: 1, borderColor: C.border }}>
-              {boards.map((b) => (
-                <TouchableOpacity key={b} onPress={() => { setSchool((p) => ({ ...p, board: b })); setSelectedBoard(false); }}
-                  style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: C.border }}>
-                  <Text style={{ color: school.board === b ? C.gold : C.white, fontSize: 13, fontWeight: school.board === b ? '700' : '400' }}>{b}</Text>
-                </TouchableOpacity>
+          {loading ? (
+            <ActivityIndicator size="small" color={C.gold} />
+          ) : (
+            <>
+              {[
+                ['School Name', 'name'],
+                ['Tagline', 'tagline'],
+                ['Phone', 'phone'],
+                ['Email', 'email'],
+                ['Address', 'address'],
+                ['Student Count', 'studentCount'],
+                ['Staff Count', 'staffCount'],
+                ['Years of Excellence', 'yearsCount']
+              ].map(([lbl, key]) => (
+                <View key={key} style={{ marginBottom: 12 }}>
+                  <Text style={styles.label}>{lbl}</Text>
+                  <TextInput style={styles.input} value={school[key]} onChangeText={(v) => setSchool((p) => ({ ...p, [key]: v }))} placeholderTextColor={C.muted} />
+                </View>
               ))}
-            </View>
+              <Text style={styles.label}>Board of Affiliation</Text>
+              <TouchableOpacity onPress={() => setSelectedBoard(!selectedBoard)} style={styles.input}>
+                <Text style={{ color: C.white, fontSize: 14 }}>{school.board}</Text>
+              </TouchableOpacity>
+              {selectedBoard && (
+                <View style={{ marginTop: 4, backgroundColor: C.navyMid, borderRadius: 12, borderWidth: 1, borderColor: C.border }}>
+                  {boards.map((b) => (
+                    <TouchableOpacity key={b} onPress={() => { setSchool((p) => ({ ...p, board: b })); setSelectedBoard(false); }}
+                      style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: C.border }}>
+                      <Text style={{ color: school.board === b ? C.gold : C.white, fontSize: 13, fontWeight: school.board === b ? '700' : '400' }}>{b}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              <TouchableOpacity onPress={save} disabled={saving} style={[styles.saveBtn, { backgroundColor: saved ? '#22d38a' : C.gold }]}>
+                {saving ? (
+                  <ActivityIndicator size="small" color={C.navy} />
+                ) : (
+                  <Text style={{ color: C.navy, fontWeight: '800', fontSize: 14 }}>{saved ? '\u2705 Saved!' : '\uD83D\uDCBE Save Settings'}</Text>
+                )}
+              </TouchableOpacity>
+            </>
           )}
-          <TouchableOpacity onPress={save} style={[styles.saveBtn, { backgroundColor: saved ? '#22d38a' : C.gold }]}>
-            <Text style={{ color: C.navy, fontWeight: '800', fontSize: 14 }}>{saved ? '\u2705 Saved!' : '\uD83D\uDCBE Save Settings'}</Text>
-          </TouchableOpacity>
         </View>
 
         <View style={styles.secHead}><Text style={styles.secTitle}>Roles & Permissions</Text></View>

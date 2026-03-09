@@ -120,7 +120,10 @@ function AdminClasses({ onBack, currentUser }) {
             {classes.map(cls => (
               <TouchableOpacity
                 key={cls.id}
-                onPress={() => setSelectedClass(cls)}
+                onPress={() => {
+                  if (currentUser) currentUser.selectedClass = cls;
+                  navigate('admin-students');
+                }}
                 style={st.classCard}
               >
                 <LinearGradient colors={[C.navyLt, C.navyMid]} style={st.classGradient}>

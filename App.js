@@ -36,7 +36,7 @@ import TeacherAlertsScreen from './src/screens/teacher/TeacherAlertsScreen';
 import TeacherPersonalScreen from './src/screens/teacher/TeacherPersonalScreen';
 import TeacherProfile from './src/screens/teacher/TeacherProfile';
 import AdminOverview from './src/screens/admin/AdminOverview';
-import AdminProfile from './src/screens/admin/AdminProfile';
+import AdminStudents from './src/screens/admin/AdminStudents';
 import AdminUsers from './src/screens/admin/AdminUsers';
 import AdminClasses from './src/screens/admin/AdminClasses';
 import AdminBuses from './src/screens/admin/AdminBuses';
@@ -315,8 +315,9 @@ export default function App() {
       case 'admin-settings': return <AdminSettings onBack={() => navigate('admin-home')} />;
       case 'admin-leaves': return <AdminLeaveScreen onBack={() => navigate('admin-home')} currentUser={currentUser} />;
       case 'admin-fees': return <AdminFeeScreen onBack={() => navigate('admin-home')} currentUser={currentUser} />;
-      case 'admin-salary': return <AdminSalaryScreen onBack={() => navigate('admin-home')} />;
-      case 'admin-profile': return <AdminProfile onBack={() => navigate('admin-home')} currentUser={currentUser} onLogout={handleLogout} onUpdateUser={(u) => setCurrentUser(u)} />;
+    case 'admin-salary': return <AdminSalaryScreen onBack={() => navigate('admin-home')} />;
+    case 'admin-students': return <AdminStudents onBack={() => navigate('admin-classes')} classItem={currentUser?.selectedClass} />;
+    case 'admin-profile': return <AdminProfile onBack={() => navigate('admin-home')} currentUser={currentUser} onLogout={handleLogout} onUpdateUser={(u) => setCurrentUser(u)} />;
       default: return null;
     }
   };

@@ -1,9 +1,36 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { C } from '../theme/colors';
 import Icon from '../components/Icon';
 
 export default function ExploreScreen({ onBack }) {
+  const [loading, setLoading] = useState(true);
+  const [schoolInfo, setSchoolInfo] = useState({
+    name: 'Venkeys International School',
+    tagline: 'Excellence in Education Since 2003',
+    stats: [['1200+', 'Students'], ['85+', 'Staff'], ['20+', 'Years']]
+  });
+
+  useEffect(() => {
+    fetch('/api/school-info')
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.info) {
+          setSchoolInfo({
+            name: data.info.name || 'Venkeys International School',
+            tagline: data.info.tagline || 'Excellence in Education Since 2003',
+            stats: [
+              [data.info.studentCount || '1200+', 'Students'],
+              [data.info.staffCount || '85+', 'Staff'],
+              [data.info.yearsCount || '20+', 'Years']
+            ]
+          });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
   const events = [
     { name: 'Annual Day 2025', date: 'Feb 15', icon: '\u{1F3AD}' },
     { name: 'Science Fair', date: 'Mar 8', icon: '\u{1F52C}' },
@@ -24,19 +51,23 @@ export default function ExploreScreen({ onBack }) {
       </View>
 
       <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
-        <View style={st.hero}>
-          <Text style={{ fontSize: 48, marginBottom: 12 }}>{'\u{1F3EB}'}</Text>
-          <Text style={{ fontSize: 22, fontWeight: '700', color: C.white, marginBottom: 8 }}>Venkeys International School</Text>
-          <Text style={{ color: C.muted, fontSize: 13, lineHeight: 20, textAlign: 'center' }}>Established in 2003, providing world-class education with a focus on holistic development, innovation, and academic excellence.</Text>
-          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 24, marginTop: 16 }}>
-            {[['1200+', 'Students'], ['85+', 'Staff'], ['20+', 'Years']].map(([v, l]) => (
-              <View key={l} style={{ alignItems: 'center' }}>
-                <Text style={{ fontWeight: '700', fontSize: 20, color: C.gold }}>{v}</Text>
-                <Text style={{ fontSize: 11, color: C.muted }}>{l}</Text>
-              </View>
-            ))}
+        {loading ? (
+          <ActivityIndicator size="large" color={C.gold} style={{ marginTop: 50 }} />
+        ) : (
+          <View style={st.hero}>
+            <Text style={{ fontSize: 48, marginBottom: 12 }}>{'\u{1F3EB}'}</Text>
+            <Text style={{ fontSize: 22, fontWeight: '700', color: C.white, marginBottom: 8 }}>{schoolInfo.name}</Text>
+            <Text style={{ color: C.muted, fontSize: 13, lineHeight: 20, textAlign: 'center' }}>{schoolInfo.tagline}</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 24, marginTop: 16 }}>
+              {schoolInfo.stats.map(([v, l]) => (
+                <View key={l} style={{ alignItems: 'center' }}>
+                  <Text style={{ fontWeight: '700', fontSize: 20, color: C.gold }}>{v}</Text>
+                  <Text style={{ fontSize: 11, color: C.muted }}>{l}</Text>
+                </View>
+              ))}
+            </View>
           </View>
-        </View>
+        )}
 
         <View style={st.secHead}><Text style={st.secTitle}>Gallery</Text></View>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>

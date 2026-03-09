@@ -3638,6 +3638,29 @@ app.post('/api/trip/scan', verifyAuth, async (req, res) => {
   }
 });
 
+app.get('/api/school-info', async (req, res) => {
+  try {
+    const docSnap = await getDocFS(doc(db, 'settings', SCHOOL_ID));
+    if (docSnap.exists()) {
+      res.json({ success: true, info: docSnap.data() });
+    } else {
+      res.json({ success: true, info: null });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/school-info', async (req, res) => {
+  try {
+    const info = req.body;
+    await setDoc(doc(db, 'settings', SCHOOL_ID), info, { merge: true });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/bus/live-location', async (req, res) => {
   try {
     const { busNumber } = req.query;

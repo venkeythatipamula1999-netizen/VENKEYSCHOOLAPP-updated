@@ -7,12 +7,28 @@ export default function ContactScreen({ onBack }) {
   const [name, setName] = useState('');
   const [contact, setContact] = useState('');
   const [message, setMessage] = useState('');
-
-  const contacts = [
+  const [loading, setLoading] = useState(true);
+  const [schoolContacts, setSchoolContacts] = useState([
     { icon: 'phone', label: 'Phone', value: '+91 98765 43210', color: C.teal },
     { icon: 'mail', label: 'Email', value: 'info@venkeys.edu.in', color: C.gold },
     { icon: 'location', label: 'Address', value: '123 School Road, Chennai - 600001', color: C.coral },
-  ];
+  ]);
+
+  useEffect(() => {
+    fetch('/api/school-info')
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.info) {
+          setSchoolContacts([
+            { icon: 'phone', label: 'Phone', value: data.info.phone || '+91 98765 43210', color: C.teal },
+            { icon: 'mail', label: 'Email', value: data.info.email || 'info@venkeys.edu.in', color: C.gold },
+            { icon: 'location', label: 'Address', value: data.info.address || '123 School Road, Chennai - 600001', color: C.coral },
+          ]);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.navy }}>
@@ -22,7 +38,9 @@ export default function ContactScreen({ onBack }) {
       </View>
 
       <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
-        {contacts.map((c, i) => (
+        {loading ? (
+          <ActivityIndicator size="large" color={C.gold} style={{ marginTop: 50 }} />
+        ) : schoolContacts.map((c, i) => (
           <View key={i} style={[st.card, { marginBottom: 12, flexDirection: 'row', gap: 16, alignItems: 'flex-start' }]}>
             <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: c.color + '22', alignItems: 'center', justifyContent: 'center' }}>
               <Icon name={c.icon} size={20} color={c.color} />
