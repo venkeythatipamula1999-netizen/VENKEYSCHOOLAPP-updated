@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { C } from '../theme/colors';
 import Icon from '../components/Icon';
 
@@ -19,11 +19,15 @@ export default function ContactScreen({ onBack }) {
       .then(r => r.json())
       .then(data => {
         if (data.success && data.info) {
-          setSchoolContacts([
+          const contacts = [
             { icon: 'phone', label: 'Phone', value: data.info.phone || '+91 98765 43210', color: C.teal },
             { icon: 'mail', label: 'Email', value: data.info.email || 'info@venkeys.edu.in', color: C.gold },
             { icon: 'location', label: 'Address', value: data.info.address || '123 School Road, Chennai - 600001', color: C.coral },
-          ]);
+          ];
+          if (data.info.website) {
+            contacts.push({ icon: 'star', label: 'Website', value: data.info.website, color: '#60a5fa' });
+          }
+          setSchoolContacts(contacts);
         }
       })
       .catch(() => {})

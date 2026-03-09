@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Image } from 'react-native';
 import { C } from '../theme/colors';
 import Icon from '../components/Icon';
 
@@ -8,6 +8,11 @@ export default function ExploreScreen({ onBack }) {
   const [schoolInfo, setSchoolInfo] = useState({
     name: 'Venkeys International School',
     tagline: 'Excellence in Education Since 2003',
+    description: '',
+    principalName: '',
+    board: '',
+    website: '',
+    galleryImages: [],
     stats: [['1200+', 'Students'], ['85+', 'Staff'], ['20+', 'Years']]
   });
 
@@ -19,6 +24,11 @@ export default function ExploreScreen({ onBack }) {
           setSchoolInfo({
             name: data.info.name || 'Venkeys International School',
             tagline: data.info.tagline || 'Excellence in Education Since 2003',
+            description: data.info.description || '',
+            principalName: data.info.principalName || '',
+            board: data.info.board || '',
+            website: data.info.website || '',
+            galleryImages: data.info.galleryImages || [],
             stats: [
               [data.info.studentCount || '1200+', 'Students'],
               [data.info.staffCount || '85+', 'Staff'],
@@ -69,13 +79,33 @@ export default function ExploreScreen({ onBack }) {
           </View>
         )}
 
+        {schoolInfo.description ? (
+          <View style={[st.card, { marginBottom: 16 }]}>
+            <Text style={{ color: C.muted, fontSize: 13, lineHeight: 20 }}>{schoolInfo.description}</Text>
+            {schoolInfo.principalName ? (
+              <Text style={{ color: C.gold, fontSize: 12, marginTop: 8, fontWeight: '600' }}>Principal: {schoolInfo.principalName}</Text>
+            ) : null}
+            {schoolInfo.board ? (
+              <Text style={{ color: C.teal, fontSize: 12, marginTop: 4, fontWeight: '600' }}>Board: {schoolInfo.board}</Text>
+            ) : null}
+          </View>
+        ) : null}
+
         <View style={st.secHead}><Text style={st.secTitle}>Gallery</Text></View>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
-          {['\u{1F3DF}\uFE0F', '\u{1F52C}', '\u{1F4DA}', '\u{1F3A8}'].map((e, i) => (
-            <View key={i} style={{ width: '47%', height: 90, borderRadius: 16, backgroundColor: i % 2 === 0 ? C.navyLt : C.navyMid, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 40 }}>{e}</Text>
-            </View>
-          ))}
+          {schoolInfo.galleryImages && schoolInfo.galleryImages.length > 0 ? (
+            schoolInfo.galleryImages.map((img, i) => (
+              <View key={i} style={{ width: '47%', height: 100, borderRadius: 16, overflow: 'hidden' }}>
+                <Image source={{ uri: img.url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+              </View>
+            ))
+          ) : (
+            ['\u{1F3DF}\uFE0F', '\u{1F52C}', '\u{1F4DA}', '\u{1F3A8}'].map((e, i) => (
+              <View key={i} style={{ width: '47%', height: 90, borderRadius: 16, backgroundColor: i % 2 === 0 ? C.navyLt : C.navyMid, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 40 }}>{e}</Text>
+              </View>
+            ))
+          )}
         </View>
 
         <View style={st.secHead}><Text style={st.secTitle}>Upcoming Events</Text></View>

@@ -3661,6 +3661,37 @@ app.post('/api/school-info', async (req, res) => {
   }
 });
 
+app.post('/api/school-info/upload-image', upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No image provided' });
+
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedMimes.includes(req.file.mimetype)) {
+      return res.status(400).json({ error: 'Only JPEG, PNG, GIF, and WebP images are allowed' });
+    }
+
+    if (req.file.size > 500 * 1024) {
+      return res.status(400).json({ error: 'Image must be under 500KB' });
+    }
+
+    const fs = require('fs');
+    const galleryDir = path.join(__dirname, 'uploads', 'gallery');
+    if (!fs.existsSync(galleryDir)) fs.mkdirSync(galleryDir, { recursive: true });
+
+    const extMap = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp' };
+    const ext = extMap[req.file.mimetype] || 'jpg';
+    const filename = `school_${Date.now()}.${ext}`;
+    const filePath = path.join(galleryDir, filename);
+
+    fs.writeFileSync(filePath, req.file.buffer);
+
+    const imageUrl = `/uploads/gallery/${filename}`;
+    res.json({ success: true, imageUrl });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/bus/live-location', async (req, res) => {
   try {
     const { busNumber } = req.query;
@@ -4873,6 +4904,8 @@ app.get('/api/report', (req, res) => {
     res.status(500).json({ error: 'Failed to generate report: ' + err.message });
   }
 });
+
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use(express.static(path.join(__dirname, 'dist'), {
   setHeaders: (res, filePath) => {

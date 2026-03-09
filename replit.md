@@ -127,9 +127,19 @@ FIREBASE_APP_ID=1:774655999002:android:6ccc7fd89c5c57598565a3
 - **logistics_staff**: Driver and cleaner data (bus_number, route, assigned_area)
 - **alerts**: Error tracking and admin alerts
 
+## School Info & Gallery System
+- **Firestore document**: `settings/school_001` stores all school info fields
+- **Fields**: name, tagline, phone, email, address, board, website, principalName, foundedYear, description, studentCount, staffCount, yearsCount, galleryImages[]
+- **Gallery images**: Uploaded via `POST /api/school-info/upload-image`, saved to `uploads/gallery/`, served as static files
+- **Image validation**: Server-side MIME check (JPEG/PNG/GIF/WebP only), 500KB max size
+- **AdminSettings**: Full CRUD for all school fields + gallery image upload/remove
+- **ExploreScreen**: Fetches from `/api/school-info`, shows name, tagline, stats, description, principal, board, and gallery images (falls back to emoji placeholders)
+- **ContactScreen**: Fetches from `/api/school-info`, shows phone, email, address, website (if set)
+
 ## Notes
 - All API calls use relative `/api` path (proxied by Express)
 - Profile completion is mandatory on first login
 - Super Admin gets real-time error notifications via Firestore
 - Bus tracking uses Leaflet maps on web
 - Leave system supports student and staff requests with approval workflow
+- `const SCHOOL_ID = 'school_001'` at top of server.js is the single source of truth for school identity
