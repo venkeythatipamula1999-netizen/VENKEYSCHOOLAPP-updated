@@ -133,9 +133,6 @@ function generateReport() {
     ['POST', '/api/parent/register', 'Register new parent with Firebase Auth'],
     ['POST', '/api/parent/email-login', 'Parent email login'],
     ['POST', '/api/parent/forgot-password', 'Parent password reset'],
-    ['POST', '/api/parent/verify-pin', 'Verify parent PIN'],
-    ['POST', '/api/parent/set-pin', 'Set parent login PIN'],
-    ['POST', '/api/parent/remove-pin', 'Remove parent PIN'],
     ['POST', '/api/parent/add-child', 'Link additional child to parent account'],
     ['POST', '/api/parent/switch-child', 'Switch active child in parent session'],
     ['GET', '/api/admin/parent-accounts', 'Admin: list all parent accounts'],
@@ -298,7 +295,6 @@ function generateReport() {
       ['AdminLoginScreen.js', 'src/screens/admin/AdminLoginScreen.js'],
       ['ParentPortalScreen.js', 'src/screens/auth/ParentPortalScreen.js'],
       ['ParentLoginScreen.js', 'src/screens/auth/ParentLoginScreen.js'],
-      ['ParentPinScreen.js', 'src/screens/auth/ParentPinScreen.js'],
       ['ParentRegisterScreen.js', 'src/screens/auth/ParentRegisterScreen.js'],
       ['SignupScreen.js', 'src/screens/auth/SignupScreen.js'],
       ['CompleteProfileScreen.js', 'src/screens/auth/CompleteProfileScreen.js'],
@@ -512,7 +508,7 @@ function generateReport() {
       <tbody>
         <tr><td>Admin / Principal</td><td>Email + Password (Firebase Auth)</td><td>AdminLoginScreen</td></tr>
         <tr><td>Teacher</td><td>Email + Password (Firebase Auth)</td><td>LoginScreen</td></tr>
-        <tr><td>Parent</td><td>Phone Number + 4-digit PIN</td><td>ParentPortalScreen → ParentLoginScreen → ParentPinScreen</td></tr>
+        <tr><td>Parent</td><td>Email + Password (Firebase Auth)</td><td>ParentPortalScreen → ParentLoginScreen</td></tr>
         <tr><td>Driver</td><td>Email + Password (Firebase Auth)</td><td>LoginScreen</td></tr>
         <tr><td>Cleaner</td><td>Email + Password (Firebase Auth)</td><td>LoginScreen</td></tr>
       </tbody>
