@@ -186,10 +186,21 @@ FIREBASE_APP_ID=1:774655999002:android:6ccc7fd89c5c57598565a3
 - Both individual add (`POST /api/students`) and CSV bulk import write identical fields
 - CSV import recognizes bus/route columns: `busid`, `bus id`, `bus number`, `routeid`, `route id`, `bus route`, etc.
 
+## Multi-Tenant / SaaS Architecture
+- **School Code**: `SP-GOPA` (Sree Pragathi High School, Gopalraopet) — generated via `generateSchoolCode(name, location)`
+- **DEFAULT_SCHOOL_ID**: `'school_001'` — fallback when `req.schoolId` is not set (backwards compat)
+- **`req.schoolId`**: Set from JWT middleware (pending); routes use `(req.schoolId || DEFAULT_SCHOOL_ID)` pattern
+- **schoolId filter on ALL queries**: Every Firestore list/getDocs query includes `where('schoolId', '==', ...)` to ensure data isolation between schools
+- **schoolId on ALL writes**: Every `addDoc`/`setDoc`/`batch.set` includes `schoolId` field so new data is correctly tagged
+- **Collections with schoolId**: students, classes, users, student_marks, attendance_records, attendance_submissions, attendance_edits, attendance_overrides, leave_requests, leaveRequests, events, buses, bus_trips, live_bus_locations, trip_scans, trip_summaries, tripLogs, proximity_alert_logs, location_change_requests, parent_notifications, admin_notifications, teacher_notifications, driver_notifications, fee_reminders, student_files, salary_payments, marks_edit_logs, student_stops, parent_accounts, onboarded_users, staff_duty, salary_settings
+- **System-level collections** (NO schoolId): sync_errors, scan_rejection_logs, alerts
+- **Super Admin routes**: `/api/super/*` — use `adminDb` (firebase-admin) to bypass Firestore rules, protected by `verifySuperAdmin` middleware (`x-super-admin-key` header)
+- **Firestore `schools` collection**: One doc per school (e.g. `schools/SP-GOPA`) with name, location, status, plan, createdAt
+- **`sendEventNotifications()`** accepts `schoolId` as last parameter for user/student scoping
+
 ## Notes
 - All API calls use relative `/api` path (proxied by Express)
 - Profile completion is mandatory on first login
 - Super Admin gets real-time error notifications via Firestore
 - Bus tracking uses Leaflet maps on web
 - Leave system supports student and staff requests with approval workflow
-- `const SCHOOL_ID = 'school_001'` at top of server.js is the single source of truth for school identity
