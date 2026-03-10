@@ -72,6 +72,14 @@ dist/                          — Built Expo web app (static files)
 - **Security**: verifyAuth + role check (principal/admin only), schoolId tenant isolation
 - **Navigation**: Accessible from AdminOverview quickNav grid as "Promotion"
 
+## Bulk Fee Status Dashboard
+- **Backend**: `GET /api/admin/fees/bulk-status` returns all students' fee status (paid/unpaid/partial) with amounts, filtered by month/year/class
+- **Backend**: `POST /api/admin/fees/send-reminder` sends batch fee reminders to parent_notifications using writeBatch
+- **Frontend**: `AdminFeeStatus.js` — month/year/class filter dropdowns, summary cards (total/paid/unpaid/partial), student list sorted by status
+- **Features**: Skeleton loader, multi-select mode (long press), "Select All Unpaid", bulk reminder sending with confirmation dialog, student detail modal with payment history, CSV export, empty state for all-paid
+- **Security**: verifyAuth + role check (principal/admin only), schoolId tenant isolation
+- **Navigation**: Accessible from AdminOverview quickNav grid as "Fee Status"
+
 ## Error Tracking System
 
 ### Overview

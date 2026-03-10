@@ -159,6 +159,7 @@ export default function AdminOverview({ onNavigate, currentUser }) {
     { icon: '\uD83D\uDCCA', label: 'Reports', screen: 'admin-reports', color: C.purple },
     { icon: '\uD83D\uDCC5', label: 'Leave Requests', screen: 'admin-leaves', color: '#34D399' },
     { icon: '\uD83D\uDCB0', label: 'Fee Management', screen: 'admin-fees', color: '#60A5FA' },
+    { icon: '\uD83D\uDCCB', label: 'Fee Status', screen: 'admin-fee-status', color: '#38BDF8' },
     { icon: '\uD83D\uDCB8', label: 'Payroll', screen: 'admin-salary', color: '#FB923C' },
     { icon: '\uD83C\uDF93', label: 'Activities', screen: 'admin-activities', color: C.gold },
     { icon: '\uD83D\uDCE4', label: 'Promotion', screen: 'admin-promotion', color: '#A78BFA' },

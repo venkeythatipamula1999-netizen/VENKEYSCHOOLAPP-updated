@@ -50,6 +50,7 @@ import AdminLeaveScreen from './src/screens/admin/AdminLeaveScreen';
 import AdminFeeScreen from './src/screens/admin/AdminFeeScreen';
 import AdminSalaryScreen from './src/screens/admin/AdminSalaryScreen';
 import AdminPromotion from './src/screens/admin/AdminPromotion';
+import AdminFeeStatus from './src/screens/admin/AdminFeeStatus';
 import DriverDashboard from './src/screens/driver/DriverDashboard';
 import DriverScans from './src/screens/driver/DriverScans';
 import DriverDuration from './src/screens/driver/DriverDuration';
@@ -133,7 +134,7 @@ export default function App() {
     }
   };
 
-  const adminScreens = ['admin-home', 'admin-users', 'admin-classes', 'admin-buses', 'admin-reports', 'admin-alerts', 'admin-settings', 'admin-activities', 'admin-leaves', 'admin-fees', 'admin-salary', 'admin-profile', 'admin-promotion'];
+  const adminScreens = ['admin-home', 'admin-users', 'admin-classes', 'admin-buses', 'admin-reports', 'admin-alerts', 'admin-settings', 'admin-activities', 'admin-leaves', 'admin-fees', 'admin-salary', 'admin-profile', 'admin-promotion', 'admin-fee-status'];
 
   const navigateToDashboard = (userRole) => {
     if (userRole === 'principal') navigate('admin-home');
@@ -372,6 +373,7 @@ export default function App() {
       case 'admin-fees': return <AdminFeeScreen onBack={() => navigate('admin-home')} currentUser={currentUser} />;
     case 'admin-salary': return <AdminSalaryScreen onBack={() => navigate('admin-home')} />;
     case 'admin-promotion': return <AdminPromotion onBack={() => navigate('admin-home')} />;
+    case 'admin-fee-status': return <AdminFeeStatus onBack={() => navigate('admin-home')} />;
     case 'admin-students': return <AdminStudents onBack={() => navigate('admin-classes')} classItem={currentUser?.selectedClass} />;
     case 'admin-profile': return <AdminProfile onBack={() => navigate('admin-home')} currentUser={currentUser} onLogout={handleLogout} onUpdateUser={(u) => setCurrentUser(u)} />;
       default: return null;

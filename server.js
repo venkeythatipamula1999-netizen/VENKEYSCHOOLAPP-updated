@@ -892,6 +892,156 @@ app.post('/api/fee-reminder/acknowledge', async (req, res) => {
   }
 });
 
+app.get('/api/admin/fees/bulk-status', verifyAuth, async (req, res) => {
+  if (req.userRole !== 'principal' && req.userRole !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  try {
+    const { month, year } = req.query;
+    const classFilter = req.query.class || '';
+    if (!month || !year) return res.status(400).json({ error: 'month and year are required' });
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    const mon = Number(month);
+    const yr = Number(year);
+
+    const feeSnap = await getDocs(query(
+      collection(db, 'fee_records'),
+      where('schoolId', '==', schoolId)
+    ));
+
+    const students = [];
+    feeSnap.docs.forEach(d => {
+      const rec = d.data();
+      if (classFilter && (rec.grade || '') !== classFilter && (rec.className || '') !== classFilter) return;
+
+      const totalFee = Number(rec.totalFee) || 0;
+      const discount = Number(rec.discount) || 0;
+      const fine = Number(rec.fine) || 0;
+      const amountDue = totalFee - discount + fine;
+
+      const history = Array.isArray(rec.history) ? rec.history : [];
+      let amountPaid = 0;
+      let lastPaymentDate = '';
+      let hasPaymentThisMonth = false;
+
+      history.forEach(h => {
+        const amt = Number(h.amount) || 0;
+        amountPaid += amt;
+        const dateStr = h.date || '';
+        let payDate = null;
+        if (dateStr.includes('-')) {
+          payDate = new Date(dateStr);
+        } else {
+          payDate = new Date(dateStr);
+        }
+        if (payDate && !isNaN(payDate.getTime())) {
+          if (payDate.getMonth() + 1 === mon && payDate.getFullYear() === yr) {
+            hasPaymentThisMonth = true;
+          }
+          const iso = payDate.toISOString().split('T')[0];
+          if (!lastPaymentDate || iso > lastPaymentDate) lastPaymentDate = iso;
+        }
+      });
+
+      let feeStatus = 'unpaid';
+      if (amountPaid >= amountDue) {
+        feeStatus = 'paid';
+      } else if (amountPaid > 0) {
+        feeStatus = 'partial';
+      }
+
+      students.push({
+        studentId: rec.studentId || rec.adm || d.id,
+        docId: d.id,
+        name: rec.name || '',
+        class: rec.grade || rec.className || '',
+        rollNumber: rec.roll || rec.rollNumber || '',
+        feeStatus,
+        amountDue,
+        amountPaid,
+        balance: Math.max(amountDue - amountPaid, 0),
+        lastPaymentDate,
+        hasPaymentThisMonth,
+      });
+    });
+
+    const statusOrder = { unpaid: 0, partial: 1, paid: 2 };
+    students.sort((a, b) => (statusOrder[a.feeStatus] || 0) - (statusOrder[b.feeStatus] || 0) || a.name.localeCompare(b.name));
+
+    const summary = {
+      total: students.length,
+      paid: students.filter(s => s.feeStatus === 'paid').length,
+      unpaid: students.filter(s => s.feeStatus === 'unpaid').length,
+      partiallyPaid: students.filter(s => s.feeStatus === 'partial').length,
+    };
+
+    console.log(`[fees/bulk-status] month=${mon}/${yr} class=${classFilter || 'all'} — total:${summary.total} paid:${summary.paid} unpaid:${summary.unpaid} partial:${summary.partiallyPaid}`);
+    res.json({ success: true, summary, students });
+  } catch (err) {
+    console.error('[fees/bulk-status] Error:', err.message);
+    res.status(500).json({ error: 'Failed to load fee status' });
+  }
+});
+
+app.post('/api/admin/fees/send-reminder', verifyAuth, async (req, res) => {
+  if (req.userRole !== 'principal' && req.userRole !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  try {
+    const { studentIds, month, year } = req.body;
+    if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
+      return res.status(400).json({ error: 'studentIds array is required' });
+    }
+    if (!month || !year) return res.status(400).json({ error: 'month and year are required' });
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const monthLabel = monthNames[Number(month) - 1] || `Month ${month}`;
+
+    const feeSnap = await getDocs(query(
+      collection(db, 'fee_records'),
+      where('schoolId', '==', schoolId)
+    ));
+    const feeMap = {};
+    feeSnap.docs.forEach(d => {
+      const data = d.data();
+      const key = data.studentId || data.adm || d.id;
+      feeMap[key] = data;
+    });
+
+    let sentCount = 0;
+    const batch = writeBatch(db);
+    for (const sid of studentIds) {
+      try {
+        const rec = feeMap[sid];
+        const studentName = rec ? (rec.name || '') : '';
+        const balance = rec ? Math.max((Number(rec.totalFee) || 0) - (Number(rec.discount) || 0) + (Number(rec.fine) || 0) - (rec.history || []).reduce((a, h) => a + (Number(h.amount) || 0), 0), 0) : 0;
+
+        const notifRef = doc(collection(db, 'parent_notifications'));
+        batch.set(notifRef, {
+          studentId: sid,
+          studentName,
+          title: 'Fee Reminder',
+          message: `Fee reminder for ${monthLabel} ${year}: A balance of \u20B9${balance.toLocaleString('en-IN')} is pending for ${studentName || 'your child'}. Please clear it at the earliest.`,
+          type: 'fee_reminder',
+          schoolId,
+          read: false,
+          createdAt: new Date().toISOString(),
+        });
+        sentCount++;
+      } catch (e) {
+        console.warn(`[fees/send-reminder] Failed for ${sid}:`, e.message);
+      }
+    }
+    await batch.commit();
+
+    console.log(`[fees/send-reminder] Sent ${sentCount}/${studentIds.length} reminders for ${monthLabel} ${year}`);
+    res.json({ success: true, sent: sentCount });
+  } catch (err) {
+    console.error('[fees/send-reminder] Error:', err.message);
+    res.status(500).json({ error: 'Failed to send reminders' });
+  }
+});
+
 app.get('/api/classes', async (req, res) => {
   try {
     const [classesSnap, studentsSnap] = await Promise.all([
