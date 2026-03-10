@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { CLEANER_DEFAULT, PHASE_INFO } from '../../data/cleaner';
+import { apiFetch } from '../../api/client';
 
 export default function CleanerDashboard({ onNavigate, currentUser, students }) {
   const [gpsOn, setGpsOn] = useState(false);
@@ -21,7 +22,7 @@ export default function CleanerDashboard({ onNavigate, currentUser, students }) 
   const initials = cleanerName.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
 
   useEffect(() => {
-    fetch(`/api/duty/status?roleId=${cleanerId}`)
+    apiFetch(`/duty/status?roleId=${cleanerId}`)
       .then(r => r.json())
       .then(data => {
         if (data.onDuty === true) {
@@ -38,8 +39,7 @@ export default function CleanerDashboard({ onNavigate, currentUser, students }) 
       try {
         const today = new Date().toISOString().slice(0, 10);
         const busId = currentUser?.bus_number || busNumber || '';
-        const res = await fetch(`/api/trip/onboard-count?busId=${encodeURIComponent(busId)}&date=${today}`, {
-          headers: { 'x-role-id': cleanerId },
+        const res = await apiFetch(`/trip/onboard-count?busId=${encodeURIComponent(busId)}&date=${today}`, {
         });
         const data = await res.json();
         if (data.success) {
@@ -57,9 +57,8 @@ export default function CleanerDashboard({ onNavigate, currentUser, students }) 
     if (onDuty) {
       const newStatus = gpsOn ? 'In Transit/Student Pickup' : 'On Duty';
       setCurrentStatus(newStatus);
-      fetch('/api/duty/update-status', {
+      apiFetch('/duty/update-status', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ roleId: cleanerId, currentStatus: newStatus }),
       }).catch(() => {});
     } else {
@@ -71,9 +70,8 @@ export default function CleanerDashboard({ onNavigate, currentUser, students }) 
     setDutyLoading(true);
     try {
       if (!onDuty) {
-        const res = await fetch('/api/duty/clock-in', {
+        const res = await apiFetch('/duty/clock-in', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: currentUser?.uid || '', name: cleanerName, role: 'cleaner', roleId: cleanerId }),
         });
         const data = await res.json();
@@ -82,9 +80,8 @@ export default function CleanerDashboard({ onNavigate, currentUser, students }) 
           setClockInTime(data.clockIn);
         }
       } else {
-        const res = await fetch('/api/duty/clock-out', {
+        const res = await apiFetch('/duty/clock-out', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: currentUser?.uid || '', name: cleanerName, role: 'cleaner', roleId: cleanerId }),
         });
         if (res.ok) {

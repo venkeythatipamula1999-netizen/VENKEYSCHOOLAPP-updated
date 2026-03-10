@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, TextInput, Modal, ScrollView, ActivityIndicator } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import { apiFetch } from '../../api/client';
 
 const LEAVE_TYPES = ['Casual', 'Sick', 'Earned', 'Emergency'];
 const TYPE_KEY = { Casual: 'casual', Sick: 'sick', Earned: 'earned', Emergency: 'emergency' };
@@ -26,8 +27,8 @@ export default function CleanerLeave({ onBack, currentUser }) {
   useEffect(() => {
     if (!staffId) { setLoading(false); return; }
     Promise.all([
-      fetch(`/api/leave-balance?roleId=${encodeURIComponent(staffId)}`).then(r => r.json()).catch(() => ({})),
-      fetch(`/api/leave-requests/mine?staffId=${encodeURIComponent(staffId)}`).then(r => r.json()).catch(() => ({})),
+      apiFetch(`/leave-balance?roleId=${encodeURIComponent(staffId)}`).then(r => r.json()).catch(() => ({})),
+      apiFetch(`/leave-requests/mine?staffId=${encodeURIComponent(staffId)}`).then(r => r.json()).catch(() => ({})),
     ]).then(([balData, reqData]) => {
       if (balData.balance) setBalance(balData.balance);
       if (reqData.requests) setLeaves(reqData.requests);
@@ -41,9 +42,8 @@ export default function CleanerLeave({ onBack, currentUser }) {
     setErrorMsg('');
     setSubmitting(true);
     try {
-      const res = await fetch('/api/leave-request/submit', {
+      const res = await apiFetch('/leave-request/submit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           staffId, staffName, role: 'cleaner',
           reasonId: TYPE_KEY[form.type] || 'casual',

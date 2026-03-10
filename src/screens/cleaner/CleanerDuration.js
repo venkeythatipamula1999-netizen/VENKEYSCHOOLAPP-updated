@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import { apiFetch } from '../../api/client';
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -37,14 +38,14 @@ export default function CleanerDuration({ onBack, currentUser }) {
   useEffect(() => {
     if (!cleanerId) { setLoading(false); return; }
 
-    fetch(`/api/duty/status?roleId=${encodeURIComponent(cleanerId)}`)
+    apiFetch(`/duty/status?roleId=${encodeURIComponent(cleanerId)}`)
       .then(r => r.json())
       .then(data => setDutyData(data))
       .catch(() => {});
 
     Promise.all(
       weekDates.map(d =>
-        fetch(`/api/duty/week-log?roleId=${encodeURIComponent(cleanerId)}&date=${d.date}`)
+        apiFetch(`/duty/week-log?roleId=${encodeURIComponent(cleanerId)}&date=${d.date}`)
           .then(r => r.json())
           .catch(() => ({}))
       )

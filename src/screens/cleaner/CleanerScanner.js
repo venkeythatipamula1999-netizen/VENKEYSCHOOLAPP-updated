@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Camera, CameraView } from 'expo-camera';
 import { C } from '../../theme/colors';
+import { apiFetch } from '../../api/client';
 
 export default function CleanerScanner({ currentUser, onBack }) {
   const [hasPermission, setHasPermission] = useState(null);
@@ -31,7 +32,7 @@ export default function CleanerScanner({ currentUser, onBack }) {
     Vibration.vibrate(100);
 
     try {
-      const res = await fetch('/api/trip/scan', {
+      const res = await apiFetch('/trip/scan', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
