@@ -18,6 +18,10 @@
       "android",
       "web"
     ],
+    "android": {
+      "package": "com.venkateshthati.sreepragathi",
+      "versionCode": 1
+    },
     "plugins": [
       "expo-barcode-scanner"
     ]
