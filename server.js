@@ -8023,6 +8023,17 @@ app.get('/audit-report', (req, res) => {
   res.sendFile(path.join(__dirname, 'audit-report.html'));
 });
 
+app.get('/download-source', (req, res) => {
+  const fs = require('fs');
+  const filePath = '/tmp/sree-pragathi-app.tar.gz';
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'Archive not ready. Please contact admin.' });
+  }
+  res.setHeader('Content-Disposition', 'attachment; filename="sree-pragathi-app.tar.gz"');
+  res.setHeader('Content-Type', 'application/gzip');
+  res.sendFile(filePath);
+});
+
 function scheduleDailyBackup() {
   function getMsUntilNext2AMIST() {
     const now = new Date();
