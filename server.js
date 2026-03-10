@@ -3,8 +3,8 @@ const path = require('path');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 
-// School Identity — single source of truth
-const SCHOOL_ID = 'school_001';
+// Dynamic per-request — set from JWT. This constant is only used as fallback.
+const DEFAULT_SCHOOL_ID = 'school_001';
 
 // Basic auth middleware — verifies roleId exists
 const verifyAuth = async (req, res, next) => {
@@ -54,6 +54,22 @@ const xlsx = require('xlsx');
 const { Readable } = require('stream');
 const { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updatePassword, EmailAuthProvider, reauthenticateWithCredential, sendPasswordResetEmail } = require('firebase/auth');
 const { syncAttendance, syncMarks, syncUserDirectory, updateUserDirectoryOnRegistration, syncLogisticsStaff, updateUserDirectoryClasses, updateProfileInSheets, markUserInactiveInSheets, syncMasterTimetable, removeMasterTimetableEntries, syncStudentFile, syncBusTripHistory, syncStudentStop, syncStaffAttendance, syncStudent, syncTeacher, syncLeaveRequest, syncParentAccount, syncPayroll, syncNotification, resetDocCache } = require('./src/services/googleSheets');
+
+function generateSchoolCode(schoolName, location) {
+  const skipWords = ['THE','AND','OF','A','AN','HIGH','SCHOOL','SR','JR','HIGHER','SECONDARY','PUBLIC','PRIVATE','CENTRAL','CONVENT','ENGLISH','MEDIUM'];
+  const nameCode = String(schoolName || '').trim().toUpperCase()
+    .split(/\s+/)
+    .filter(w => !skipWords.includes(w))
+    .map(w => w.replace(/[^A-Z]/g, ''))
+    .filter(w => w.length > 0)
+    .map(w => w[0])
+    .join('')
+    .slice(0, 4);
+  const locCode = String(location || '').trim().toUpperCase()
+    .replace(/[^A-Z]/g, '')
+    .slice(0, 4);
+  return `${nameCode}-${locCode}`;
+}
 
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY,
@@ -769,11 +785,11 @@ app.post('/api/students', async (req, res) => {
       classId,
       className: String(className || '').trim(),
       parentPhone: String(parentPhone || '').trim(),
-      schoolId: SCHOOL_ID,
+      schoolId: (req.schoolId || DEFAULT_SCHOOL_ID),
       busId: String(busId || '').trim(),
       routeId: String(routeId || '').trim(),
       status: 'active',
-      qrCode: `SREE_PRAGATHI|${SCHOOL_ID}|${studentId}`,
+      qrCode: `SREE_PRAGATHI|${(req.schoolId || DEFAULT_SCHOOL_ID)}|${studentId}`,
       createdAt: serverTimestamp(),
     });
     console.log('Student added:', name.trim(), '| Class:', className, '| Roll:', rollNumber);
@@ -907,11 +923,11 @@ app.post('/api/students/bulk-upload/:classId', upload.single('file'), async (req
           classId,
           className: resolvedClassName,
           parentPhone,
-          schoolId: SCHOOL_ID,
+          schoolId: (req.schoolId || DEFAULT_SCHOOL_ID),
           busId: busIdVal,
           routeId: routeIdVal,
           status: 'active',
-          qrCode: `SREE_PRAGATHI|${SCHOOL_ID}|${studentId}`,
+          qrCode: `SREE_PRAGATHI|${(req.schoolId || DEFAULT_SCHOOL_ID)}|${studentId}`,
           createdAt: serverTimestamp(),
         });
         existingRolls.add(rollNumber);
@@ -2255,7 +2271,7 @@ app.post('/api/attendance/save', async (req, res) => {
           markedBy,
           teacherName: teacherName || markedBy,
           className: resolvedClassName,
-          schoolId: records[0]?.schoolId || SCHOOL_ID,
+          schoolId: records[0]?.schoolId || (req.schoolId || DEFAULT_SCHOOL_ID),
           submittedAt,
           timestamp: serverTimestamp(),
         }
@@ -2274,7 +2290,7 @@ app.post('/api/attendance/save', async (req, res) => {
           status: record.status,
           classId: record.classId,
           className: record.className || '',
-          schoolId: record.schoolId || SCHOOL_ID,
+          schoolId: record.schoolId || (req.schoolId || DEFAULT_SCHOOL_ID),
           rollNumber: record.rollNumber || 0,
           studentName: record.studentName,
           recordedBy: markedBy,
@@ -2423,7 +2439,7 @@ app.post('/api/attendance/edit', async (req, res) => {
       rollNumber: rollNumber || 0,
       classId,
       className: className || '',
-      schoolId: SCHOOL_ID,
+      schoolId: (req.schoolId || DEFAULT_SCHOOL_ID),
       date,
       month: date.substring(0, 7),
       status: newStatus,
@@ -2459,7 +2475,7 @@ app.post('/api/attendance/edit', async (req, res) => {
           status: newStatus,
           classId,
           className: className || '',
-          schoolId: SCHOOL_ID,
+          schoolId: (req.schoolId || DEFAULT_SCHOOL_ID),
           rollNumber: rollNumber || 0,
           studentName: studentName || '',
           recordedBy: editedBy || 'teacher',
@@ -2525,7 +2541,7 @@ app.post('/api/attendance/edit', async (req, res) => {
 
     let sheetSync = { success: false };
     try {
-      const record = { studentId, studentName, classId, className, status: newStatus, markedBy: editedBy || 'teacher', date, month: date.substring(0, 7), schoolId: SCHOOL_ID, rollNumber: rollNumber || 0 };
+      const record = { studentId, studentName, classId, className, status: newStatus, markedBy: editedBy || 'teacher', date, month: date.substring(0, 7), schoolId: (req.schoolId || DEFAULT_SCHOOL_ID), rollNumber: rollNumber || 0 };
       sheetSync = await syncAttendance([record], date);
     } catch (syncErr) {
       console.error('Sheet re-sync on edit failed:', syncErr.message);
@@ -2781,7 +2797,7 @@ app.post('/api/leave-request/update-status', async (req, res) => {
               dates.push(d.toISOString().slice(0, 10));
             }
           }
-          const schoolId = leaveData.schoolId || SCHOOL_ID;
+          const schoolId = leaveData.schoolId || (req.schoolId || DEFAULT_SCHOOL_ID);
           const attBatch = writeBatch(db);
           for (const dateStr of dates) {
             const docId = `${leaveData.studentId}_${dateStr}`;
@@ -2952,7 +2968,7 @@ app.post('/api/leave-request/student/submit', verifyAuth, async (req, res) => {
       rollNumber: rollNumber || 0,
       studentClass,
       studentClassNormalized,
-      schoolId: schoolId || SCHOOL_ID,
+      schoolId: schoolId || (req.schoolId || DEFAULT_SCHOOL_ID),
       parentId: parentId || '',
       parentName: parentName || '',
       reasonId: reasonId || 'other',
@@ -3591,7 +3607,7 @@ app.get('/api/trip/onboard-count', verifyAuth, async (req, res) => {
     const today = date || new Date(now.getTime() + istOffset).toISOString().slice(0, 10);
 
     const scansRef = collection(db, 'trip_scans');
-    const scansQ = query(scansRef, where('date', '==', today), where('schoolId', '==', SCHOOL_ID));
+    const scansQ = query(scansRef, where('date', '==', today), where('schoolId', '==', (req.schoolId || DEFAULT_SCHOOL_ID)));
     const snap = await getDocs(scansQ);
     const scans = snap.docs.map(d => d.data()).filter(s => s.busId === busId || s.busNumber === busId);
     const boardCount = scans.filter(s => s.type === 'board').length;
@@ -3604,7 +3620,7 @@ app.get('/api/trip/onboard-count', verifyAuth, async (req, res) => {
       totalStudents = (busData.studentIds || []).length;
     }
     if (totalStudents === 0) {
-      const studQ = query(collection(db, 'students'), where('schoolId', '==', SCHOOL_ID), where('busRoute', '==', busId));
+      const studQ = query(collection(db, 'students'), where('schoolId', '==', (req.schoolId || DEFAULT_SCHOOL_ID)), where('busRoute', '==', busId));
       const studSnap = await getDocs(studQ);
       totalStudents = studSnap.size;
     }
@@ -3641,7 +3657,7 @@ app.post('/api/admin/buses/add', verifyAdmin, async (req, res) => {
       driverName: driverName || '',
       cleanerId: cleanerId || '',
       cleanerName: cleanerName || '',
-      schoolId: SCHOOL_ID,
+      schoolId: (req.schoolId || DEFAULT_SCHOOL_ID),
       studentIds: [],
       status: 'active',
       createdAt: new Date().toISOString()
@@ -3691,7 +3707,7 @@ app.get('/api/bus/onboard-students', verifyAuth, async (req, res) => {
     const scansQ = query(
       collection(db, 'trip_scans'),
       where('date', '==', today),
-      where('schoolId', '==', SCHOOL_ID)
+      where('schoolId', '==', (req.schoolId || DEFAULT_SCHOOL_ID))
     );
     const snap = await getDocs(scansQ);
     const scans = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(s => s.busId === busId || s.busNumber === busId);
@@ -3732,7 +3748,7 @@ app.get('/api/trip/scans', verifyAuth, async (req, res) => {
     }
 
     const scansRef = collection(db, 'trip_scans');
-    const baseQ = query(scansRef, where('date', '==', today), where('schoolId', '==', SCHOOL_ID));
+    const baseQ = query(scansRef, where('date', '==', today), where('schoolId', '==', (req.schoolId || DEFAULT_SCHOOL_ID)));
     const snap = await getDocs(baseQ);
 
     let resolvedBusNumber = busNumber || '';
@@ -3784,7 +3800,7 @@ app.post('/api/trip/scan', verifyAuth, async (req, res) => {
       const [, qrSchoolId, qrStudentId] = parts;
       studentId = qrStudentId;
 
-      if (qrSchoolId !== SCHOOL_ID) {
+      if (qrSchoolId !== (req.schoolId || DEFAULT_SCHOOL_ID)) {
         await logRejectedScan({ scannedData: qrData, driverId, busId, reason: 'School mismatch', timestamp: scanTime, studentId });
         return res.status(403).json({ success: false, error: 'Student does not belong to this school', code: 'SCHOOL_MISMATCH' });
       }
@@ -3844,7 +3860,7 @@ app.post('/api/trip/scan', verifyAuth, async (req, res) => {
       }
     }
 
-    if (studentData.schoolId && studentData.schoolId !== SCHOOL_ID) {
+    if (studentData.schoolId && studentData.schoolId !== (req.schoolId || DEFAULT_SCHOOL_ID)) {
       await logRejectedScan({ scannedData: qrData || studentId, driverId, busId, reason: 'School mismatch (student doc)', timestamp: scanTime, studentId });
       return res.status(403).json({ success: false, error: 'Student does not belong to this school', code: 'SCHOOL_MISMATCH' });
     }
@@ -3923,7 +3939,7 @@ app.post('/api/trip/scan', verifyAuth, async (req, res) => {
       studentId,
       studentName: studentData.name || '',
       className: studentData.className || studentData.classId || '',
-      schoolId: studentData.schoolId || SCHOOL_ID,
+      schoolId: studentData.schoolId || (req.schoolId || DEFAULT_SCHOOL_ID),
       busId: busId || '',
       busNumber: busData?.busNumber || '',
       assignedBusId: studentBusId || busId,
@@ -4046,7 +4062,7 @@ app.get('/api/student/qr/:studentId', verifyAuth, async (req, res) => {
     if (studentSnap.empty) return res.status(404).json({ error: 'Student not found' });
 
     const studentData = studentSnap.docs[0].data();
-    const qrCode = studentData.qrCode || `SREE_PRAGATHI|${SCHOOL_ID}|${studentId}`;
+    const qrCode = studentData.qrCode || `SREE_PRAGATHI|${(req.schoolId || DEFAULT_SCHOOL_ID)}|${studentId}`;
 
     if (!studentData.qrCode) {
       await updateDoc(studentSnap.docs[0].ref, { qrCode });
@@ -4061,7 +4077,7 @@ app.get('/api/student/qr/:studentId', verifyAuth, async (req, res) => {
 
 app.get('/api/school-info', async (req, res) => {
   try {
-    const docSnap = await getDocFS(doc(db, 'settings', SCHOOL_ID));
+    const docSnap = await getDocFS(doc(db, 'settings', (req.schoolId || DEFAULT_SCHOOL_ID)));
     if (docSnap.exists()) {
       res.json({ success: true, info: docSnap.data() });
     } else {
@@ -4075,7 +4091,7 @@ app.get('/api/school-info', async (req, res) => {
 app.post('/api/school-info', verifyAdmin, async (req, res) => {
   try {
     const info = req.body;
-    await setDoc(doc(db, 'settings', SCHOOL_ID), info, { merge: true });
+    await setDoc(doc(db, 'settings', (req.schoolId || DEFAULT_SCHOOL_ID)), info, { merge: true });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -4719,7 +4735,7 @@ async function getParentAccount(uid) {
   const snap = await getDocFS(ref);
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
-async function buildParentSession(parentAccount) {
+async function buildParentSession(parentAccount, schoolId) {
   const studentIds = parentAccount.studentIds || [];
   const activeStudentId = parentAccount.activeStudentId || studentIds[0] || '';
   let activeStudent = null;
@@ -4739,7 +4755,7 @@ async function buildParentSession(parentAccount) {
     studentName: activeStudent?.name || '',
     studentClass: activeStudent?.className || activeStudent?.classId || '',
     rollNumber: activeStudent?.rollNumber || 0,
-    schoolId: activeStudent?.schoolId || SCHOOL_ID,
+    schoolId: activeStudent?.schoolId || schoolId || DEFAULT_SCHOOL_ID,
     studentIds,
     children: childrenData,
     hasPIN: !!parentAccount.pinHash,
@@ -4815,7 +4831,7 @@ app.get('/api/student/bus-tracking', async (req, res) => {
         collection(db, 'trip_scans'),
         where('studentId', '==', String(studentId)),
         where('date', '==', today),
-        where('schoolId', '==', SCHOOL_ID)
+        where('schoolId', '==', (req.schoolId || DEFAULT_SCHOOL_ID))
       );
       const scansSnap = await getDocs(scansQ);
       const scans = scansSnap.docs.map(d => d.data()).sort((a, b) =>
@@ -4992,7 +5008,7 @@ app.post('/api/parent/email-login', async (req, res) => {
     }
     await updateDoc(doc(db, 'parent_accounts', parentDoc.id), { failedAttempts: 0, lockUntil: null, accountStatus: 'active', lastLogin: new Date().toISOString() });
     parentAccount.accountStatus = 'active';
-    const sessionUser = await buildParentSession(parentAccount);
+    const sessionUser = await buildParentSession(parentAccount, req.schoolId || DEFAULT_SCHOOL_ID);
     console.log(`Parent login: ${email} | Students: ${parentAccount.studentIds?.join(', ')}`);
     res.json({ success: true, user: sessionUser, requiresPIN: !!parentAccount.pinHash, emailVerified: userCredential.user.emailVerified });
   } catch (err) {
@@ -5099,7 +5115,7 @@ app.post('/api/parent/switch-child', async (req, res) => {
     if (!(parentAccount.studentIds || []).includes(studentId)) return res.status(400).json({ error: 'Student not linked to this account' });
     await updateDoc(doc(db, 'parent_accounts', uid), { activeStudentId: studentId });
     parentAccount.activeStudentId = studentId;
-    const sessionUser = await buildParentSession(parentAccount);
+    const sessionUser = await buildParentSession(parentAccount, req.schoolId || DEFAULT_SCHOOL_ID);
     res.json({ success: true, user: sessionUser });
   } catch (err) {
     console.error('Switch child error:', err.message);
