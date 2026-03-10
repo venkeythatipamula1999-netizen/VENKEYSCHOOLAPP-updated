@@ -4463,8 +4463,11 @@ app.get('/api/admin/buses', async (req, res) => {
   }
 });
 
-app.post('/api/admin/buses/add', verifyAdmin, async (req, res) => {
+app.post('/api/admin/buses/add', verifyAuth, async (req, res) => {
   try {
+    if (req.userRole !== 'admin' && req.userRole !== 'principal') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
     const { busNumber, busId, route, routeId, driverId, driverName, cleanerId, cleanerName } = req.body;
     if (!busNumber || !busId) return res.status(400).json({ error: 'busNumber and busId required' });
 
@@ -4491,10 +4494,19 @@ app.post('/api/admin/buses/add', verifyAdmin, async (req, res) => {
   }
 });
 
-app.post('/api/admin/buses/assign-students', verifyAdmin, async (req, res) => {
+app.post('/api/admin/buses/assign-students', verifyAuth, async (req, res) => {
   try {
+    if (req.userRole !== 'admin' && req.userRole !== 'principal') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
     const { busId, studentIds } = req.body;
     if (!busId || !studentIds) return res.status(400).json({ error: 'busId and studentIds required' });
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+
+    const busSnap = await getDoc(doc(db, 'buses', busId));
+    if (!busSnap.exists() || busSnap.data().schoolId !== schoolId) {
+      return res.status(403).json({ error: 'Bus not found in your school' });
+    }
 
     await updateDoc(doc(db, 'buses', busId), {
       studentIds,
@@ -4502,7 +4514,7 @@ app.post('/api/admin/buses/assign-students', verifyAdmin, async (req, res) => {
     });
 
     for (const sid of studentIds) {
-      const studentQ = query(collection(db, 'students'), where('studentId', '==', sid));
+      const studentQ = query(collection(db, 'students'), where('studentId', '==', sid), where('schoolId', '==', schoolId));
       const studentSnap = await getDocs(studentQ);
       if (!studentSnap.empty) {
         await updateDoc(studentSnap.docs[0].ref, { busId, updatedAt: new Date().toISOString() });
@@ -4913,8 +4925,11 @@ app.get('/api/school-info', async (req, res) => {
   }
 });
 
-app.post('/api/school-info', verifyAdmin, async (req, res) => {
+app.post('/api/school-info', verifyAuth, async (req, res) => {
   try {
+    if (req.userRole !== 'admin' && req.userRole !== 'principal') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
     const info = req.body;
     await setDoc(doc(db, 'settings', (req.schoolId || DEFAULT_SCHOOL_ID)), info, { merge: true });
     res.json({ success: true });
@@ -4923,8 +4938,11 @@ app.post('/api/school-info', verifyAdmin, async (req, res) => {
   }
 });
 
-app.post('/api/school-info/upload-image', verifyAdmin, upload.single('image'), async (req, res) => {
+app.post('/api/school-info/upload-image', verifyAuth, upload.single('image'), async (req, res) => {
   try {
+    if (req.userRole !== 'admin' && req.userRole !== 'principal') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
     if (!req.file) return res.status(400).json({ error: 'No image provided' });
 
     const allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
