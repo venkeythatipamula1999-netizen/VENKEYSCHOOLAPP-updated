@@ -242,6 +242,7 @@ const storage = getStorage(firebaseApp);
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = 5000;
 
 const allowedOrigins = [
