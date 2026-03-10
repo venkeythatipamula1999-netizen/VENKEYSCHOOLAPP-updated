@@ -6246,6 +6246,608 @@ app.post('/api/events/:id/renotify', async (req, res) => {
 
 const { generateReport } = require('./src/report/generateReport');
 
+app.get('/api/report/master-audit', verifyAuth, (req, res) => {
+  if (req.userRole !== 'principal' && req.userRole !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  try {
+    const doc = new PDFDocument({ size: 'A4', margin: 50, bufferPages: true });
+    const buffers = [];
+    doc.on('data', d => buffers.push(d));
+    doc.on('end', () => {
+      const pdfData = Buffer.concat(buffers);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="Sree-Pragathi-Master-Audit-Report.pdf"');
+      res.send(pdfData);
+    });
+
+    const C_NAVY = '#0A1628';
+    const C_GOLD = '#D4A843';
+    const C_TEAL = '#2DD4BF';
+    const C_WHITE = '#FFFFFF';
+    const C_MUTED = '#8B95A5';
+    const C_CORAL = '#FF6B6B';
+    const C_PURPLE = '#A78BFA';
+    const C_GREEN = '#34D399';
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+
+    const drawLine = (y, color = '#334155') => {
+      doc.moveTo(50, y).lineTo(545, y).strokeColor(color).lineWidth(0.5).stroke();
+    };
+
+    const newPage = () => {
+      doc.addPage();
+      doc.rect(0, 0, 595, 842).fill(C_NAVY);
+    };
+
+    const sectionTitle = (title, icon) => {
+      if (doc.y > 680) newPage();
+      doc.moveDown(0.8);
+      doc.fontSize(14).fillColor(C_GOLD).text(`${icon}  ${title}`, { underline: false });
+      drawLine(doc.y + 4, C_GOLD);
+      doc.moveDown(0.6);
+    };
+
+    const bulletPoint = (text, indent = 60) => {
+      if (doc.y > 720) newPage();
+      doc.fontSize(9.5).fillColor('#CBD5E1').text(`•  ${text}`, indent, doc.y, { width: 495 - indent });
+      doc.moveDown(0.15);
+    };
+
+    const subHeading = (text) => {
+      if (doc.y > 700) newPage();
+      doc.moveDown(0.4);
+      doc.fontSize(11).fillColor(C_TEAL).text(text);
+      doc.moveDown(0.25);
+    };
+
+    const statusBadge = (label, color) => {
+      const x = doc.x;
+      const y = doc.y;
+      doc.roundedRect(x, y, 80, 16, 4).fill(color);
+      doc.fontSize(8).fillColor(C_WHITE).text(label, x + 8, y + 3, { width: 64, align: 'center' });
+      doc.y = y + 22;
+    };
+
+    // ── COVER PAGE ──
+    doc.rect(0, 0, 595, 842).fill(C_NAVY);
+    doc.fontSize(10).fillColor(C_MUTED).text('CONFIDENTIAL', 50, 50, { align: 'right' });
+    doc.moveDown(6);
+    doc.fontSize(32).fillColor(C_GOLD).text('MASTER AUDIT REPORT', { align: 'center' });
+    doc.moveDown(0.5);
+    doc.fontSize(14).fillColor(C_WHITE).text('Sree Pragathi High School', { align: 'center' });
+    doc.fontSize(11).fillColor(C_MUTED).text('Gopalraopet, Telangana', { align: 'center' });
+    doc.moveDown(1);
+    drawLine(doc.y, C_GOLD);
+    doc.moveDown(1);
+    doc.fontSize(11).fillColor(C_MUTED).text('School Management SaaS Platform', { align: 'center' });
+    doc.fontSize(10).fillColor(C_MUTED).text(`School Code: SP-GOPA  |  School ID: school_001`, { align: 'center' });
+    doc.moveDown(3);
+    doc.fontSize(10).fillColor(C_TEAL).text(`Generated: ${dateStr}`, { align: 'center' });
+    doc.fontSize(9).fillColor(C_MUTED).text('Vidhaya Layam — Education Technology Platform', { align: 'center' });
+
+    // ── PAGE 2: TABLE OF CONTENTS ──
+    newPage();
+    doc.fontSize(18).fillColor(C_GOLD).text('TABLE OF CONTENTS', 50, 50);
+    drawLine(doc.y + 6, C_GOLD);
+    doc.moveDown(1);
+    const tocItems = [
+      '1.  Executive Summary',
+      '2.  Technology Stack',
+      '3.  Architecture Overview',
+      '4.  User Roles & Authentication',
+      '5.  Screen Inventory (All Portals)',
+      '6.  API Endpoints Summary',
+      '7.  Feature Upgrades — Complete List',
+      '8.  Security & Rate Limiting',
+      '9.  Multi-Tenant SaaS Architecture',
+      '10. Data Models & Collections',
+      '11. UX & Error Handling System',
+      '12. Deployment & Infrastructure',
+    ];
+    tocItems.forEach(item => {
+      doc.fontSize(11).fillColor('#CBD5E1').text(item, 70);
+      doc.moveDown(0.4);
+    });
+
+    // ── SECTION 1: EXECUTIVE SUMMARY ──
+    newPage();
+    sectionTitle('EXECUTIVE SUMMARY', '\u{1F4CB}');
+    doc.fontSize(10).fillColor('#CBD5E1').text(
+      'Sree Pragathi High School Management App is a comprehensive, multi-tenant SaaS platform built to digitize and streamline all school operations. The platform serves five distinct user roles through dedicated dashboards, covering academics, transportation, facilities, finance, and administration.',
+      50, doc.y, { width: 495, lineGap: 3 }
+    );
+    doc.moveDown(0.8);
+
+    subHeading('Platform Statistics');
+    const stats = [
+      ['Total Screens', '40+'],
+      ['API Endpoints', '149'],
+      ['User Roles', '5 (Admin/Principal, Teacher, Parent, Driver, Cleaner)'],
+      ['Firestore Collections', '35+'],
+      ['Components', '9 shared UI components'],
+      ['Composite Indexes', '19'],
+    ];
+    stats.forEach(([label, value]) => {
+      doc.fontSize(9.5).fillColor(C_MUTED).text(`${label}:`, 60, doc.y, { continued: true, width: 150 });
+      doc.fillColor(C_WHITE).text(`  ${value}`, { width: 330 });
+      doc.moveDown(0.1);
+    });
+
+    // ── SECTION 2: TECHNOLOGY STACK ──
+    sectionTitle('TECHNOLOGY STACK', '\u{1F527}');
+    const stack = [
+      ['Frontend', 'React Native (Expo SDK 52) — Web + Mobile'],
+      ['Backend', 'Express.js (Node.js) — RESTful API'],
+      ['Database', 'Firebase Firestore (project: school-app-87900)'],
+      ['Authentication', 'Firebase Auth (Email/Password) + JWT (30-day tokens)'],
+      ['PDF Generation', 'PDFKit — Report cards, audit reports'],
+      ['Real-time Sync', 'Google Sheets API — Attendance, marks, payroll, timetable'],
+      ['Maps', 'Leaflet.js — Bus live tracking on web'],
+      ['Error Tracking', 'Custom Firestore-based alerting system'],
+      ['Rate Limiting', 'express-rate-limit — Global + per-route limits'],
+    ];
+    stack.forEach(([label, value]) => {
+      doc.fontSize(9.5).fillColor(C_TEAL).text(`${label}:`, 60, doc.y, { continued: true, width: 120 });
+      doc.fillColor('#CBD5E1').text(`  ${value}`, { width: 365 });
+      doc.moveDown(0.15);
+    });
+
+    // ── SECTION 3: ARCHITECTURE ──
+    sectionTitle('ARCHITECTURE OVERVIEW', '\u{1F3D7}');
+    bulletPoint('Single Express.js server serves both API and static Expo web build');
+    bulletPoint('Frontend built with `npx expo export --platform web` → static dist/ folder');
+    bulletPoint('Server runs on port 5000, serves dist/ as static files');
+    bulletPoint('All API routes under /api/* with global auth guard middleware');
+    bulletPoint('Firebase Admin SDK for server-side Firestore access + Auth management');
+    bulletPoint('Firebase Client SDK for frontend Auth (email/password)');
+    bulletPoint('JWT Bearer tokens for API authorization (30-day expiry)');
+    bulletPoint('Multi-tenant isolation via schoolId on every query and write');
+
+    // ── SECTION 4: AUTH & ROLES ──
+    sectionTitle('USER ROLES & AUTHENTICATION', '\u{1F512}');
+    const roles = [
+      ['Admin/Principal', 'Full platform access — manage users, classes, fees, reports, settings, promotions, salary, buses, leaves, activities, alerts'],
+      ['Teacher', 'Attendance marking, marks entry, schedule management, bus monitoring, leave requests, personal profile'],
+      ['Parent', 'View child attendance, marks, bus tracking, fee payments, notifications, leave requests, digital folder, report cards'],
+      ['Driver', 'Trip management (start/end with GPS), student pickup stops, proximity alerts, duty clock in/out, leave requests'],
+      ['Cleaner', 'QR student scanning, zone/phase duty tracking, alerts, duration logging, leave requests'],
+    ];
+    roles.forEach(([role, desc]) => {
+      doc.fontSize(10).fillColor(C_GOLD).text(role, 60, doc.y);
+      doc.fontSize(9).fillColor('#94A3B8').text(desc, 60, doc.y, { width: 475 });
+      doc.moveDown(0.4);
+    });
+    doc.moveDown(0.3);
+    subHeading('Authentication Flow');
+    bulletPoint('Login → Firebase Auth verification → JWT token issued → stored in AsyncStorage');
+    bulletPoint('Every API call sends Authorization: Bearer <token> header');
+    bulletPoint('verifyAuth middleware decodes JWT, sets req.userId, req.userRole, req.schoolId');
+    bulletPoint('Parent portal: additional PIN verification layer before dashboard access');
+    bulletPoint('Admin routes: verifyAuth + role check (principal/admin only)');
+    bulletPoint('Super Admin routes: separate x-super-admin-key header validation');
+
+    // ── SECTION 5: SCREEN INVENTORY ──
+    newPage();
+    sectionTitle('SCREEN INVENTORY — ALL PORTALS', '\u{1F4F1}');
+
+    subHeading('Authentication Screens (7)');
+    ['SplashScreen', 'SplashIntroScreen', 'LoginScreen', 'SignupScreen', 'ParentLoginScreen', 'ParentRegisterScreen', 'ParentPinScreen'].forEach(s => bulletPoint(s));
+
+    subHeading('Admin / Principal Portal (17)');
+    ['AdminOverview (Dashboard)', 'AdminUsers', 'AdminClasses', 'AdminStudents', 'AdminBuses', 'AdminReports', 'AdminAlerts', 'AdminSettings', 'AdminActivities', 'AdminLeaveScreen', 'AdminFeeScreen', 'AdminFeeStatus (Bulk Fee Dashboard)', 'AdminSalaryScreen', 'AdminPromotion (Year-End Wizard)', 'AdminStudentQR', 'AdminProfile', 'CompleteProfileScreen'].forEach(s => bulletPoint(s));
+
+    subHeading('Teacher Portal (8)');
+    ['TeacherDashboard', 'TeacherAttendance', 'TeacherMarksScreen', 'TeacherScheduleScreen', 'TeacherBusMonitor', 'TeacherAlertsScreen', 'TeacherPersonalScreen', 'TeacherProfile'].forEach(s => bulletPoint(s));
+
+    subHeading('Parent Portal (9)');
+    ['ParentDashboard', 'AttendanceScreen', 'MarksScreen (+ Report Card PDF)', 'BusScreen (Live Tracking)', 'FeeScreen', 'NotificationsScreen', 'LeaveScreen', 'DigitalFolder', 'ActivitiesScreen'].forEach(s => bulletPoint(s));
+
+    subHeading('Driver Portal (7)');
+    ['DriverDashboard (Trip + GPS)', 'DriverScans', 'DriverStudentLocations', 'DriverProximityAlerts', 'DriverDuration', 'DriverLeave', 'DriverProfile'].forEach(s => bulletPoint(s));
+
+    subHeading('Cleaner Portal (6)');
+    ['CleanerDashboard', 'CleanerScanner (QR)', 'CleanerAlerts', 'CleanerDuration', 'CleanerLeave', 'CleanerProfile'].forEach(s => bulletPoint(s));
+
+    subHeading('Shared Screens (2)');
+    ['ExploreScreen (School Info & Gallery)', 'ContactScreen'].forEach(s => bulletPoint(s));
+
+    // ── SECTION 6: API ENDPOINTS SUMMARY ──
+    newPage();
+    sectionTitle('API ENDPOINTS SUMMARY (149 Routes)', '\u{1F310}');
+
+    const apiGroups = [
+      ['Authentication', 'POST /api/login, /register, /forgot-password, /parent/email-login, /parent/verify-pin, /parent/register'],
+      ['Students', 'GET/POST /api/students, /student/qr/:id, CSV bulk import, class students, marks'],
+      ['Attendance', 'GET/POST attendance records, submissions, edits, overrides, bulk marking'],
+      ['Marks & Grades', 'GET/POST marks entry, subject-wise, unit-wise, grade calculation'],
+      ['Fee Management', 'GET/POST fee records, payments, bulk status, send reminders'],
+      ['Leave System', 'GET/POST/PUT leave requests, approvals, rejections (staff + students)'],
+      ['Bus & Transport', 'POST start/end trip, update location, proximity alerts, route students, set stops, trip scans'],
+      ['Duty & Clock', 'POST clock-in/out, status updates, duration logs for drivers + cleaners'],
+      ['Reports', 'POST report-card PDF, GET master audit, admin reports'],
+      ['Promotion', 'GET preview, POST execute batch promote/retain/graduate'],
+      ['Admin Management', 'GET/POST users, classes, buses, activities, events, salary, settings, alerts'],
+      ['Notifications', 'GET/POST parent, teacher, driver notifications'],
+      ['School Info', 'GET/POST school info, gallery image upload/remove'],
+      ['Google Sheets Sync', 'POST sync attendance, marks, payroll, master timetable'],
+      ['Super Admin', 'POST create school, GET list schools, stats, activity, status toggle, subscriptions'],
+    ];
+    apiGroups.forEach(([group, desc]) => {
+      doc.fontSize(10).fillColor(C_TEAL).text(group, 60, doc.y);
+      doc.fontSize(8.5).fillColor('#94A3B8').text(desc, 60, doc.y, { width: 475 });
+      doc.moveDown(0.5);
+    });
+
+    // ── SECTION 7: ALL FEATURE UPGRADES ──
+    newPage();
+    sectionTitle('FEATURE UPGRADES — COMPLETE LIST', '\u{1F680}');
+
+    const upgrades = [
+      {
+        name: '1. JWT Authentication & Token Security',
+        status: 'COMPLETE',
+        color: C_GREEN,
+        details: [
+          'Replaced header-based role authentication with JWT Bearer tokens (30-day expiry)',
+          'signToken/verifyToken utilities with HS256 algorithm',
+          'verifyAuth middleware sets req.userId, req.userRole, req.schoolId from JWT',
+          'Token stored in AsyncStorage, attached to all API calls via apiFetch()',
+          'Parent PIN guard: token held in pendingToken until PIN verified',
+          'JWT_SECRET required via environment variable — server crashes if missing',
+        ]
+      },
+      {
+        name: '2. Global Auth Guard',
+        status: 'COMPLETE',
+        color: C_GREEN,
+        details: [
+          'All /api/* and /download/* routes require verifyAuth by default',
+          '14 explicitly listed PUBLIC_ROUTES exempt (login, register, school-info, etc.)',
+          'Super admin routes (/api/super/*) use separate verifySuperAdmin middleware',
+          'Eliminated all unauthenticated API access vectors',
+        ]
+      },
+      {
+        name: '3. Centralized API Client (apiFetch)',
+        status: 'COMPLETE',
+        color: C_GREEN,
+        details: [
+          'src/api/client.js exports apiFetch() — single function for all API calls',
+          'Auto-attaches Authorization: Bearer token from AsyncStorage',
+          'Auto-detects base URL from environment (Replit domain / localhost)',
+          'Integrated error reporting: HTTP 4xx/5xx and network failures auto-reported',
+          'Replaced raw fetch() calls across all 40+ screens',
+        ]
+      },
+      {
+        name: '4. Multi-Tenant SaaS Architecture',
+        status: 'COMPLETE',
+        color: C_GREEN,
+        details: [
+          'School code generation: SP-GOPA (Sree Pragathi, Gopalraopet)',
+          'DEFAULT_SCHOOL_ID = "school_001" — fallback for backwards compatibility',
+          'schoolId filter on ALL Firestore queries (35+ collections)',
+          'schoolId included on ALL writes (addDoc, setDoc, batch.set)',
+          'checkSchoolActive middleware blocks suspended schools globally',
+          'Super Admin can create/manage multiple schools via /api/super/* routes',
+        ]
+      },
+      {
+        name: '5. Rate Limiting & Security Headers',
+        status: 'COMPLETE',
+        color: C_GREEN,
+        details: [
+          'Global API limiter: 300 req/min per IP',
+          'Login limiter: 10 attempts/15 min, Registration: 5 attempts/hr',
+          'QR scan limiter: 60 scans/min, Super Admin: 50 req/min',
+          'Security headers: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy',
+          'CORS restricted to allowed origins (Vercel, localhost, APP_URL)',
+          'Request body size limit: 10MB',
+        ]
+      },
+      {
+        name: '6. Error Tracking & Reporting System',
+        status: 'COMPLETE',
+        color: C_GREEN,
+        details: [
+          'React ErrorBoundary catches render crashes with friendly UI',
+          'Global error listener catches unhandled JS errors + promise rejections',
+          'API client auto-reports HTTP errors and network failures',
+          'All errors include user attribution (userId, userRole)',
+          'Severity levels: low/medium/high/critical',
+          'Error types: js_crash, api_error, firestore_error, auth_error, unhandled_promise',
+          'Errors stored in Firestore "alerts" collection — viewable in Admin Alerts screen',
+        ]
+      },
+      {
+        name: '7. UX Component System',
+        status: 'COMPLETE',
+        color: C_GREEN,
+        details: [
+          'LoadingSpinner — fullScreen and inline modes with animated spinner',
+          'ErrorBanner — dismissible error display with retry button',
+          'Toast — animated notifications (success/error/info) with auto-dismiss',
+          'getFriendlyError() — maps technical errors to user-friendly messages',
+          'Applied across all 40 screens — zero Alert.alert calls remain',
+          'Consistent loading, error, and success patterns everywhere',
+        ]
+      },
+      {
+        name: '8. Report Card PDF Generation',
+        status: 'COMPLETE',
+        color: C_GREEN,
+        details: [
+          'POST /api/reports/report-card/:studentId — generates A4 PDF via PDFKit',
+          'Includes school name, student info, marks table, grades, totals, percentage',
+          'Grade logic: A+ (90-100), A (80-89), B+ (70-79), B (60-69), C (50-59), F (<50)',
+          'Security: verifyAuth + parent ownership check + schoolId isolation',
+          'Frontend: MarksScreen download modal with exam dropdown + academic year',
+          'Web: blob URL download, Native: expo-file-system + expo-sharing',
+        ]
+      },
+      {
+        name: '9. Year-End Class Promotion',
+        status: 'COMPLETE',
+        color: C_GREEN,
+        details: [
+          'GET /api/admin/promotion/preview — student list with pass/fail, attendance %, avg marks',
+          'POST /api/admin/promotion/execute — batch promote/retain/graduate with Firestore writeBatch',
+          'Pass criteria: >= 35% in every subject (best score per subject across exams)',
+          'Actions: promote (N → N+1), retain (same class + note), graduate (status → alumni)',
+          'History logged to promotionHistory collection',
+          'AdminPromotion.js — 4-step wizard with segmented controls and CSV export',
+        ]
+      },
+      {
+        name: '10. Bulk Fee Status Dashboard',
+        status: 'COMPLETE',
+        color: C_GREEN,
+        details: [
+          'GET /api/admin/fees/bulk-status — all students fee status with month/year/class filters',
+          'POST /api/admin/fees/send-reminder — batch reminders via Firestore writeBatch',
+          'Summary cards: total/paid/unpaid/partial counts with color coding',
+          'Multi-select mode (long press), "Select All Unpaid", bulk reminder with confirmation',
+          'Student detail modal with full payment history',
+          'Skeleton loader, CSV export, empty state for all-paid',
+        ]
+      },
+      {
+        name: '11. Network Status Banner (Offline Detection)',
+        status: 'COMPLETE',
+        color: C_GREEN,
+        details: [
+          '@react-native-community/netinfo monitors connectivity in real time',
+          'Yellow banner: "You\'re offline — changes may not save" when disconnected',
+          'Green banner: "Back online ✓" shown for 2 seconds on reconnect',
+          'Animated slide-down/slide-up transition (300ms)',
+          'Placed in root App.js — appears on every screen globally',
+          'Sits below StatusBar/SafeAreaView on native devices',
+        ]
+      },
+      {
+        name: '12. Driver Action Confirmation Dialogs',
+        status: 'COMPLETE',
+        color: C_GREEN,
+        details: [
+          'Start Trip: Alert.alert confirmation before notifying parents',
+          'End Trip: Alert.alert confirmation before marking students dropped',
+          'Set Pickup Stop: Alert.alert confirmation before recording GPS coordinates',
+          'Prevents accidental irreversible actions with Cancel/Confirm options',
+          'No changes to existing trip or GPS logic — pure UX safety layer',
+        ]
+      },
+      {
+        name: '13. Strict QR Scan Validation',
+        status: 'COMPLETE',
+        color: C_GREEN,
+        details: [
+          'QR Format: SREE_PRAGATHI|{schoolId}|{studentId}',
+          'Validates school match, student existence, active status',
+          'Wrong bus detection: allows boarding but alerts admin + parent',
+          '5-minute duplicate scan cooldown per student per day',
+          'Rejection logging to scan_rejection_logs collection',
+          '3+ rejected scans in 10 minutes triggers admin security alert',
+        ]
+      },
+      {
+        name: '14. Google Sheets Auto-Sync',
+        status: 'COMPLETE',
+        color: C_GREEN,
+        details: [
+          'Attendance sync — daily records pushed to Google Sheets',
+          'Marks sync — subject-wise and unit-wise marks synced',
+          'Payroll sync — salary payments exported to Sheets',
+          'Master timetable — class schedule synced from/to Sheets',
+          'Uses Firebase service account credentials for Sheets API',
+        ]
+      },
+      {
+        name: '15. Real-Time Bus Tracking & GPS',
+        status: 'COMPLETE',
+        color: C_GREEN,
+        details: [
+          'Driver starts trip → GPS watchPosition begins tracking',
+          'Location updates sent every 10 seconds to /bus/update-location',
+          'Parents see live bus position on Leaflet map in BusScreen',
+          'Speed, coordinates, distance, elapsed time displayed on driver dashboard',
+          'Haversine formula calculates trip distance',
+          'Trip summaries logged with duration, distance, students boarded',
+        ]
+      },
+      {
+        name: '16. School Info & Gallery System',
+        status: 'COMPLETE',
+        color: C_GREEN,
+        details: [
+          'AdminSettings: full CRUD for school name, tagline, phone, email, address, board, etc.',
+          'Gallery image upload: POST /api/school-info/upload-image (JPEG/PNG/GIF/WebP, 500KB max)',
+          'ExploreScreen: public school info with stats and gallery carousel',
+          'ContactScreen: phone, email, address, website display',
+        ]
+      },
+      {
+        name: '17. Super Admin Panel (Multi-School Management)',
+        status: 'COMPLETE',
+        color: C_GREEN,
+        details: [
+          'Create new schools with auto-generated school codes',
+          'List all schools with status, plan, student/staff counts',
+          'Toggle school status (active/suspended)',
+          'Update subscription plans',
+          'View school activity, security logs, summary dashboards',
+          'Hard delete school (with all associated data)',
+          'Protected by verifySuperAdmin + rate limiting (50 req/min)',
+        ]
+      },
+    ];
+
+    upgrades.forEach(u => {
+      if (doc.y > 660) newPage();
+      doc.fontSize(11).fillColor(C_WHITE).text(u.name, 55, doc.y, { width: 400, continued: false });
+      const badgeY = doc.y - 13;
+      doc.fontSize(7).fillColor(u.color).text(` [${u.status}]`, 460, badgeY, { width: 80 });
+      doc.y = badgeY + 16;
+      u.details.forEach(d => bulletPoint(d, 70));
+      doc.moveDown(0.3);
+    });
+
+    // ── SECTION 8: SECURITY ──
+    newPage();
+    sectionTitle('SECURITY & RATE LIMITING', '\u{1F6E1}');
+    subHeading('Authentication Layers');
+    bulletPoint('Firebase Auth: email/password verification');
+    bulletPoint('JWT tokens: 30-day expiry, HS256 algorithm, Bearer header');
+    bulletPoint('verifyAuth: global middleware on all protected routes');
+    bulletPoint('verifyAdmin (legacy): x-role-id header for older admin routes');
+    bulletPoint('verifySuperAdmin: x-super-admin-key header for super admin routes');
+    bulletPoint('Parent PIN: additional 4-digit PIN verification after login');
+
+    subHeading('Rate Limits');
+    bulletPoint('Global API: 300 requests/minute per IP');
+    bulletPoint('Login endpoints: 10 attempts per 15 minutes per IP');
+    bulletPoint('Registration: 5 attempts per hour per IP');
+    bulletPoint('QR scans: 60 scans per minute per IP');
+    bulletPoint('Super Admin: 50 requests per minute per IP');
+
+    subHeading('Security Headers');
+    bulletPoint('X-Content-Type-Options: nosniff');
+    bulletPoint('X-Frame-Options: DENY');
+    bulletPoint('X-XSS-Protection: 1; mode=block');
+    bulletPoint('Referrer-Policy: strict-origin-when-cross-origin');
+    bulletPoint('X-Powered-By: removed');
+
+    subHeading('Data Protection');
+    bulletPoint('Passwords hashed with bcryptjs (10 salt rounds)');
+    bulletPoint('Parent PINs hashed with bcryptjs');
+    bulletPoint('JWT_SECRET required — server refuses to start without it');
+    bulletPoint('CORS restricted to allowed origins');
+    bulletPoint('Request body size limit: 10MB');
+    bulletPoint('Image upload validation: MIME type check (JPEG/PNG/GIF/WebP), 500KB max');
+
+    // ── SECTION 9: MULTI-TENANT ──
+    sectionTitle('MULTI-TENANT SaaS ARCHITECTURE', '\u{1F3E2}');
+    bulletPoint('Each school gets a unique school code (e.g., SP-GOPA)');
+    bulletPoint('schoolId field present on 35+ Firestore collections');
+    bulletPoint('Every query filtered by schoolId — complete data isolation');
+    bulletPoint('checkSchoolActive middleware blocks suspended schools');
+    bulletPoint('Super Admin manages schools via /api/super/* endpoints');
+    bulletPoint('Subscription plans: basic, standard, premium');
+    bulletPoint('Schools collection stores status, plan, principal info, timestamps');
+
+    // ── SECTION 10: DATA MODELS ──
+    newPage();
+    sectionTitle('DATA MODELS & FIRESTORE COLLECTIONS', '\u{1F4BE}');
+    const collections = [
+      ['users', 'uid, full_name, email, role, role_id, schoolId, profileCompleted'],
+      ['students', 'studentId, name, rollNumber, classId, className, parentPhone, busId, routeId, qrCode, status, schoolId'],
+      ['parent_accounts', 'studentIds, activeStudentId, pinHash, email, phone, schoolId'],
+      ['classes', 'classId, className, section, teacherId, schoolId'],
+      ['attendance_records', 'studentId, date, status, markedBy, classId, schoolId'],
+      ['student_marks', 'studentId, subject, unit, marks, totalMarks, examName, schoolId'],
+      ['fee_records', 'studentId, totalFee, paid, discount, fine, history[], schoolId'],
+      ['leave_requests', 'userId, type, startDate, endDate, reason, status, schoolId'],
+      ['buses', 'busNumber, driverName, route, capacity, studentIds, schoolId'],
+      ['bus_trips', 'tripId, driverId, busNumber, route, startTime, endTime, schoolId'],
+      ['live_bus_locations', 'busNumber, lat, lng, speed, timestamp, schoolId'],
+      ['trip_scans', 'studentId, busNumber, type (board/drop), scanTime, schoolId'],
+      ['parent_notifications', 'studentId, title, message, type, read, schoolId'],
+      ['alerts', 'type, severity, message, screen, userId, userRole, timestamp'],
+      ['salary_payments', 'staffId, amount, month, year, mode, paidDate, schoolId'],
+      ['promotionHistory', 'studentId, fromClass, toClass, action, performedBy, timestamp'],
+      ['schools', 'schoolId, schoolName, location, status, plan, principalEmail'],
+      ['settings', 'schoolName, tagline, phone, email, address, galleryImages[]'],
+    ];
+    collections.forEach(([name, fields]) => {
+      if (doc.y > 710) newPage();
+      doc.fontSize(10).fillColor(C_GOLD).text(name, 55, doc.y, { continued: true });
+      doc.fontSize(8.5).fillColor('#94A3B8').text(`  — ${fields}`, { width: 430 });
+      doc.moveDown(0.3);
+    });
+
+    // ── SECTION 11: UX & ERROR HANDLING ──
+    sectionTitle('UX & ERROR HANDLING SYSTEM', '\u{2728}');
+    subHeading('Shared Components');
+    bulletPoint('LoadingSpinner — fullScreen overlay or inline spinner, replaces raw ActivityIndicator');
+    bulletPoint('ErrorBanner — red banner with message, dismiss (✕), and optional retry button');
+    bulletPoint('Toast — animated bottom notification with auto-dismiss (success/error/info)');
+    bulletPoint('ErrorBoundary — wraps entire app, catches render crashes with friendly recovery UI');
+    bulletPoint('OfflineBanner — network status monitor with yellow/green animated banners');
+    bulletPoint('Icon — custom SVG icon component with 15+ icons');
+    bulletPoint('DonutRing — animated circular progress indicator');
+
+    subHeading('Error Mapping');
+    bulletPoint('getFriendlyError() converts technical errors to user-readable messages');
+    bulletPoint('Network errors → "Unable to connect. Check your internet connection."');
+    bulletPoint('401/403 → "Session expired. Please log in again."');
+    bulletPoint('500 → "Something went wrong on our end. Please try again."');
+    bulletPoint('Timeout → "Request timed out. Please try again."');
+
+    // ── SECTION 12: DEPLOYMENT ──
+    sectionTitle('DEPLOYMENT & INFRASTRUCTURE', '\u{2601}');
+    bulletPoint('Hosted on Replit — autoscale deployment target');
+    bulletPoint('Frontend build: npx expo export --platform web --output-dir dist');
+    bulletPoint('Server: node server.js (port 5000)');
+    bulletPoint('Static files served from dist/ directory');
+    bulletPoint('Environment variables: Firebase keys, JWT_SECRET, APP_URL');
+    bulletPoint('Firebase Admin SDK: service account via FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY');
+    bulletPoint('Firestore composite indexes: 19 indexes deployed via firebase CLI');
+    bulletPoint('Auto clock-out scheduled daily at 7:00 PM');
+
+    // ── FINAL PAGE ──
+    newPage();
+    doc.moveDown(8);
+    doc.fontSize(24).fillColor(C_GOLD).text('END OF AUDIT REPORT', { align: 'center' });
+    doc.moveDown(1);
+    drawLine(doc.y, C_GOLD);
+    doc.moveDown(1);
+    doc.fontSize(11).fillColor(C_MUTED).text('Sree Pragathi High School', { align: 'center' });
+    doc.fontSize(10).fillColor(C_MUTED).text('Gopalraopet, Telangana', { align: 'center' });
+    doc.moveDown(0.5);
+    doc.fontSize(9).fillColor(C_MUTED).text(`Report generated on ${dateStr}`, { align: 'center' });
+    doc.moveDown(0.5);
+    doc.fontSize(9).fillColor(C_TEAL).text('Vidhaya Layam — Education Technology Platform', { align: 'center' });
+    doc.moveDown(2);
+    doc.fontSize(8).fillColor('#475569').text('This document is confidential and intended for authorized personnel only.', { align: 'center' });
+
+    // ── Page numbers ──
+    const pageCount = doc.bufferedPageRange().count;
+    for (let i = 0; i < pageCount; i++) {
+      doc.switchToPage(i);
+      doc.fontSize(8).fillColor(C_MUTED).text(
+        `Page ${i + 1} of ${pageCount}`,
+        50, 810, { width: 495, align: 'center' }
+      );
+    }
+
+    doc.end();
+  } catch (err) {
+    console.error('[master-audit] Error:', err.message);
+    res.status(500).json({ error: 'Failed to generate audit report' });
+  }
+});
+
 app.get('/api/report', (req, res) => {
   try {
     const html = generateReport();

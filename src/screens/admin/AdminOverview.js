@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Image, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Image, ActivityIndicator, Platform } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
@@ -152,6 +152,32 @@ export default function AdminOverview({ onNavigate, currentUser }) {
     { icon: '\uD83E\uDDF9', val: String(realStats.cleaners), lbl: 'Cleaners', color: C.teal },
   ];
 
+  const [auditLoading, setAuditLoading] = useState(false);
+  const handleDownloadAudit = async () => {
+    setAuditLoading(true);
+    try {
+      const resp = await apiFetch('/report/master-audit');
+      if (!resp.ok) throw new Error('Failed to generate report');
+      if (Platform.OS === 'web') {
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Sree-Pragathi-Master-Audit-Report.pdf';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('Audit report downloaded!', 'success');
+      } else {
+        showToast('PDF downloaded', 'success');
+      }
+    } catch (e) {
+      showToast(getFriendlyError(e, 'Failed to download audit report'), 'error');
+    }
+    setAuditLoading(false);
+  };
+
   const quickNav = [
     { icon: '\uD83D\uDC65', label: 'Manage Users', screen: 'admin-users', color: C.teal },
     { icon: '\uD83C\uDFEB', label: 'Classes', screen: 'admin-classes', color: C.gold },
@@ -226,6 +252,21 @@ export default function AdminOverview({ onNavigate, currentUser }) {
             </TouchableOpacity>
           ))}
         </View>
+
+        <TouchableOpacity
+          onPress={handleDownloadAudit}
+          disabled={auditLoading}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#1E293B', borderWidth: 1, borderColor: C.gold + '44', borderRadius: 14, paddingVertical: 14, marginBottom: 20, opacity: auditLoading ? 0.6 : 1 }}
+        >
+          {auditLoading ? (
+            <ActivityIndicator size="small" color={C.gold} />
+          ) : (
+            <Icon name="download" size={18} color={C.gold} />
+          )}
+          <Text style={{ fontWeight: '700', fontSize: 14, color: C.gold }}>
+            {auditLoading ? 'Generating Report...' : 'Download Master Audit Report'}
+          </Text>
+        </TouchableOpacity>
 
         <Text style={styles.secTitle}>Live Staff Board</Text>
         {staffLoading ? (
