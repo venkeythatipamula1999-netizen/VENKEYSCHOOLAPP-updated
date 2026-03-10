@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Modal, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from '../../components/Icon';
 import { C } from '../../theme/colors';
 import { S } from '../../theme/styles';
@@ -31,6 +32,10 @@ export default function LoginScreen({ role, onLoginSuccess, onBack, onNavigate }
     setLoading(true);
     try {
       const data = await loginUser({ email: user, password: pass });
+      if (data.token) {
+        await AsyncStorage.setItem('authToken', data.token);
+        await AsyncStorage.setItem('schoolId', data.user?.schoolId || 'SP-GOPA');
+      }
       const userData = data.user;
       if (onLoginSuccess) onLoginSuccess(userData);
     } catch (err) {

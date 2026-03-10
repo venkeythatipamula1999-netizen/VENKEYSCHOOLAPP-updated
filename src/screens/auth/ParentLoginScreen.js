@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Modal, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from '../../components/Icon';
 import { C } from '../../theme/colors';
 import { S } from '../../theme/styles';
@@ -34,7 +35,11 @@ export default function ParentLoginScreen({ onLoginSuccess, onBack, onNavigate }
       });
       const data = await res.json();
       if (!res.ok) { setErrorMsg(data.error || 'Login failed. Please try again.'); return; }
-      onLoginSuccess(data.user, data.requiresPIN);
+      if (data.token && !data.requiresPIN) {
+        await AsyncStorage.setItem('authToken', data.token);
+        await AsyncStorage.setItem('schoolId', data.user?.schoolId || 'SP-GOPA');
+      }
+      onLoginSuccess(data.user, data.requiresPIN, data.token);
     } catch {
       setErrorMsg('Network error. Please check your connection.');
     } finally {

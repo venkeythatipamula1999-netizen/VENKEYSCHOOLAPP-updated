@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Platform, SafeAreaView, StatusBar } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { C } from './src/theme/colors';
 import { S } from './src/theme/styles';
 import Icon from './src/components/Icon';
@@ -101,11 +102,14 @@ export default function App() {
     else navigate('parent-home');
   };
 
-  const handleLoginSuccess = (userData, requiresPIN) => {
+  const [pendingToken, setPendingToken] = useState(null);
+
+  const handleLoginSuccess = (userData, requiresPIN, token) => {
     const userRole = userData.role;
     setRole(userRole);
     if (requiresPIN && userRole === 'parent') {
       setPendingPINUser(userData);
+      setPendingToken(token || null);
       navigate('parent-pin');
     } else {
       setCurrentUser(userData);
@@ -117,10 +121,15 @@ export default function App() {
     }
   };
 
-  const handlePINSuccess = () => {
+  const handlePINSuccess = async () => {
     if (pendingPINUser) {
+      if (pendingToken) {
+        await AsyncStorage.setItem('authToken', pendingToken);
+        await AsyncStorage.setItem('schoolId', pendingPINUser.schoolId || 'SP-GOPA');
+      }
       setCurrentUser(pendingPINUser);
       setPendingPINUser(null);
+      setPendingToken(null);
       navigate('parent-home');
     }
   };
@@ -137,9 +146,12 @@ export default function App() {
     navigateToDashboard(updatedUser.role);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem('authToken');
+    await AsyncStorage.removeItem('schoolId');
     setCurrentUser(null);
     setPendingPINUser(null);
+    setPendingToken(null);
     setRole(null);
     navigate('splash');
   };

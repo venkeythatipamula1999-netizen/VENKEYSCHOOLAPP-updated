@@ -1,13 +1,35 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { reportError, reportApiError } from '../services/errorReporter';
 
 const API_BASE = '/api';
 
+export async function apiFetch(path, options = {}) {
+  const token = await AsyncStorage.getItem('authToken');
+  const roleId = options.roleId || null;
+
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    ...(roleId ? { 'x-role-id': roleId } : {}),
+    ...options.headers,
+  };
+
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers,
+  });
+
+  return res;
+}
+
 async function handleApiCall(endpoint, method, body) {
   try {
-    const options = {
-      method,
-      headers: { 'Content-Type': 'application/json' },
+    const token = await AsyncStorage.getItem('authToken');
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
     };
+    const options = { method, headers };
     if (body) {
       options.body = JSON.stringify(body);
     }

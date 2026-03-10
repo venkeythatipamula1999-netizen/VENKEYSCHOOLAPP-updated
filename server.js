@@ -4,7 +4,8 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_dev_secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error('[FATAL] JWT_SECRET environment variable is not set');
 
 function signToken(payload) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: '30d' });
@@ -595,7 +596,15 @@ app.post('/api/login', loginLimiter, async (req, res) => {
       responseUser.timetable = user.timetable;
     }
 
-    res.json({ user: responseUser });
+    const jwtToken = signToken({
+      userId: userDoc.id,
+      role: user.role,
+      schoolId: user.schoolId || DEFAULT_SCHOOL_ID,
+      roleId: user.role_id,
+      email: user.email
+    });
+
+    res.json({ token: jwtToken, user: responseUser });
   } catch (err) {
     console.error('Login error:', err.code || '', err.message || err);
     res.status(500).json({ error: `Server error: ${err.message}` });
@@ -5285,7 +5294,14 @@ app.post('/api/parent/email-login', loginLimiter, async (req, res) => {
     parentAccount.accountStatus = 'active';
     const sessionUser = await buildParentSession(parentAccount, req.schoolId || DEFAULT_SCHOOL_ID);
     console.log(`Parent login: ${email} | Students: ${parentAccount.studentIds?.join(', ')}`);
-    res.json({ success: true, user: sessionUser, requiresPIN: !!parentAccount.pinHash, emailVerified: userCredential.user.emailVerified });
+    const jwtToken = signToken({
+      userId: parentDoc.id,
+      role: 'parent',
+      schoolId: parentAccount.schoolId || DEFAULT_SCHOOL_ID,
+      phone: parentAccount.phone
+    });
+
+    res.json({ token: jwtToken, success: true, user: sessionUser, requiresPIN: !!parentAccount.pinHash, emailVerified: userCredential.user.emailVerified });
   } catch (err) {
     console.error('Parent email-login error:', err.message);
     res.status(500).json({ error: 'Login failed. Please try again.' });

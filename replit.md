@@ -194,7 +194,11 @@ FIREBASE_APP_ID=1:774655999002:android:6ccc7fd89c5c57598565a3
 - **School Code**: `SP-GOPA` (Sree Pragathi High School, Gopalraopet) — generated via `generateSchoolCode(name, location)`
 - **DEFAULT_SCHOOL_ID**: `'school_001'` — fallback when `req.schoolId` is not set (backwards compat)
 - **`req.schoolId`**: Set by `verifyAuth` — first tries JWT Bearer token (`decoded.schoolId`), then falls back to roleId header lookup from Firestore user doc; routes use `(req.schoolId || DEFAULT_SCHOOL_ID)` pattern
-- **JWT**: `jsonwebtoken` package, `signToken(payload)` / `verifyToken(token)`, 30-day expiry, `JWT_SECRET` from env
+- **JWT**: `jsonwebtoken` package, `signToken(payload)` / `verifyToken(token)`, 30-day expiry, `JWT_SECRET` from env (no fallback — server crashes if missing)
+- **JWT issuance**: `POST /api/login` and `POST /api/parent/email-login` both return `token` in response; frontend stores in AsyncStorage
+- **JWT on requests**: `src/api/client.js` exports `apiFetch(path, options)` which attaches `Authorization: Bearer <token>` header; `handleApiCall` also sends Bearer
+- **Token storage**: `AsyncStorage` keys: `authToken`, `schoolId`; cleared on logout
+- **Parent PIN guard**: Token is NOT stored until PIN verification succeeds (held in `pendingToken` state)
 - **`checkSchoolActive`**: Applied globally via `app.use()` — skips super admin, login, parent, register, report routes; blocks suspended schools on all other API calls
 - **Firestore indexes**: `firestore.indexes.json` — 19 composite indexes for schoolId + secondary field queries (deploy with `firebase deploy --only firestore:indexes`)
 - **schoolId filter on ALL queries**: Every Firestore list/getDocs query includes `where('schoolId', '==', ...)` to ensure data isolation between schools
