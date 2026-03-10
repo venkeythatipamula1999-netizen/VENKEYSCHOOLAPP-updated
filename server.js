@@ -2,6 +2,47 @@ const express = require('express');
 const path = require('path');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
+const rateLimit = require('express-rate-limit');
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many login attempts. Please try again in 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const scanLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  message: { error: 'Too many scan requests. Please slow down.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 300,
+  message: { error: 'Too many requests. Please slow down.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const superAdminLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 50,
+  message: { error: 'Too many super admin requests.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { error: 'Too many registration attempts. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
 
 // Dynamic per-request — set from JWT. This constant is only used as fallback.
 const DEFAULT_SCHOOL_ID = 'school_001';
@@ -151,6 +192,15 @@ const PORT = 5000;
 app.use(cors());
 app.use(express.json());
 app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.removeHeader('X-Powered-By');
+  next();
+});
+app.use('/api/', apiLimiter);
+app.use((req, res, next) => {
   res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.set("Pragma", "no-cache");
   res.set("Expires", "0");
@@ -180,7 +230,7 @@ async function safeSync(operation, syncFn, payload) {
   }
 }
 
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', registerLimiter, async (req, res) => {
   try {
     const { fullName, email: rawEmail, password, role, roleId } = req.body;
     const email = (rawEmail || '').trim().toLowerCase();
@@ -321,7 +371,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', loginLimiter, async (req, res) => {
   try {
     const { email: rawEmail, password } = req.body;
     const email = (rawEmail || '').trim().toLowerCase();
@@ -3252,7 +3302,7 @@ app.post('/api/leave-requests/backfill-teacher', async (req, res) => {
   }
 });
 
-app.post('/api/forgot-password', async (req, res) => {
+app.post('/api/forgot-password', loginLimiter, async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) {
@@ -3869,7 +3919,7 @@ app.get('/api/trip/scans', verifyAuth, async (req, res) => {
 
 const recentScans = {};
 
-app.post('/api/trip/scan', verifyAuth, async (req, res) => {
+app.post('/api/trip/scan', scanLimiter, verifyAuth, async (req, res) => {
   try {
     const { qrData, studentId: legacyStudentId, driverId, busId, scannedBy, role, timestamp } = req.body;
     const scanTime = timestamp || new Date().toISOString();
@@ -4997,7 +5047,7 @@ app.get('/api/parent/check-student', async (req, res) => {
   }
 });
 
-app.post('/api/parent/register', async (req, res) => {
+app.post('/api/parent/register', registerLimiter, async (req, res) => {
   try {
     const { studentId, parentName, email: rawEmail, phone, password, pin } = req.body;
     const email = (rawEmail || '').trim().toLowerCase();
@@ -5044,7 +5094,7 @@ app.post('/api/parent/register', async (req, res) => {
   }
 });
 
-app.post('/api/parent/email-login', async (req, res) => {
+app.post('/api/parent/email-login', loginLimiter, async (req, res) => {
   try {
     const { email: rawEmail, password } = req.body;
     const email = (rawEmail || '').trim().toLowerCase();
@@ -5115,7 +5165,7 @@ app.post('/api/parent/email-login', async (req, res) => {
   }
 });
 
-app.post('/api/parent/forgot-password', async (req, res) => {
+app.post('/api/parent/forgot-password', loginLimiter, async (req, res) => {
   try {
     const { email: rawEmail } = req.body;
     const email = (rawEmail || '').trim().toLowerCase();
@@ -5129,7 +5179,7 @@ app.post('/api/parent/forgot-password', async (req, res) => {
   }
 });
 
-app.post('/api/parent/verify-pin', async (req, res) => {
+app.post('/api/parent/verify-pin', loginLimiter, async (req, res) => {
   try {
     const { uid, pin } = req.body;
     if (!uid || !pin) return res.status(400).json({ error: 'uid and pin required' });
@@ -5522,7 +5572,7 @@ app.get('/api/report', (req, res) => {
 // SUPER ADMIN — SCHOOL MANAGEMENT
 // ════════════════════════════════════════
 
-app.post('/api/super/schools/create', verifySuperAdmin, async (req, res) => {
+app.post('/api/super/schools/create', superAdminLimiter, verifySuperAdmin, async (req, res) => {
   try {
     const { schoolName, location, address, phone, email, principalName, principalEmail, principalPassword, board, subscriptionPlan } = req.body;
     if (!schoolName || !location || !principalEmail || !principalPassword) {
@@ -5590,7 +5640,7 @@ app.post('/api/super/schools/create', verifySuperAdmin, async (req, res) => {
   }
 });
 
-app.get('/api/super/schools', verifySuperAdmin, async (req, res) => {
+app.get('/api/super/schools', superAdminLimiter, verifySuperAdmin, async (req, res) => {
   try {
     const snap = await adminDb.collection('schools').get();
     const schools = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -5601,7 +5651,7 @@ app.get('/api/super/schools', verifySuperAdmin, async (req, res) => {
   }
 });
 
-app.get('/api/super/schools/:schoolId', verifySuperAdmin, async (req, res) => {
+app.get('/api/super/schools/:schoolId', superAdminLimiter, verifySuperAdmin, async (req, res) => {
   try {
     const { schoolId } = req.params;
     const schoolSnap = await adminDb.collection('schools').doc(schoolId).get();
@@ -5620,7 +5670,7 @@ app.get('/api/super/schools/:schoolId', verifySuperAdmin, async (req, res) => {
   }
 });
 
-app.post('/api/super/schools/:schoolId/status', verifySuperAdmin, async (req, res) => {
+app.post('/api/super/schools/:schoolId/status', superAdminLimiter, verifySuperAdmin, async (req, res) => {
   try {
     const { schoolId } = req.params;
     const { status } = req.body;
@@ -5632,7 +5682,7 @@ app.post('/api/super/schools/:schoolId/status', verifySuperAdmin, async (req, re
   }
 });
 
-app.post('/api/super/schools/:schoolId/subscription', verifySuperAdmin, async (req, res) => {
+app.post('/api/super/schools/:schoolId/subscription', superAdminLimiter, verifySuperAdmin, async (req, res) => {
   try {
     const { schoolId } = req.params;
     const { subscriptionPlan, subscriptionStatus, expiresAt } = req.body;
@@ -5648,7 +5698,7 @@ app.post('/api/super/schools/:schoolId/subscription', verifySuperAdmin, async (r
   }
 });
 
-app.get('/api/super/stats', verifySuperAdmin, async (req, res) => {
+app.get('/api/super/stats', superAdminLimiter, verifySuperAdmin, async (req, res) => {
   try {
     const schoolsSnap = await adminDb.collection('schools').get();
     const schools = schoolsSnap.docs.map(d => d.data());
@@ -5676,7 +5726,7 @@ app.get('/api/super/stats', verifySuperAdmin, async (req, res) => {
   }
 });
 
-app.post('/api/super/migrate/wipe-school-001', verifySuperAdmin, async (req, res) => {
+app.post('/api/super/migrate/wipe-school-001', superAdminLimiter, verifySuperAdmin, async (req, res) => {
   try {
     const cols = ['students','classes','users','student_marks','student_attendance',
       'attendance_records','leaveRequests','leave_requests','buses','bus_trips',

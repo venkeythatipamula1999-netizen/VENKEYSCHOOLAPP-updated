@@ -198,6 +198,15 @@ FIREBASE_APP_ID=1:774655999002:android:6ccc7fd89c5c57598565a3
 - **Firestore `schools` collection**: One doc per school (e.g. `schools/SP-GOPA`) with name, location, status, plan, createdAt
 - **`sendEventNotifications()`** accepts `schoolId` as last parameter for user/student scoping
 
+## Rate Limiting & Security
+- **Package**: `express-rate-limit`
+- **Global API limiter**: 300 requests/minute per IP on all `/api/` routes
+- **Login limiter**: 10 attempts per 15 minutes per IP — applied to `/api/login`, `/api/parent/email-login`, `/api/parent/verify-pin`, `/api/forgot-password`, `/api/parent/forgot-password`
+- **Registration limiter**: 5 attempts per hour per IP — applied to `/api/register`, `/api/parent/register`
+- **QR scan limiter**: 60 scans per minute per IP — applied to `/api/trip/scan`
+- **Super Admin limiter**: 50 requests per minute per IP — applied to all `/api/super/*` routes
+- **Security headers**: X-Content-Type-Options (nosniff), X-Frame-Options (DENY), X-XSS-Protection, Referrer-Policy (strict-origin-when-cross-origin), X-Powered-By removed
+
 ## Notes
 - All API calls use relative `/api` path (proxied by Express)
 - Profile completion is mandatory on first login
