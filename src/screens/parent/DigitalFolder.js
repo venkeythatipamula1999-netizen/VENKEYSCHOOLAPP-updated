@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Platform, Linking, StyleSheet } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import { apiFetch } from '../../api/client';
 
 export default function DigitalFolder({ onBack, currentUser }) {
   const [files, setFiles] = useState([]);
@@ -12,7 +13,7 @@ export default function DigitalFolder({ onBack, currentUser }) {
   const fetchFiles = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/student-files?studentId=${encodeURIComponent(studentId)}`);
+      const res = await apiFetch(`/student-files?studentId=${encodeURIComponent(studentId)}`);
       const data = await res.json();
       if (data.files) setFiles(data.files);
     } catch (e) { console.error('Fetch files error:', e); }
@@ -21,15 +22,14 @@ export default function DigitalFolder({ onBack, currentUser }) {
 
   const fetchNotifications = useCallback(async () => {
     try {
-      const res = await fetch(`/api/parent-notifications?studentId=${encodeURIComponent(studentId)}`);
+      const res = await apiFetch(`/parent-notifications?studentId=${encodeURIComponent(studentId)}`);
       const data = await res.json();
       if (data.notifications) {
         setNotifications(data.notifications);
         if (data.notifications.length > 0) {
           const ids = data.notifications.map(n => n.id);
-          fetch('/api/parent-notifications/read', {
+          apiFetch('/parent-notifications/read', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ notificationIds: ids }),
           }).catch(() => {});
         }

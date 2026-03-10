@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import { apiFetch } from '../../api/client';
 
 export default function NotificationsScreen({ onBack, currentUser }) {
   const [liveNotifs, setLiveNotifs] = useState([]);
@@ -12,7 +13,7 @@ export default function NotificationsScreen({ onBack, currentUser }) {
   useEffect(() => {
     if (!studentId) { setLoading(false); return; }
     setLoading(true);
-    fetch(`/api/parent-notifications?studentId=${encodeURIComponent(studentId)}`)
+    apiFetch(`/parent-notifications?studentId=${encodeURIComponent(studentId)}`)
       .then(r => r.json())
       .then(data => {
         const notifs = (data.notifications || []).map(n => {

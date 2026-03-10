@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Modal, TextInput } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import { apiFetch } from '../../api/client';
 
 function initials(name) {
   if (!name) return '?';
@@ -43,9 +44,9 @@ export default function ParentDashboard({ onNavigate, currentUser, onLogout, onU
     if (!studentId) { setLoading(false); return; }
     setLoading(true);
     Promise.all([
-      fetch(`/api/attendance/student-monthly?studentId=${encodeURIComponent(studentId)}&month=${currentMonth()}`).then(r => r.json()),
-      fetch(`/api/marks/student/${encodeURIComponent(studentId)}`).then(r => r.json()),
-      fetch(`/api/parent-notifications?studentId=${encodeURIComponent(studentId)}`).then(r => r.json()),
+      apiFetch(`/attendance/student-monthly?studentId=${encodeURIComponent(studentId)}&month=${currentMonth()}`).then(r => r.json()),
+      apiFetch(`/marks/student/${encodeURIComponent(studentId)}`).then(r => r.json()),
+      apiFetch(`/parent-notifications?studentId=${encodeURIComponent(studentId)}`).then(r => r.json()),
     ]).then(([att, marks, notifs]) => {
       if (att.success) setAttSummary(att.summary);
       if (marks.success) setMarksSummary(marks);
@@ -57,9 +58,8 @@ export default function ParentDashboard({ onNavigate, currentUser, onLogout, onU
     if (!uid) return;
     setSwitchLoading(true);
     try {
-      const res = await fetch('/api/parent/switch-child', {
+      const res = await apiFetch('/parent/switch-child', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ uid, studentId: targetStudentId }),
       });
       const data = await res.json();
@@ -78,9 +78,8 @@ export default function ParentDashboard({ onNavigate, currentUser, onLogout, onU
     if (!uid) { setAddChildError('Session error. Please logout and login again.'); return; }
     setAddChildLoading(true);
     try {
-      const res = await fetch('/api/parent/add-child', {
+      const res = await apiFetch('/parent/add-child', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ uid, studentId: addChildId.trim(), phone: addChildPhone.trim() }),
       });
       const data = await res.json();

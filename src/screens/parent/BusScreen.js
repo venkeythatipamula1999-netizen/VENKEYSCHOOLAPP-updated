@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import { apiFetch } from '../../api/client';
 
 export default function BusScreen({ onBack, currentUser }) {
   const studentId = currentUser?.student_id || currentUser?.studentId || currentUser?.role_id || '';
@@ -16,7 +17,7 @@ export default function BusScreen({ onBack, currentUser }) {
 
   useEffect(() => {
     if (!studentId) { setLoading(false); return; }
-    fetch(`/api/student/bus-tracking?studentId=${encodeURIComponent(studentId)}`)
+    apiFetch(`/student/bus-tracking?studentId=${encodeURIComponent(studentId)}`)
       .then(r => r.json())
       .then(data => {
         if (data.success) {

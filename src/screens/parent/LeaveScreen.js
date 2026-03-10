@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import { apiFetch } from '../../api/client';
 
 const REASONS = [
   { id: 'sick', icon: '🤒', label: 'Medical / Sick' },
@@ -51,7 +52,7 @@ export default function LeaveScreen({ onBack, currentUser }) {
   useEffect(() => {
     if (!studentId) return;
     setLoadingHistory(true);
-    fetch(`/api/leave-requests/students?studentId=${encodeURIComponent(studentId)}`)
+    apiFetch(`/leave-requests/students?studentId=${encodeURIComponent(studentId)}`)
       .then(r => r.json())
       .then(d => {
         const leaves = d.requests || d.leaves || [];
@@ -101,9 +102,8 @@ export default function LeaveScreen({ onBack, currentUser }) {
     console.log('STEP 2 - Querying teacher where classTeacherOf =', studentClass);
 
     try {
-      const res = await fetch('/api/leave-request/student/submit', {
+      const res = await apiFetch('/leave-request/student/submit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       const data = await res.json();

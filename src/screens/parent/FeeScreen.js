@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import { apiFetch } from '../../api/client';
 
 export default function FeeScreen({ onBack, currentUser }) {
   const [reminders, setReminders] = useState([]);
@@ -13,7 +14,7 @@ export default function FeeScreen({ onBack, currentUser }) {
 
   useEffect(() => {
     setRemindersLoading(true);
-    fetch(`/api/fee-reminders?studentId=${studentId}`)
+    apiFetch(`/fee-reminders?studentId=${studentId}`)
       .then(r => r.json())
       .then(data => setReminders(data.reminders || []))
       .catch(() => {})
@@ -23,9 +24,8 @@ export default function FeeScreen({ onBack, currentUser }) {
   const acknowledgeReminder = async (reminderId) => {
     setAckLoading(reminderId);
     try {
-      const res = await fetch('/api/fee-reminder/acknowledge', {
+      const res = await apiFetch('/fee-reminder/acknowledge', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reminderId }),
       });
       if (res.ok) {

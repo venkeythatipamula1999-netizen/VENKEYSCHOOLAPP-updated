@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import DonutRing from '../../components/DonutRing';
+import { apiFetch } from '../../api/client';
 
 function prevMonth(m) {
   const [y, mo] = m.split('-').map(Number);
@@ -47,7 +48,7 @@ export default function AttendanceScreen({ onBack, currentUser }) {
     setLoading(true);
     setError('');
     setData(null);
-    fetch(`/api/attendance/student-monthly?studentId=${encodeURIComponent(studentId)}&month=${month}`)
+    apiFetch(`/attendance/student-monthly?studentId=${encodeURIComponent(studentId)}&month=${month}`)
       .then(r => r.json())
       .then(d => {
         if (d.success) setData(d);

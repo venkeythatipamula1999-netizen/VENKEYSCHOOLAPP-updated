@@ -4,6 +4,7 @@ import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import DonutRing from '../../components/DonutRing';
 import UnitDetail from '../../components/UnitDetail';
+import { apiFetch } from '../../api/client';
 
 const SUB_PALETTE = [C.gold, C.teal, C.purple, C.coral, '#34D399', '#60A5FA', '#F59E0B', '#EC4899'];
 const subColor = (name, idx) => {
@@ -23,7 +24,7 @@ export default function MarksScreen({ onBack, currentUser }) {
   const fetchMarks = () => {
     if (!studentId) { setLoading(false); return; }
     setLoading(true);
-    fetch(`/api/marks/student/${studentId}`)
+    apiFetch(`/marks/student/${studentId}`)
       .then(r => r.json())
       .then(d => {
         if (d.success) setMarksData(d);
