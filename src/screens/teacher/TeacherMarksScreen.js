@@ -83,6 +83,8 @@ export default function TeacherMarksScreen({ onBack, currentUser }) {
   const [syncStatus, setSyncStatus] = useState('idle');
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
   const [errorMsg, setErrorMsg] = useState('');
+  const [marksVersions, setMarksVersions] = useState({});
+  const [conflictError, setConflictError] = useState(false);
 
   const [editDialogVisible, setEditDialogVisible] = useState(false);
   const [editStudent, setEditStudent] = useState(null);
@@ -240,12 +242,15 @@ export default function TeacherMarksScreen({ onBack, currentUser }) {
       .then(r => r.json())
       .then(data => {
         const existing = {};
+        const versions = {};
         (data.marks || []).forEach(m => {
           if (normalizeSubject(m.subject) === normalizeSubject(entrySubject.name)) {
             existing[m.studentId] = String(m.marksObtained);
+            if (m.version !== undefined) versions[m.studentId] = m.version;
           }
         });
         setMarks(existing);
+        setMarksVersions(versions);
       })
       .catch(() => setMarks({}))
       .finally(() => setLoadingMarks(false));
@@ -319,6 +324,7 @@ export default function TeacherMarksScreen({ onBack, currentUser }) {
         marksObtained: v,
         maxMarks: MAX_MARKS,
         recordedBy: roleId || currentUser?.email || 'teacher',
+        version: marksVersions[s.id],
       });
     }
     if (Object.keys(errors).length > 0) {
@@ -341,6 +347,13 @@ export default function TeacherMarksScreen({ onBack, currentUser }) {
         }),
       });
       const data = await res.json();
+      if (res.status === 409) {
+        setConflictError(true);
+        setErrorMsg('These marks were updated by someone else. Please refresh and try again.');
+        setSyncStatus('error');
+        setTimeout(() => setSyncStatus('idle'), 5000);
+        return;
+      }
       if (!res.ok) throw new Error(data.error || 'Failed to save marks');
       setSyncStatus(data.sheetSync ? 'synced' : 'partial');
       showToast(`${exam.label} marks saved! ${entrySubject.name} – ${selectedClass?.label || ''}`, 'success');
@@ -354,12 +367,15 @@ export default function TeacherMarksScreen({ onBack, currentUser }) {
         .then(r => r.json())
         .then(data => {
           const updated = {};
+          const versions = {};
           (data.marks || []).forEach(m => {
             if ((m.subject || '').trim().toLowerCase() === (entrySubject.name || '').trim().toLowerCase()) {
               updated[m.studentId] = String(m.marksObtained);
+              if (m.version !== undefined) versions[m.studentId] = m.version;
             }
           });
           setMarks(updated);
+          setMarksVersions(versions);
         })
         .catch(() => {});
       setTimeout(() => setSyncStatus('idle'), 5000);
@@ -403,9 +419,16 @@ export default function TeacherMarksScreen({ onBack, currentUser }) {
           maxMarks: MAX_MARKS,
           reason: finalReason,
           editedBy: currentUser?.name || currentUser?.email || roleId || 'teacher',
+          version: marksVersions[editStudent.id],
         }),
       });
       const data = await res.json();
+      if (res.status === 409) {
+        setConflictError(true);
+        setEditDialogVisible(false);
+        setErrorMsg('These marks were updated by someone else. Please refresh and try again.');
+        return;
+      }
       if (!res.ok) throw new Error(data.error || 'Failed to update marks');
       setMarks(prev => ({ ...prev, [editStudent.id]: String(newVal) }));
       setEditDialogVisible(false);
@@ -690,7 +713,38 @@ export default function TeacherMarksScreen({ onBack, currentUser }) {
               </View>
             )}
 
-            <ErrorBanner message={errorMsg} onDismiss={() => setErrorMsg('')} />
+            <ErrorBanner message={errorMsg} onDismiss={() => { setErrorMsg(''); setConflictError(false); }} />
+            {conflictError && (
+              <TouchableOpacity
+                onPress={() => {
+                  setConflictError(false);
+                  setErrorMsg('');
+                  if (selectedClassId && exam && entrySubject) {
+                    setLoadingMarks(true);
+                    apiFetch(`/marks/view?examType=${exam.id}&classId=${selectedClassId}`)
+                      .then(r => r.json())
+                      .then(data => {
+                        const updated = {};
+                        const versions = {};
+                        (data.marks || []).forEach(m => {
+                          if (normalizeSubject(m.subject) === normalizeSubject(entrySubject.name)) {
+                            updated[m.studentId] = String(m.marksObtained);
+                            if (m.version !== undefined) versions[m.studentId] = m.version;
+                          }
+                        });
+                        setMarks(updated);
+                        setMarksVersions(versions);
+                      })
+                      .catch(() => {})
+                      .finally(() => setLoadingMarks(false));
+                  }
+                }}
+                style={{ marginHorizontal: 20, marginBottom: 8, backgroundColor: C.gold + '22', borderWidth: 1, borderColor: C.gold + '66', borderRadius: 10, paddingVertical: 10, alignItems: 'center' }}
+                activeOpacity={0.7}
+              >
+                <Text style={{ color: C.gold, fontWeight: '700', fontSize: 13 }}>↻ Refresh Marks</Text>
+              </TouchableOpacity>
+            )}
 
             <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 20, paddingVertical: 4, paddingHorizontal: 16, marginBottom: 16 }}>
               {students.map((s, idx) => {

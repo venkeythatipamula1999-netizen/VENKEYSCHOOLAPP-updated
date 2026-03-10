@@ -139,7 +139,7 @@ const checkSchoolActive = async (req, res, next) => {
 };
 
 const { initializeApp } = require('firebase/app');
-const { getFirestore, collection, query, where, getDocs, addDoc, doc, writeBatch, serverTimestamp, updateDoc, getDoc: getDocFS, deleteDoc, setDoc, orderBy } = require('firebase/firestore');
+const { getFirestore, collection, query, where, getDocs, addDoc, doc, writeBatch, serverTimestamp, updateDoc, getDoc: getDocFS, deleteDoc, setDoc, orderBy, runTransaction } = require('firebase/firestore');
 const { getStorage, ref, uploadBytes, getDownloadURL } = require('firebase/storage');
 const multer = require('multer');
 const csvParser = require('csv-parser');
@@ -1782,32 +1782,90 @@ app.post('/api/marks/save', async (req, res) => {
       }
     }
 
-    const batch = writeBatch(db);
     const marksRef = collection(db, 'student_marks');
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    const now = new Date().toISOString();
 
-    for (const record of records) {
-      const docId = `${record.studentId}_${examType}_${subject}`;
-      const docRef = doc(marksRef, docId);
+    const docEntries = records.map(r => ({
+      record: r,
+      ref: doc(marksRef, `${r.studentId}_${examType}_${subject}`),
+    }));
 
-      // setDoc with merge:false means it overwrites — preventing duplicates
-      // because same studentId + examType + subject always maps to same docId
-      batch.set(docRef, {
-        studentId: record.studentId,
-        studentName: record.studentName,
-        classId: record.classId,
-        className: className || record.classId || '',
-        subject: subject,
-        examType: examType,
-        marksObtained: record.marksObtained,
-        maxMarks: record.maxMarks,
-        recordedBy: record.recordedBy || teacherId || 'teacher',
-        schoolId: (req.schoolId || DEFAULT_SCHOOL_ID),
-        updatedAt: new Date().toISOString(),
-        timestamp: serverTimestamp(),
+    let conflicts = [];
+    try {
+      await runTransaction(db, async (transaction) => {
+        const existingDocs = await Promise.all(docEntries.map(({ ref }) => transaction.get(ref)));
+
+        const conflictsFound = [];
+        for (let i = 0; i < records.length; i++) {
+          const record = records[i];
+          const existing = existingDocs[i];
+          if (existing.exists() && record.version !== undefined) {
+            const currentVersion = existing.data().version || 1;
+            if (Number(record.version) !== currentVersion) {
+              conflictsFound.push({
+                studentId: record.studentId,
+                studentName: record.studentName,
+                existingVersion: currentVersion,
+                attemptedVersion: Number(record.version),
+              });
+            }
+          }
+        }
+
+        if (conflictsFound.length > 0) {
+          conflicts = conflictsFound;
+          const err = new Error('VERSION_CONFLICT');
+          err.isVersionConflict = true;
+          throw err;
+        }
+
+        for (let i = 0; i < records.length; i++) {
+          const record = records[i];
+          const { ref } = docEntries[i];
+          const existing = existingDocs[i];
+          const currentVersion = existing.exists() ? (existing.data().version || 1) : 0;
+          transaction.set(ref, {
+            studentId: record.studentId,
+            studentName: record.studentName,
+            classId: record.classId,
+            className: className || record.classId || '',
+            subject,
+            examType,
+            marksObtained: record.marksObtained,
+            maxMarks: record.maxMarks,
+            recordedBy: record.recordedBy || teacherId || 'teacher',
+            schoolId,
+            version: currentVersion === 0 ? 1 : currentVersion + 1,
+            updatedAt: now,
+            timestamp: serverTimestamp(),
+          });
+        }
       });
+    } catch (txErr) {
+      if (txErr.isVersionConflict) {
+        try {
+          await Promise.all(conflicts.map(c => addDoc(collection(db, 'marks_conflict_logs'), {
+            studentId: c.studentId,
+            classId,
+            subject,
+            examType,
+            attemptedBy: teacherId || 'teacher',
+            existingVersion: c.existingVersion,
+            attemptedVersion: c.attemptedVersion,
+            timestamp: now,
+            schoolId,
+          })));
+        } catch (logErr) {
+          console.error('[marks/save] Conflict log error:', logErr.message);
+        }
+        return res.status(409).json({
+          error: 'Version conflict: these marks were updated by someone else since you last loaded them.',
+          conflicts: conflicts.map(c => ({ studentId: c.studentId, studentName: c.studentName })),
+        });
+      }
+      throw txErr;
     }
-
-    await batch.commit();
 
     const avg = Math.round(records.reduce((s, r) => s + r.marksObtained, 0) / records.length);
     console.log(`[student_marks] Saved/updated ${records.length} records | subject: ${subject} | exam: ${examType} | class: ${className} | avg: ${avg}`);
@@ -1922,7 +1980,7 @@ app.get('/api/marks/submitted-exams', async (req, res) => {
 
 app.post('/api/marks/edit', async (req, res) => {
   try {
-    const { studentId, studentName, classId, className, subject: rawSubject, examType, newMarks, maxMarks, reason, editedBy } = req.body;
+    const { studentId, studentName, classId, className, subject: rawSubject, examType, newMarks, maxMarks, reason, editedBy, version: submittedVersion } = req.body;
     if (!studentId || !classId || !rawSubject || !examType || newMarks === undefined || !reason?.trim()) {
       return res.status(400).json({ error: 'studentId, classId, subject, examType, newMarks, and reason are required' });
     }
@@ -1930,25 +1988,55 @@ app.post('/api/marks/edit', async (req, res) => {
     const subject = (rawSubject || '').trim();
     const editedAt = new Date().toISOString();
     const docId = `${studentId}_${examType}_${subject}`;
+    const docRef = doc(db, 'student_marks', docId);
 
-    // Read old value first
-    const existingDoc = await getDocFS(doc(db, 'student_marks', docId));
-    const oldMarks = existingDoc.exists() ? existingDoc.data().marksObtained : null;
+    let oldMarks = null;
+    let existingVersion = null;
+    try {
+      await runTransaction(db, async (transaction) => {
+        const existing = await transaction.get(docRef);
+        oldMarks = existing.exists() ? existing.data().marksObtained : null;
+        existingVersion = existing.exists() ? (existing.data().version || 1) : null;
 
-    // Update the marks
-    await setDoc(doc(db, 'student_marks', docId), {
-      studentId,
-      studentName: studentName || '',
-      classId,
-      className: className || '',
-      subject,
-      examType,
-      marksObtained: Number(newMarks),
-      maxMarks: Number(maxMarks) || 20,
-      recordedBy: editedBy || 'teacher',
-      updatedAt: editedAt,
-      timestamp: serverTimestamp(),
-    }, { merge: true });
+        if (existing.exists() && submittedVersion !== undefined) {
+          const currentVersion = existing.data().version || 1;
+          if (Number(submittedVersion) !== currentVersion) {
+            const err = new Error('VERSION_CONFLICT');
+            err.isVersionConflict = true;
+            throw err;
+          }
+        }
+
+        const currentVersion = existing.exists() ? (existing.data().version || 1) : 0;
+        const existingData = existing.exists() ? existing.data() : {};
+        transaction.set(docRef, {
+          ...existingData,
+          marksObtained: Number(newMarks),
+          maxMarks: Number(maxMarks) || 20,
+          recordedBy: editedBy || 'teacher',
+          updatedAt: editedAt,
+          version: currentVersion === 0 ? 1 : currentVersion + 1,
+          timestamp: serverTimestamp(),
+        });
+      });
+    } catch (txErr) {
+      if (txErr.isVersionConflict) {
+        try {
+          await addDoc(collection(db, 'marks_conflict_logs'), {
+            studentId, classId, subject, examType,
+            attemptedBy: editedBy || 'teacher',
+            existingVersion,
+            attemptedVersion: submittedVersion !== undefined ? Number(submittedVersion) : null,
+            timestamp: editedAt,
+            schoolId: req.schoolId || DEFAULT_SCHOOL_ID,
+          });
+        } catch (logErr) {
+          console.error('[marks/edit] Conflict log error:', logErr.message);
+        }
+        return res.status(409).json({ error: 'Version conflict: these marks were updated by someone else since you last loaded them.' });
+      }
+      throw txErr;
+    }
 
     console.log(`[marks/edit] ${studentName} ${subject} ${examType}: ${oldMarks} → ${newMarks}`);
 
