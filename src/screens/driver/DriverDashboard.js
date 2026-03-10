@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { DRIVER_DEFAULT } from '../../data/driver';
+import { apiFetch } from '../../api/client';
 
 export default function DriverDashboard({ onNavigate, currentUser }) {
   const [tripActive, setTripActive] = useState(false);
@@ -54,7 +55,7 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
     const routeKey = getRouteKey();
     const did = currentUser?.role_id || currentUser?.roleId || driverId;
     try {
-      const res = await fetch(`/api/bus/route-students?driverId=${encodeURIComponent(did)}&route=${encodeURIComponent(routeKey || '')}`);
+      const res = await apiFetch(`/bus/route-students?driverId=${encodeURIComponent(did)}&route=${encodeURIComponent(routeKey || '')}`);
       const data = await res.json();
       if (data.success && data.students) {
         setRouteStudents(data.students);
@@ -67,8 +68,7 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
 
   const fetchTripScans = async (currentTripId) => {
     try {
-      const res = await fetch(`/api/trip/scans?tripId=${encodeURIComponent(currentTripId)}&driverId=${encodeURIComponent(driverId)}`, {
-        headers: { 'x-role-id': driverId },
+      const res = await apiFetch(`/trip/scans?tripId=${encodeURIComponent(currentTripId)}&driverId=${encodeURIComponent(driverId)}`, {
       });
       const data = await res.json();
       if (data.success) {
@@ -88,8 +88,8 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
   const loadTodaySummary = useCallback(async () => {
     try {
       const [summaryRes, alertsRes] = await Promise.all([
-        fetch(`/api/bus/today-summary?driverId=${encodeURIComponent(driverId)}`),
-        fetch(`/api/bus/proximity-alerts-today?busNumber=${encodeURIComponent(busNumber)}`),
+        apiFetch(`/bus/today-summary?driverId=${encodeURIComponent(driverId)}`),
+        apiFetch(`/bus/proximity-alerts-today?busNumber=${encodeURIComponent(busNumber)}`),
       ]);
       const summaryData = await summaryRes.json();
       const alertsData = await alertsRes.json();
@@ -127,7 +127,7 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
   }, [tripActive, tripId]);
 
   useEffect(() => {
-    fetch(`/api/duty/status?roleId=${encodeURIComponent(driverId)}`)
+    apiFetch(`/duty/status?roleId=${encodeURIComponent(driverId)}`)
       .then(r => r.json())
       .then(data => {
         if (data.onDuty === true) {
@@ -142,16 +142,14 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
   useEffect(() => {
     if (onDuty && tripActive) {
       setCurrentStatus('In Transit/Student Pickup');
-      fetch('/api/duty/update-status', {
+      apiFetch('/duty/update-status', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ roleId: driverId, currentStatus: 'In Transit/Student Pickup' }),
       }).catch(e => console.error('Status update error:', e.message));
     } else if (onDuty && !tripActive) {
       setCurrentStatus('On Duty');
-      fetch('/api/duty/update-status', {
+      apiFetch('/duty/update-status', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ roleId: driverId, currentStatus: 'On Duty' }),
       }).catch(e => console.error('Status update error:', e.message));
     } else if (!onDuty) {
@@ -163,9 +161,8 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
     setDutyLoading(true);
     try {
       if (!onDuty) {
-        const res = await fetch('/api/duty/clock-in', {
+        const res = await apiFetch('/duty/clock-in', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: currentUser?.uid || '', name: driverName, role: 'driver', roleId: driverId }),
         });
         const data = await res.json();
@@ -174,9 +171,8 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
           setClockInTime(data.clockIn);
         }
       } else {
-        const res = await fetch('/api/duty/clock-out', {
+        const res = await apiFetch('/duty/clock-out', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: currentUser?.uid || '', name: driverName, role: 'driver', roleId: driverId }),
         });
         const data = await res.json();
@@ -237,9 +233,8 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
     const longitude = lngRef.current;
     if (latitude === null || longitude === null) return;
     try {
-      await fetch('/api/bus/update-location', {
+      await apiFetch('/bus/update-location', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ busNumber, lat: latitude, lng: longitude, speed: speedRef.current || 0 }),
       });
     } catch (e) { console.error('Location update error:', e.message); }
@@ -270,9 +265,8 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
         } catch (e) { console.warn('Initial GPS failed, proceeding:', e.message); }
       }
 
-      const res = await fetch('/api/bus/start-trip', {
+      const res = await apiFetch('/bus/start-trip', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ driverId, driverName, busNumber, route: busRoute, tripType: 'school', lat: startLat, lng: startLng }),
       });
       const data = await res.json();
@@ -304,9 +298,8 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
     setTripMsg('');
     try {
       const totalDistanceKm = parseFloat((distanceRef.current / 1000).toFixed(2));
-      const res = await fetch('/api/bus/end-trip', {
+      const res = await apiFetch('/bus/end-trip', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tripId, driverId, driverName, busNumber, route: busRoute, totalDistance: totalDistanceKm, studentsBoarded: boardedCount }),
       });
       const data = await res.json();
@@ -372,9 +365,8 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
       }
 
       const routeKey = getRouteKey();
-      const res = await fetch('/api/bus/set-stop', {
+      const res = await apiFetch('/bus/set-stop', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           studentId: String(student.id),
           studentName: student.name,

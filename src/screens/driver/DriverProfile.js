@@ -5,6 +5,7 @@ import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import ChangePasswordModal from '../../components/ChangePasswordModal';
 import { DRIVER_DEFAULT } from '../../data/driver';
+import { apiFetch } from '../../api/client';
 
 function getMonthStr(y, m) { return `${y}-${String(m).padStart(2, '0')}`; }
 function currentMonthStr() { const n = new Date(); return getMonthStr(n.getFullYear(), n.getMonth() + 1); }
@@ -58,7 +59,7 @@ function SalaryTab({ currentUser }) {
   const loadSalaryInfo = useCallback(async () => {
     setSalaryLoading(true);
     try {
-      const res = await fetch(`/api/payroll/my-salary?roleId=${encodeURIComponent(driverId)}`);
+      const res = await apiFetch(`/payroll/my-salary?roleId=${encodeURIComponent(driverId)}`);
       const data = await res.json();
       setSalaryInfo(data);
     } catch (e) {
@@ -71,7 +72,7 @@ function SalaryTab({ currentUser }) {
     setPayslipLoading(true);
     setPayslip(null);
     try {
-      const res = await fetch(`/api/payroll/my-payslip?roleId=${encodeURIComponent(driverId)}&month=${month}`);
+      const res = await apiFetch(`/payroll/my-payslip?roleId=${encodeURIComponent(driverId)}&month=${month}`);
       const data = await res.json();
       setPayslip(data);
     } catch (e) {

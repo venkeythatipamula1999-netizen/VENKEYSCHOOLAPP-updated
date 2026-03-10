@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Platform, 
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { DRIVER_DEFAULT } from '../../data/driver';
+import { apiFetch } from '../../api/client';
 
 export default function DriverStudentLocations({ onBack, currentUser }) {
   const [routeStudents, setRouteStudents] = useState([]);
@@ -30,7 +31,7 @@ export default function DriverStudentLocations({ onBack, currentUser }) {
     const did = currentUser?.role_id || currentUser?.roleId || driverId;
 
     try {
-      const studentsRes = await fetch(`/api/bus/route-students?driverId=${encodeURIComponent(did)}&route=${encodeURIComponent(routeKey || '')}`);
+      const studentsRes = await apiFetch(`/bus/route-students?driverId=${encodeURIComponent(did)}&route=${encodeURIComponent(routeKey || '')}`);
       const studentsData = await studentsRes.json();
       if (studentsData.success && studentsData.students) {
         setRouteStudents(studentsData.students);
@@ -43,7 +44,7 @@ export default function DriverStudentLocations({ onBack, currentUser }) {
     }
 
     try {
-      const reqRes = await fetch(`/api/bus/pending-requests?route=${encodeURIComponent(routeKey || '')}`);
+      const reqRes = await apiFetch(`/bus/pending-requests?route=${encodeURIComponent(routeKey || '')}`);
       const reqData = await reqRes.json();
       if (reqData.requests) {
         const reqMap = {};
@@ -72,9 +73,8 @@ export default function DriverStudentLocations({ onBack, currentUser }) {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
         const routeKey = getRouteKey();
-        const res = await fetch('/api/bus/set-stop', {
+        const res = await apiFetch('/bus/set-stop', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             studentId: String(student.id),
             studentName: student.name,
@@ -120,9 +120,8 @@ export default function DriverStudentLocations({ onBack, currentUser }) {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
         const routeKey = getRouteKey();
-        const res = await fetch('/api/bus/request-location-change', {
+        const res = await apiFetch('/bus/request-location-change', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             studentId: String(student.id),
             studentName: student.name,

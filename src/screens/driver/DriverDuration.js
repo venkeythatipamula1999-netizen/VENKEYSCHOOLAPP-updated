@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { DRIVER_DEFAULT } from '../../data/driver';
+import { apiFetch } from '../../api/client';
 
 export default function DriverDuration({ onBack, currentUser }) {
   const driverId = currentUser?.role_id || DRIVER_DEFAULT.id;
@@ -17,7 +18,7 @@ export default function DriverDuration({ onBack, currentUser }) {
   const loadWeekData = useCallback(async (offset) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/bus/trip-duration-week?driverId=${encodeURIComponent(driverId)}&weekOffset=${offset}`);
+      const res = await apiFetch(`/bus/trip-duration-week?driverId=${encodeURIComponent(driverId)}&weekOffset=${offset}`);
       const data = await res.json();
       if (data.days) {
         setDays(data.days);

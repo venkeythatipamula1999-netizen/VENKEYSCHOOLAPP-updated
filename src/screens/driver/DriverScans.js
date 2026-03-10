@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { DRIVER_DEFAULT } from '../../data/driver';
+import { apiFetch } from '../../api/client';
 export default function DriverScans({ onBack, currentUser }) {
   const [scans, setScans] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -13,7 +14,7 @@ export default function DriverScans({ onBack, currentUser }) {
       try {
         const roleId = currentUser?.role_id || '';
         const busId = currentUser?.bus_number || currentUser?.busId || '';
-        const res = await fetch(`/api/trip/scans?driverId=${roleId}&busNumber=${busId}`, { headers: { 'x-role-id': roleId } });
+        const res = await apiFetch(`/trip/scans?driverId=${roleId}&busNumber=${busId}`, {});
         const data = await res.json();
         if (data.success && Array.isArray(data.scans)) setScans(data.scans);
       } catch (e) {

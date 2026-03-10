@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Icon from '../../components/Icon';
 import { C } from '../../theme/colors';
 import { DRIVER_DEFAULT } from '../../data/driver';
+import { apiFetch } from '../../api/client';
 
 function haversine(lat1, lng1, lat2, lng2) {
   const R = 6371000;
@@ -65,7 +66,7 @@ export default function DriverProximityAlerts({ onBack, currentUser }) {
     try {
       const did = currentUser?.role_id || currentUser?.roleId || driverId;
       const routeParam = routeKey || '';
-      const studentsRes = await fetch(`/api/bus/route-students?driverId=${encodeURIComponent(did)}&route=${encodeURIComponent(routeParam)}`);
+      const studentsRes = await apiFetch(`/bus/route-students?driverId=${encodeURIComponent(did)}&route=${encodeURIComponent(routeParam)}`);
       const studentsData = await studentsRes.json();
       if (studentsData.success && studentsData.students) {
         setRouteStudents(studentsData.students);
@@ -75,8 +76,8 @@ export default function DriverProximityAlerts({ onBack, currentUser }) {
       }
 
       const [alertsRes, pendingRes] = await Promise.all([
-        fetch(`/api/bus/proximity-alerts-today?busNumber=${encodeURIComponent(busNumber)}`),
-        fetch(`/api/bus/pending-requests?route=${encodeURIComponent(routeParam)}`),
+        apiFetch(`/bus/proximity-alerts-today?busNumber=${encodeURIComponent(busNumber)}`),
+        apiFetch(`/bus/pending-requests?route=${encodeURIComponent(routeParam)}`),
       ]);
       const alertsData = await alertsRes.json();
       const pendingData = await pendingRes.json();
@@ -120,9 +121,8 @@ export default function DriverProximityAlerts({ onBack, currentUser }) {
     if (!coords) { showMsg('Please capture GPS location first', C.coral); return; }
     setSettingFor(sid);
     try {
-      const res = await fetch('/api/bus/set-stop', {
+      const res = await apiFetch('/bus/set-stop', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           studentId: sid,
           studentName: student.name,
@@ -177,9 +177,8 @@ export default function DriverProximityAlerts({ onBack, currentUser }) {
     try {
       const sid = String(student.id);
       const existing = stopStatus[sid];
-      const res = await fetch('/api/bus/request-location-change', {
+      const res = await apiFetch('/bus/request-location-change', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           studentId: sid,
           studentName: student.name,
