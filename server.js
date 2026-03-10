@@ -4,6 +4,7 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
+const PDFDocument = require('pdfkit');
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error('[FATAL] JWT_SECRET environment variable is not set');
 
@@ -2116,6 +2117,198 @@ app.get('/api/marks/student/:studentId', async (req, res) => {
   } catch (err) {
     console.error('Student marks error:', err.message);
     res.status(500).json({ error: err.message });
+  }
+});
+
+function getGrade(pct) {
+  if (pct >= 90) return 'A+';
+  if (pct >= 80) return 'A';
+  if (pct >= 70) return 'B+';
+  if (pct >= 60) return 'B';
+  if (pct >= 50) return 'C';
+  return 'F';
+}
+
+app.post('/api/reports/report-card/:studentId', verifyAuth, async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const { examName, academicYear } = req.body;
+    if (!examName) return res.status(400).json({ error: 'examName is required' });
+    const year = academicYear || `${new Date().getFullYear()}-${String(new Date().getFullYear() + 1).slice(2)}`;
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+
+    if (req.userRole === 'parent') {
+      const parentSnap = await getDocs(query(
+        collection(db, 'parent_accounts'),
+        where('studentIds', 'array-contains', studentId)
+      ));
+      const parentDoc = parentSnap.docs.find(d => d.data().email === req.user.email);
+      if (!parentDoc) return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const studentSnap = await getDocs(query(
+      collection(db, 'students'),
+      where('studentId', '==', studentId),
+      where('schoolId', '==', schoolId)
+    ));
+    let student;
+    if (!studentSnap.empty) {
+      student = studentSnap.docs[0].data();
+    } else {
+      const studentDocById = await getDocFS(doc(db, 'students', studentId));
+      if (!studentDocById.exists() || (studentDocById.data().schoolId && studentDocById.data().schoolId !== schoolId)) {
+        return res.status(404).json({ error: 'Student not found' });
+      }
+      student = studentDocById.data();
+    }
+
+    const settingsDoc = await getDocFS(doc(db, 'settings', schoolId));
+    const schoolInfo = settingsDoc.exists() ? settingsDoc.data() : {};
+    const schoolName = schoolInfo.school_name || schoolInfo.schoolName || 'Sree Pragathi High School';
+
+    const marksSnap = await getDocs(query(
+      collection(db, 'student_marks'),
+      where('studentId', '==', studentId),
+      where('schoolId', '==', schoolId),
+      where('examType', '==', examName)
+    ));
+
+    if (marksSnap.empty) {
+      const normalizedExam = normalizeExamType(examName);
+      const allMarksSnap = await getDocs(query(
+        collection(db, 'student_marks'),
+        where('studentId', '==', studentId),
+        where('schoolId', '==', schoolId)
+      ));
+      const filtered = allMarksSnap.docs.filter(d => normalizeExamType(d.data().examType) === normalizedExam);
+      if (filtered.length === 0) return res.status(404).json({ error: 'No marks found for this exam' });
+      var marksDocs = filtered;
+    } else {
+      var marksDocs = marksSnap.docs;
+    }
+
+    const subjects = marksDocs.map(d => {
+      const m = d.data();
+      const max = Number(m.maxMarks) || 20;
+      const obtained = Number(m.marksObtained) || 0;
+      const pct = max > 0 ? Math.round((obtained / max) * 100) : 0;
+      return { subject: normalizeSubjectName(m.subject), maxMarks: max, marksObtained: obtained, grade: getGrade(pct) };
+    }).sort((a, b) => a.subject.localeCompare(b.subject));
+
+    const totalObtained = subjects.reduce((a, s) => a + s.marksObtained, 0);
+    const totalMax = subjects.reduce((a, s) => a + s.maxMarks, 0);
+    const overallPct = totalMax > 0 ? Math.round((totalObtained / totalMax) * 100) : 0;
+    const overallGrade = getGrade(overallPct);
+
+    let attendanceSummary = { present: 0, total: 0, pct: 0 };
+    try {
+      const studentAttSnap = await getDocs(collection(db, 'student_attendance', studentId, 'dates'));
+      if (!studentAttSnap.empty) {
+        const total = studentAttSnap.size;
+        const present = studentAttSnap.docs.filter(d => d.data().status === 'Present').length;
+        attendanceSummary = { present, total, pct: total > 0 ? Math.round((present / total) * 100) : 0 };
+      }
+    } catch (attErr) {
+      console.warn('[report-card] Attendance fetch failed:', attErr.message);
+    }
+
+    const pdfDoc = new PDFDocument({ size: 'A4', margin: 50 });
+    const chunks = [];
+    pdfDoc.on('data', chunk => chunks.push(chunk));
+
+    const pdfDone = new Promise((resolve, reject) => {
+      pdfDoc.on('end', () => resolve(Buffer.concat(chunks)));
+      pdfDoc.on('error', reject);
+    });
+
+    const pageW = pdfDoc.page.width - 100;
+
+    pdfDoc.fontSize(20).font('Helvetica-Bold').text(schoolName, { align: 'center' });
+    pdfDoc.moveDown(0.3);
+    pdfDoc.fontSize(10).font('Helvetica').fillColor('#666666').text('Gopalraopet, Telangana', { align: 'center' });
+    pdfDoc.moveDown(0.5);
+    pdfDoc.moveTo(50, pdfDoc.y).lineTo(50 + pageW, pdfDoc.y).strokeColor('#333333').lineWidth(1.5).stroke();
+    pdfDoc.moveDown(0.5);
+    pdfDoc.fontSize(14).font('Helvetica-Bold').fillColor('#000000').text('REPORT CARD', { align: 'center' });
+    pdfDoc.moveDown(0.3);
+    pdfDoc.fontSize(10).font('Helvetica').fillColor('#444444').text(`${examName}  |  Academic Year: ${year}`, { align: 'center' });
+    pdfDoc.moveDown(1);
+
+    const infoY = pdfDoc.y;
+    pdfDoc.fontSize(10).font('Helvetica').fillColor('#000000');
+    pdfDoc.text(`Student Name:`, 50, infoY, { continued: true }).font('Helvetica-Bold').text(`  ${student.full_name || student.name || 'N/A'}`);
+    pdfDoc.font('Helvetica').text(`Class:`, 50, infoY + 18, { continued: true }).font('Helvetica-Bold').text(`  ${student.className || student.classId || 'N/A'}`);
+    pdfDoc.font('Helvetica').text(`Roll Number:`, 50, infoY + 36, { continued: true }).font('Helvetica-Bold').text(`  ${student.rollNumber || student.roll_number || 'N/A'}`);
+    pdfDoc.y = infoY + 60;
+    pdfDoc.moveDown(0.5);
+
+    const tableTop = pdfDoc.y;
+    const colWidths = [pageW * 0.40, pageW * 0.20, pageW * 0.25, pageW * 0.15];
+    const colX = [50, 50 + colWidths[0], 50 + colWidths[0] + colWidths[1], 50 + colWidths[0] + colWidths[1] + colWidths[2]];
+    const rowH = 24;
+
+    pdfDoc.rect(50, tableTop, pageW, rowH).fill('#2c3e50');
+    pdfDoc.fontSize(10).font('Helvetica-Bold').fillColor('#ffffff');
+    pdfDoc.text('Subject', colX[0] + 6, tableTop + 7);
+    pdfDoc.text('Max Marks', colX[1] + 6, tableTop + 7);
+    pdfDoc.text('Obtained', colX[2] + 6, tableTop + 7);
+    pdfDoc.text('Grade', colX[3] + 6, tableTop + 7);
+
+    let y = tableTop + rowH;
+    subjects.forEach((s, i) => {
+      const bgColor = i % 2 === 0 ? '#f9f9f9' : '#ffffff';
+      pdfDoc.rect(50, y, pageW, rowH).fill(bgColor);
+      pdfDoc.fontSize(9).font('Helvetica').fillColor('#000000');
+      pdfDoc.text(s.subject, colX[0] + 6, y + 7, { width: colWidths[0] - 12 });
+      pdfDoc.text(String(s.maxMarks), colX[1] + 6, y + 7);
+      pdfDoc.text(String(s.marksObtained), colX[2] + 6, y + 7);
+      const gradeColor = s.grade === 'A+' || s.grade === 'A' ? '#27ae60' : s.grade === 'F' ? '#e74c3c' : '#2c3e50';
+      pdfDoc.font('Helvetica-Bold').fillColor(gradeColor).text(s.grade, colX[3] + 6, y + 7);
+      y += rowH;
+    });
+
+    pdfDoc.rect(50, y, pageW, rowH).fill('#ecf0f1');
+    pdfDoc.fontSize(10).font('Helvetica-Bold').fillColor('#2c3e50');
+    pdfDoc.text('Total', colX[0] + 6, y + 7);
+    pdfDoc.text(String(totalMax), colX[1] + 6, y + 7);
+    pdfDoc.text(String(totalObtained), colX[2] + 6, y + 7);
+    pdfDoc.text(overallGrade, colX[3] + 6, y + 7);
+    y += rowH;
+
+    pdfDoc.rect(50, y, pageW, 1).fill('#333333');
+    y += 10;
+
+    pdfDoc.fontSize(11).font('Helvetica-Bold').fillColor('#2c3e50').text(`Percentage: ${overallPct}%`, 50, y);
+    y += 18;
+    pdfDoc.text(`Overall Grade: ${overallGrade}`, 50, y);
+    y += 30;
+
+    pdfDoc.fontSize(11).font('Helvetica-Bold').fillColor('#2c3e50').text('Attendance Summary', 50, y);
+    y += 18;
+    pdfDoc.fontSize(10).font('Helvetica').fillColor('#000000');
+    pdfDoc.text(`Days Present: ${attendanceSummary.present} / ${attendanceSummary.total}`, 50, y);
+    y += 16;
+    pdfDoc.text(`Attendance Percentage: ${attendanceSummary.pct}%`, 50, y);
+    y += 40;
+
+    pdfDoc.moveTo(50, y).lineTo(50 + pageW, y).strokeColor('#cccccc').lineWidth(0.5).stroke();
+    y += 10;
+    pdfDoc.fontSize(8).font('Helvetica').fillColor('#999999').text(`Generated on ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}`, 50, y);
+
+    pdfDoc.end();
+    const pdfBuffer = await pdfDone;
+
+    const safeName = (student.full_name || student.name || 'student').replace(/[^a-zA-Z0-9]/g, '_');
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="report-card-${safeName}.pdf"`,
+      'Content-Length': pdfBuffer.length,
+    });
+    res.send(pdfBuffer);
+    console.log(`[report-card] Generated for student ${studentId} exam ${examName} — ${subjects.length} subjects, ${overallPct}%`);
+  } catch (err) {
+    console.error('[report-card] Error:', err.message);
+    res.status(500).json({ error: 'Failed to generate report card' });
   }
 });
 

@@ -64,6 +64,8 @@ export default function Icon({ name, size = 20, color = '#FFFFFF' }) {
       return <Svg {...props}><Path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" {...sp} /><Circle cx={12} cy={13} r={4} {...sp} /></Svg>;
     case 'x':
       return <Svg {...props}><Line x1={18} y1={6} x2={6} y2={18} stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" /><Line x1={6} y1={6} x2={18} y2={18} stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" /></Svg>;
+    case 'download':
+      return <Svg {...props}><Path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" {...sp} /><Polyline points="7 10 12 15 17 10" {...sp} /><Line x1={12} y1={15} x2={12} y2={3} {...sp} /></Svg>;
     case 'lock':
       return <Svg {...props}><Rect x={3} y={11} width={18} height={11} rx={2} ry={2} {...sp} /><Path d="M7 11V7a5 5 0 0110 0v4" {...sp} /></Svg>;
     case 'logout':

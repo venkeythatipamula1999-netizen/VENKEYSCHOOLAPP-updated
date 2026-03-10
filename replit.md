@@ -54,6 +54,14 @@ package.json                   — Dependencies
 dist/                          — Built Expo web app (static files)
 ```
 
+## Report Card PDF Generation
+- **Backend**: `POST /api/reports/report-card/:studentId` — accepts `{ examName, academicYear }`, generates A4 PDF using pdfkit
+- **PDF content**: School name, student info (name/class/roll), marks table with grades, totals/percentage/overall grade, attendance summary, generation date
+- **Grade logic**: 90-100 A+, 80-89 A, 70-79 B+, 60-69 B, 50-59 C, <50 F
+- **Security**: verifyAuth + parent ownership check via parent_accounts.studentIds, schoolId tenant isolation on all queries
+- **Frontend**: MarksScreen.js has "Download Report Card" button + modal with exam dropdown and academic year; web uses blob URL download, native uses expo-file-system + expo-sharing
+- **Dependencies**: pdfkit (backend), expo-file-system + expo-sharing (native only)
+
 ## Error Tracking System
 
 ### Overview
