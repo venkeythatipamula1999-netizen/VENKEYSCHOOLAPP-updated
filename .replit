@@ -85,3 +85,4 @@ externalPort = 3000
 deploymentTarget = "autoscale"
 run = ["node", "server.js"]
 build = ["bash", "-c", "npx expo export --platform web --output-dir dist"]
+publicDir = "dist"
