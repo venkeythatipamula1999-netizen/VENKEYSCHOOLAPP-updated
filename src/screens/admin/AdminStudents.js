@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import { apiFetch } from '../../api/client';
 
 export default function AdminStudents({ onBack, classItem }) {
   const [students, setStudents] = useState([]);
@@ -30,7 +31,7 @@ export default function AdminStudents({ onBack, classItem }) {
   const fetchStudents = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/students/${classItem.id}?t=` + Date.now(), { cache: 'no-store' });
+      const res = await apiFetch(`/students/${classItem.id}?t=` + Date.now(), { cache: 'no-store' });
       const data = await res.json();
       setStudents(data.success ? (data.students || []) : []);
     } catch {
@@ -61,9 +62,8 @@ export default function AdminStudents({ onBack, classItem }) {
     }
     setSaving(true);
     try {
-      const res = await fetch('/api/students', {
+      const res = await apiFetch('/students', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: name.trim(),
           rollNumber: Number(rollNumber),
@@ -88,7 +88,7 @@ export default function AdminStudents({ onBack, classItem }) {
   const handleDeleteStudent = async (student) => {
     setDeleting(student.id);
     try {
-      const res = await fetch(`/api/students/${student.id}`, { method: 'DELETE' });
+      const res = await apiFetch(`/students/${student.id}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
         setStudents(prev => prev.filter(s => s.id !== student.id));
@@ -118,7 +118,7 @@ export default function AdminStudents({ onBack, classItem }) {
     formData.append('className', classItem.name);
 
     try {
-      const res = await fetch(`/api/students/bulk-upload/${classItem.id}`, {
+      const res = await apiFetch(`/students/bulk-upload/${classItem.id}`, {
         method: 'POST',
         body: formData,
       });

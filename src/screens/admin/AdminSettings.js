@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Image, Platform } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import { apiFetch } from '../../api/client';
 
 export default function AdminSettings({ onBack, currentUser }) {
   const [school, setSchool] = useState({
@@ -29,7 +30,7 @@ export default function AdminSettings({ onBack, currentUser }) {
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    fetch('/api/school-info')
+    apiFetch('/school-info')
       .then(r => r.json())
       .then(data => {
         if (data.success && data.info) {
@@ -43,9 +44,8 @@ export default function AdminSettings({ onBack, currentUser }) {
   const save = async () => {
     setSaving(true);
     try {
-      const res = await fetch('/api/school-info', {
+      const res = await apiFetch('/school-info', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-role-id': currentUser?.role_id || currentUser?.roleId || '' },
         body: JSON.stringify(school),
       });
       const data = await res.json();
@@ -80,9 +80,8 @@ export default function AdminSettings({ onBack, currentUser }) {
       const formData = new FormData();
       formData.append('image', file);
 
-      const res = await fetch('/api/school-info/upload-image', {
+      const res = await apiFetch('/school-info/upload-image', {
         method: 'POST',
-        headers: { 'x-role-id': currentUser?.role_id || currentUser?.roleId || '' },
         body: formData,
       });
       const data = await res.json();

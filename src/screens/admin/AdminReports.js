@@ -5,6 +5,7 @@ import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import DonutRing from '../../components/DonutRing';
 import UnitDetail from '../../components/UnitDetail';
+import { apiFetch } from '../../api/client';
 
 const SUB_PALETTE = [C.gold, C.teal, C.purple, C.coral, '#34D399', '#60A5FA', '#F59E0B', '#EC4899'];
 const subColor = (name, idx) => {
@@ -34,7 +35,7 @@ export default function AdminReports({ onBack }) {
   const [attLoading, setAttLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/classes?t=' + Date.now(), { cache: 'no-store' })
+    apiFetch('/classes?t=' + Date.now(), { cache: 'no-store' })
       .then(r => r.json())
       .then(data => {
         if (data.success && Array.isArray(data.classes)) {
@@ -44,12 +45,12 @@ export default function AdminReports({ onBack }) {
         }
       })
       .catch(() => {});
-    fetch('/api/attendance/class-summary')
+    apiFetch('/attendance/class-summary')
       .then(r => r.json())
       .then(d => { if (d.success && Array.isArray(d.classes)) setClassAttData(d.classes); })
       .catch(() => {})
       .finally(() => setAttLoading(false));
-    fetch('/api/marks/summary')
+    apiFetch('/marks/summary')
       .then(r => r.json())
       .then(d => {
         console.log('STEP 1 - marks summary response success:', d.success, 'subjects:', d.subjects?.length);
@@ -65,7 +66,7 @@ export default function AdminReports({ onBack }) {
     setMarksLoading(true);
     setClassMarksData(null);
     setStudentMarksData(null);
-    fetch(`/api/marks/class/${selectedClass.id}`)
+    apiFetch(`/marks/class/${selectedClass.id}`)
       .then(r => r.json())
       .then(d => {
         console.log('STEP 2 - Class marks query: /api/marks/class/' + selectedClass.id);
@@ -80,7 +81,7 @@ export default function AdminReports({ onBack }) {
   useEffect(() => {
     if (!selectedStudent) return;
     setStudentMarksData(null);
-    fetch(`/api/marks/student/${selectedStudent.studentId}`)
+    apiFetch(`/marks/student/${selectedStudent.studentId}`)
       .then(r => r.json())
       .then(d => {
         console.log('STEP 3 - Student marks raw:', d.total, 'records, byExam:', d.byExam?.length, 'bySubject:', d.bySubject?.length);

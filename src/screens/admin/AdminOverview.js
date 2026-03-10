@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Image, ActivityIndicator } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import { apiFetch } from '../../api/client';
 const ROLE_COLORS = { teacher: C.gold, driver: C.teal, cleaner: C.coral };
 const STATUS_COLORS = {
   'Class in Progress': C.purple,
@@ -20,7 +21,7 @@ export default function AdminOverview({ onNavigate, currentUser }) {
 
   useEffect(() => {
     const fetchSync = () => {
-      fetch('/api/admin/sync-status?t=' + Date.now(), { cache: 'no-store' })
+      apiFetch('/admin/sync-status?t=' + Date.now(), { cache: 'no-store' })
         .then(r => r.json())
         .then(data => setSyncStatus(data))
         .catch(() => {});
@@ -32,7 +33,7 @@ export default function AdminOverview({ onNavigate, currentUser }) {
 
   useEffect(() => {
     const fetchUnread = () => {
-      fetch('/api/admin/notifications?unreadOnly=true&t=' + Date.now(), { cache: 'no-store' })
+      apiFetch('/admin/notifications?unreadOnly=true&t=' + Date.now(), { cache: 'no-store' })
         .then(r => r.json())
         .then(data => setUnreadNotifCount(data.count || 0))
         .catch(() => {});
@@ -43,7 +44,7 @@ export default function AdminOverview({ onNavigate, currentUser }) {
   }, []);
 
   useEffect(() => {
-    fetch('/api/onboarded-users?t=' + Date.now(), { cache: 'no-store' })
+    apiFetch('/onboarded-users?t=' + Date.now(), { cache: 'no-store' })
       .then(r => r.json())
       .then(data => {
         const users = data.users || [];
@@ -55,7 +56,7 @@ export default function AdminOverview({ onNavigate, currentUser }) {
         }));
       })
       .catch(() => {});
-    fetch('/api/classes?t=' + Date.now(), { cache: 'no-store' })
+    apiFetch('/classes?t=' + Date.now(), { cache: 'no-store' })
       .then(r => r.json())
       .then(d => setRealStats(prev => ({ ...prev, classes: (d.classes || []).length })))
       .catch(() => {});
@@ -71,7 +72,7 @@ export default function AdminOverview({ onNavigate, currentUser }) {
   useEffect(() => {
     const fetchStaff = (showLoader) => {
       if (showLoader) setStaffLoading(true);
-      fetch('/api/duty/all-staff?t=' + Date.now(), { cache: 'no-store' })
+      apiFetch('/duty/all-staff?t=' + Date.now(), { cache: 'no-store' })
         .then(res => res.json())
         .then(data => {
           const sorted = (data.staff || []).sort((a, b) => (b.onDuty ? 1 : 0) - (a.onDuty ? 1 : 0));
@@ -87,7 +88,7 @@ export default function AdminOverview({ onNavigate, currentUser }) {
 
   useEffect(() => {
     const fetchRequests = () => {
-      fetch('/api/bus/location-change-requests?t=' + Date.now(), { cache: 'no-store' })
+      apiFetch('/bus/location-change-requests?t=' + Date.now(), { cache: 'no-store' })
         .then(res => res.json())
         .then(data => { setLocationRequests(data.requests || []); })
         .catch(() => {});
@@ -100,9 +101,8 @@ export default function AdminOverview({ onNavigate, currentUser }) {
   const handleApproveLocation = (request) => {
     setApprovingId(request.id);
     setLocationMsg('');
-    fetch('/api/bus/approve-location-change', {
+    apiFetch('/bus/approve-location-change', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ requestId: request.id }),
     })
       .then(res => res.json())
@@ -123,9 +123,8 @@ export default function AdminOverview({ onNavigate, currentUser }) {
   const handleRejectLocation = (request) => {
     setRejectingId(request.id);
     setLocationMsg('');
-    fetch('/api/bus/reject-location-change', {
+    apiFetch('/bus/reject-location-change', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ requestId: request.id }),
     })
       .then(res => res.json())

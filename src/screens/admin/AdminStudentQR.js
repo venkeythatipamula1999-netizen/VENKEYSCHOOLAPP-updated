@@ -6,6 +6,7 @@ import {
 import QRCode from 'react-native-qrcode-svg';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import { apiFetch } from '../../api/client';
 
 export default function AdminStudentQR({ onBack, currentUser }) {
   const [classes, setClasses] = useState([]);
@@ -19,7 +20,7 @@ export default function AdminStudentQR({ onBack, currentUser }) {
 
   // Fetch all classes on mount
   useEffect(() => {
-    fetch('/api/classes')
+    apiFetch('/classes')
       .then(r => r.json())
       .then(data => {
         const cls = data.classes || data || [];
@@ -36,7 +37,7 @@ export default function AdminStudentQR({ onBack, currentUser }) {
     setQrData('');
     setStudentsLoading(true);
     try {
-      const res = await fetch(`/api/students/${encodeURIComponent(cls.id || cls.name)}`);
+      const res = await apiFetch(`/students/${encodeURIComponent(cls.id || cls.name)}`);
       const data = await res.json();
       setStudents(data.students || data || []);
     } catch (e) {
@@ -50,9 +51,7 @@ export default function AdminStudentQR({ onBack, currentUser }) {
   const selectStudent = async (student) => {
     setSelectedStudent(student);
     try {
-      const res = await fetch(`/api/student/qr/${encodeURIComponent(student.studentId)}`, {
-        headers: { 'x-role-id': currentUser?.roleId || currentUser?.role_id || '' }
-      });
+      const res = await apiFetch(`/student/qr/${encodeURIComponent(student.studentId)}`, {});
       const data = await res.json();
       if (data.success && data.qrCode) {
         setQrData(data.qrCode);

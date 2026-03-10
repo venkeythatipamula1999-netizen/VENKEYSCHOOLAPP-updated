@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import { apiFetch } from '../../api/client';
 
 function timeAgo(isoStr) {
   if (!isoStr) return '';
@@ -134,7 +135,7 @@ export default function AdminAlerts({ onBack }) {
     if (showLoader) setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/admin/notifications?t=' + Date.now(), { cache: 'no-store' });
+      const res = await apiFetch('/admin/notifications?t=' + Date.now(), { cache: 'no-store' });
       if (!res.ok) throw new Error('Server error');
       const data = await res.json();
       setNotifications(data.notifications || []);
@@ -150,9 +151,8 @@ export default function AdminAlerts({ onBack }) {
 
   const handleMarkRead = async (id) => {
     try {
-      await fetch('/api/admin/notifications/mark-read', {
+      await apiFetch('/admin/notifications/mark-read', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: [id] }),
       });
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
@@ -164,9 +164,8 @@ export default function AdminAlerts({ onBack }) {
   const handleMarkAllRead = async () => {
     setMarkingAll(true);
     try {
-      await fetch('/api/admin/notifications/mark-read', {
+      await apiFetch('/admin/notifications/mark-read', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: [] }),
       });
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));

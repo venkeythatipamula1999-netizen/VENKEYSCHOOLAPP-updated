@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import ChangePasswordModal from '../../components/ChangePasswordModal';
+import { apiFetch } from '../../api/client';
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
@@ -27,9 +28,8 @@ export default function AdminProfile({ onBack, currentUser, onLogout, onUpdateUs
     setSaving(true);
     setSaveMsg('');
     try {
-      const resp = await fetch('/api/admin/update-profile', {
+      const resp = await apiFetch('/admin/update-profile', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ uid: currentUser?.uid, mobile, bloodGroup }),
       });
       const data = await resp.json();
@@ -59,7 +59,7 @@ export default function AdminProfile({ onBack, currentUser, onLogout, onUpdateUs
         formData.append('photo', file);
         formData.append('uid', currentUser?.uid);
         try {
-          const resp = await fetch('/api/admin/upload-photo', { method: 'POST', body: formData });
+          const resp = await apiFetch('/admin/upload-photo', { method: 'POST', body: formData });
           const data = await resp.json();
           if (!resp.ok) { setSaveMsg(data.error || 'Upload failed'); setUploading(false); return; }
           setProfileImage(data.profileImage);

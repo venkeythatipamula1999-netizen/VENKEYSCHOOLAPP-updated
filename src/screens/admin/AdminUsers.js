@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Modal,
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { LinearGradient } from 'expo-linear-gradient';
+import { apiFetch } from '../../api/client';
 
 export default function AdminUsers({ onBack }) {
   const [tab, setTab] = useState('teachers');
@@ -118,7 +119,7 @@ export default function AdminUsers({ onBack }) {
 
   const fetchClassesList = async (currentAssignment) => {
     try {
-      const res = await fetch('/api/available-classes?t=' + Date.now(), { cache: 'no-store' });
+      const res = await apiFetch('/available-classes?t=' + Date.now(), { cache: 'no-store' });
       const data = await res.json();
       if (data.success) {
         const allNames = (data.allClasses || data.classes || []).map(c => c.name);
@@ -143,7 +144,7 @@ export default function AdminUsers({ onBack }) {
 
   const fetchDutyStatus = async () => {
     try {
-      const res = await fetch('/api/duty/all-staff?t=' + Date.now(), { cache: 'no-store' });
+      const res = await apiFetch('/duty/all-staff?t=' + Date.now(), { cache: 'no-store' });
       const data = await res.json();
       if (res.ok && data.staff) {
         const map = {};
@@ -157,7 +158,7 @@ export default function AdminUsers({ onBack }) {
 
   const fetchOnboardedUsers = async () => {
     try {
-      const res = await fetch('/api/onboarded-users?t=' + Date.now(), { cache: 'no-store' });
+      const res = await apiFetch('/onboarded-users?t=' + Date.now(), { cache: 'no-store' });
       const data = await res.json();
       if (res.ok && data.users) {
         const activeUsers = data.users.filter(u => u.status !== 'inactive');
@@ -182,7 +183,7 @@ export default function AdminUsers({ onBack }) {
 
   const fetchLogisticsStaff = async () => {
     try {
-      const res = await fetch('/api/logistics-staff?t=' + Date.now(), { cache: 'no-store' });
+      const res = await apiFetch('/logistics-staff?t=' + Date.now(), { cache: 'no-store' });
       const data = await res.json();
       if (res.ok && data.staff) setLogisticsStaff(data.staff.filter(s => s.status !== 'inactive'));
     } catch (err) {
@@ -193,7 +194,7 @@ export default function AdminUsers({ onBack }) {
   const fetchParentAccounts = async () => {
     setParentsLoading(true);
     try {
-      const res = await fetch('/api/admin/parent-accounts?t=' + Date.now(), { cache: 'no-store' });
+      const res = await apiFetch('/admin/parent-accounts?t=' + Date.now(), { cache: 'no-store' });
       const data = await res.json();
       if (res.ok && data.parents) setParentAccounts(data.parents);
     } catch (err) {
@@ -206,9 +207,8 @@ export default function AdminUsers({ onBack }) {
   const handleParentStatusChange = async (uid, action) => {
     setParentActionLoading(true);
     try {
-      const res = await fetch(`/api/admin/parent-accounts/${uid}/status`, {
+      const res = await apiFetch(`/admin/parent-accounts/${uid}/status`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
       });
       if (res.ok) await fetchParentAccounts();
@@ -243,9 +243,8 @@ export default function AdminUsers({ onBack }) {
   const handleDelete = async (roleId, isLogistics) => {
     setDeleting(roleId);
     try {
-      const resp = await fetch('/api/delete-user', {
+      const resp = await apiFetch('/delete-user', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ roleId, collection: isLogistics ? 'logistics_staff' : 'users' }),
       });
       const data = await resp.json();
@@ -268,7 +267,7 @@ export default function AdminUsers({ onBack }) {
     setLoadingTimetable(true);
     setTtMsg('');
     try {
-      const res = await fetch(`/api/teacher-timetable?roleId=${encodeURIComponent(roleId)}`);
+      const res = await apiFetch(`/teacher-timetable?roleId=${encodeURIComponent(roleId)}`);
       const data = await res.json();
       if (res.ok) setTimetableEntries(data.timetable || []);
     } catch (err) {
@@ -283,9 +282,8 @@ export default function AdminUsers({ onBack }) {
     setSavingCt(true);
     setCtMsg('');
     try {
-      const res = await fetch('/api/set-class-teacher', {
+      const res = await apiFetch('/set-class-teacher', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ roleId, grade: grade || null }),
       });
       const data = await res.json();
@@ -337,9 +335,8 @@ export default function AdminUsers({ onBack }) {
     setCheckingConflict(true);
     try {
       const roleId = selectedUser?.role_id;
-      const res = await fetch('/api/check-timetable-conflict', {
+      const res = await apiFetch('/check-timetable-conflict', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ className: newClassPick, days: newClassDays, startTime: newClassStart, endTime: newClassEnd, excludeRoleId: roleId }),
       });
       const data = await res.json();
@@ -376,9 +373,8 @@ export default function AdminUsers({ onBack }) {
     setSavingTimetable(true);
     setTtMsg('');
     try {
-      const resp = await fetch('/api/save-timetable', {
+      const resp = await apiFetch('/save-timetable', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ roleId, teacherName, timetable: timetableEntries }),
       });
       const data = await resp.json();
@@ -405,9 +401,8 @@ export default function AdminUsers({ onBack }) {
     setOnboarding(true);
     setOnboardError('');
     try {
-      const resp = await fetch('/api/onboard-teacher', {
+      const resp = await apiFetch('/onboard-teacher', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fullName: newName.trim(), role: newRole, subject: newSubj.trim(), email: newEmail.trim(), phone: newPhone.replace(/\s/g, ''), joinDate: newJoinDate }),
       });
       const data = await resp.json();
@@ -430,9 +425,8 @@ export default function AdminUsers({ onBack }) {
     if (!drvExperience.trim() || !/^\d+$/.test(drvExperience.trim())) { setStaffError('Please provide Experience to continue.'); return; }
     setAddingStaff(true); setStaffError('');
     try {
-      const resp = await fetch('/api/add-logistics-staff', {
+      const resp = await apiFetch('/add-logistics-staff', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fullName: drvName.trim(), type: 'driver', busNumber: drvBus.trim(), route: drvRoute.trim(), phone: drvPhone.replace(/\s/g, ''), license: drvLicense.trim(), experience: drvExperience.trim(), email: drvEmail.trim(), joinDate: drvJoinDate }),
       });
       const data = await resp.json();
@@ -450,9 +444,8 @@ export default function AdminUsers({ onBack }) {
     if (!clnPhone.trim() || !/^[6-9]\d{9}$/.test(clnPhone.replace(/\s/g, ''))) { setStaffError('Please provide Mobile Number to continue.'); return; }
     setAddingStaff(true); setStaffError('');
     try {
-      const resp = await fetch('/api/add-logistics-staff', {
+      const resp = await apiFetch('/add-logistics-staff', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fullName: clnName.trim(), type: 'cleaner', assignedArea: clnArea.trim(), phone: clnPhone.replace(/\s/g, ''), joinDate: clnJoinDate }),
       });
       const data = await resp.json();

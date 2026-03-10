@@ -6,8 +6,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
-
-const BASE = '';
+import { apiFetch } from '../../api/client';
 const INR = v => '₹' + Number(v || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
 const attColor = p => p >= 90 ? '#34D399' : p >= 75 ? C.gold : C.coral;
 
@@ -56,7 +55,7 @@ export default function AdminSalaryScreen({ onBack, currentUser }) {
   const fetchEmployees = useCallback(async (m) => {
     setLoading(true);
     try {
-      const r = await fetch(`${BASE}/api/payroll/employees?month=${m}`);
+      const r = await apiFetch(`/payroll/employees?month=${m}`);
       const data = await r.json();
       setEmployees(data.employees || []);
     } catch (e) {
@@ -237,7 +236,7 @@ function EmployeeDetail({ employee, month, currentUser, onBack }) {
   const fetchAtt = useCallback(async () => {
     setAttLoading(true);
     try {
-      const r = await fetch(`${BASE}/api/payroll/attendance?roleId=${encodeURIComponent(employee.roleId)}&month=${month}`);
+      const r = await apiFetch(`/payroll/attendance?roleId=${encodeURIComponent(employee.roleId)}&month=${month}`);
       const data = await r.json();
       setAttDays(data.days || []);
     } catch (e) {
@@ -249,7 +248,7 @@ function EmployeeDetail({ employee, month, currentUser, onBack }) {
 
   const fetchTodayDuty = useCallback(async () => {
     try {
-      const r = await fetch(`${BASE}/api/duty/status?roleId=${encodeURIComponent(employee.roleId)}`);
+      const r = await apiFetch(`/duty/status?roleId=${encodeURIComponent(employee.roleId)}`);
       const data = await r.json();
       setTodayDuty(data);
     } catch (e) {}
@@ -298,7 +297,7 @@ function EmployeeDetail({ employee, month, currentUser, onBack }) {
         designation: salaryForm.designation || '',
         dateOfJoining: salaryForm.dateOfJoining || '',
       };
-      await fetch(`${BASE}/api/payroll/salary`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      await apiFetch(`/payroll/salary`, { method: 'POST', body: JSON.stringify(body) });
       setSalary(body);
       setSalSaved(true);
       setSalaryEdit(false);
@@ -315,9 +314,8 @@ function EmployeeDetail({ employee, month, currentUser, onBack }) {
     if (!overrideModal) return;
     setSavingOverride(true);
     try {
-      await fetch(`${BASE}/api/payroll/attendance/override`, {
+      await apiFetch(`/payroll/attendance/override`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           roleId: employee.roleId,
           date: overrideModal.date,
@@ -340,9 +338,8 @@ function EmployeeDetail({ employee, month, currentUser, onBack }) {
     setToggling(true);
     const action = todayDuty?.onDuty ? 'out' : 'in';
     try {
-      const r = await fetch(`${BASE}/api/payroll/toggle`, {
+      const r = await apiFetch(`/payroll/toggle`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ roleId: employee.roleId, employeeName: employee.name, role: employee.role, action }),
       });
       const data = await r.json();
@@ -365,9 +362,8 @@ function EmployeeDetail({ employee, month, currentUser, onBack }) {
   const markCredited = async () => {
     if (!summary || summary.net <= 0) return;
     try {
-      const r = await fetch(`${BASE}/api/payroll/mark-credited`, {
+      const r = await apiFetch(`/payroll/mark-credited`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           roleId: employee.roleId,
           month,

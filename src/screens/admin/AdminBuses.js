@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import { apiFetch } from '../../api/client';
 
 export default function AdminBuses({ onBack, currentUser }) {
   const [buses, setBuses] = useState([]);
@@ -31,7 +32,7 @@ export default function AdminBuses({ onBack, currentUser }) {
 
   const fetchBuses = async () => {
     try {
-      const res = await fetch('/api/admin/buses');
+      const res = await apiFetch('/admin/buses');
       const data = await res.json();
       if (data.success) setBuses(data.buses || []);
     } catch (e) {
@@ -48,7 +49,7 @@ export default function AdminBuses({ onBack, currentUser }) {
     setShowOnboardModal(true);
     setModalLoading(true);
     try {
-      const res = await fetch(`/api/bus/onboard-students?busId=${encodeURIComponent(bus.busId || bus.id)}`);
+      const res = await apiFetch(`/bus/onboard-students?busId=${encodeURIComponent(bus.busId || bus.id)}`);
       const data = await res.json();
       if (data.success) setOnboardStudents(data.students || []);
     } catch (err) {
@@ -65,12 +66,12 @@ export default function AdminBuses({ onBack, currentUser }) {
     setStudentsLoading(true);
     try {
       // Fetch all classes then all students
-      const classRes = await fetch('/api/classes');
+      const classRes = await apiFetch('/classes');
       const classData = await classRes.json();
       const classes = classData.classes || classData || [];
       let allS = [];
       for (const cls of classes) {
-        const sRes = await fetch(`/api/students/${encodeURIComponent(cls.id || cls.name)}`);
+        const sRes = await apiFetch(`/students/${encodeURIComponent(cls.id || cls.name)}`);
         const sData = await sRes.json();
         const students = sData.students || sData || [];
         allS = allS.concat(students.map(s => ({ ...s, className: cls.name })));
@@ -90,12 +91,8 @@ export default function AdminBuses({ onBack, currentUser }) {
     }
     setSaving(true);
     try {
-      const res = await fetch('/api/admin/buses/add', {
+      const res = await apiFetch('/admin/buses/add', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-role-id': currentUser?.roleId || currentUser?.role_id || ''
-        },
         body: JSON.stringify(form)
       });
       const data = await res.json();
@@ -114,12 +111,8 @@ export default function AdminBuses({ onBack, currentUser }) {
     if (!selectedBus) return;
     setSaving(true);
     try {
-      const res = await fetch('/api/admin/buses/assign-students', {
+      const res = await apiFetch('/admin/buses/assign-students', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-role-id': currentUser?.roleId || currentUser?.role_id || ''
-        },
         body: JSON.stringify({
           busId: selectedBus.busId || selectedBus.id,
           studentIds: selectedStudentIds

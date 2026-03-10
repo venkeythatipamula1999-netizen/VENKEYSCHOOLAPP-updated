@@ -6,6 +6,7 @@ import {
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { LinearGradient } from 'expo-linear-gradient';
+import { apiFetch } from '../../api/client';
 import AdminStudents from './AdminStudents';
 
 function AdminClasses({ onBack, currentUser, onNavigate }) {
@@ -24,7 +25,7 @@ function AdminClasses({ onBack, currentUser, onNavigate }) {
     setClasses([]);
     setLoading(true);
     try {
-      const res = await fetch('/api/classes?t=' + Date.now(), { cache: 'no-store' });
+      const res = await apiFetch('/classes?t=' + Date.now(), { cache: 'no-store' });
       const data = await res.json();
       if (data.success && data.classes) {
         const sorted = [...data.classes].sort((a, b) =>
@@ -46,9 +47,8 @@ function AdminClasses({ onBack, currentUser, onNavigate }) {
     const name = newClassName.trim();
     setSaving(true);
     try {
-      const res = await fetch('/api/classes/add', {
+      const res = await apiFetch('/classes/add', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ className: name }),
       });
       const data = await res.json();
@@ -73,7 +73,7 @@ function AdminClasses({ onBack, currentUser, onNavigate }) {
   const handleDeleteClass = async (id) => {
     setClasses(prev => prev.filter(cls => cls.id !== id));
     try {
-      const res = await fetch(`/api/classes/${id}`, { method: 'DELETE' });
+      const res = await apiFetch(`/classes/${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (!data.success) fetchClasses();
     } catch (err) {

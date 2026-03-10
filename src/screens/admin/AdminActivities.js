@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Activi
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { LinearGradient } from 'expo-linear-gradient';
+import { apiFetch } from '../../api/client';
 
 const typeColors = {
   Academic: '#60A5FA', Cultural: '#A78BFA', Holiday: '#34D399',
@@ -52,7 +53,7 @@ export default function AdminActivities({ onBack, currentUser }) {
   const loadEvents = useCallback(async () => {
     setEventsLoading(true);
     try {
-      const res = await fetch('/api/events');
+      const res = await apiFetch('/events');
       const data = await res.json();
       if (data.events) setEvents(data.events);
     } catch (e) {
@@ -99,11 +100,10 @@ export default function AdminActivities({ onBack, currentUser }) {
     if (!form.date.trim()) { showMsg('Event date is required.', 'error'); return; }
     setSaving(true);
     try {
-      const url = editingId ? `/api/events/${editingId}` : '/api/events/create';
+      const url = editingId ? `/events/${editingId}` : '/events/create';
       const method = editingId ? 'PUT' : 'POST';
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, createdBy: adminName, updatedBy: adminName }),
       });
       const data = await res.json();
@@ -126,7 +126,7 @@ export default function AdminActivities({ onBack, currentUser }) {
     if (!window.confirm(`Delete event "${ev.title}"? All recipients will be notified of cancellation.`)) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/events/${ev.id}`, { method: 'DELETE' });
+      const res = await apiFetch(`/events/${ev.id}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Delete failed');
       showMsg(`Event "${ev.title}" deleted. Cancellation notifications sent.`);
@@ -141,7 +141,7 @@ export default function AdminActivities({ onBack, currentUser }) {
   const handleRenotify = async (ev) => {
     setRenotifying(true);
     try {
-      const res = await fetch(`/api/events/${ev.id}/renotify`, { method: 'POST' });
+      const res = await apiFetch(`/events/${ev.id}/renotify`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Renotify failed');
       showMsg(`Reminder notifications sent for "${ev.title}".`);

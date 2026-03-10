@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { LinearGradient } from 'expo-linear-gradient';
+import { apiFetch } from '../../api/client';
 
 const REASON_COLORS = {
   Medical: '#F59E0B', medical: '#F59E0B',
@@ -65,8 +66,8 @@ export default function AdminLeaveScreen({ onBack, currentUser }) {
     setFetchError('');
     try {
       const [staffRes, studentRes] = await Promise.all([
-        fetch('/api/leave-requests?t=' + Date.now(), { cache: 'no-store' }),
-        fetch('/api/leave-requests/students?t=' + Date.now(), { cache: 'no-store' }),
+        apiFetch('/leave-requests?t=' + Date.now(), { cache: 'no-store' }),
+        apiFetch('/leave-requests/students?t=' + Date.now(), { cache: 'no-store' }),
       ]);
       const staffData = await staffRes.json();
       const studentData = await studentRes.json();
@@ -93,9 +94,8 @@ export default function AdminLeaveScreen({ onBack, currentUser }) {
     setActioning(id + action);
     setActionError('');
     try {
-      const res = await fetch('/api/leave-request/update-status', {
+      const res = await apiFetch('/leave-request/update-status', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           requestId: id,
           status: action,

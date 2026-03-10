@@ -5,6 +5,7 @@ import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { PAYMENT_MODES, DISCOUNT_TYPES } from '../../data/admin';
 import { INR, FEE_STATUS_COLOR } from '../../theme/styles';
+import { apiFetch } from '../../api/client';
 export default function AdminFeeScreen({ onBack, currentUser }) {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +34,7 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
     (async () => {
       try {
         const roleId = currentUser?.role_id || '';
-        const res = await fetch('/api/fee-students', { headers: { 'x-role-id': roleId } });
+        const res = await apiFetch('/fee-students', {});
         const data = await res.json();
         if (data.success && Array.isArray(data.students)) setStudents(data.students);
       } catch (e) {
@@ -51,9 +52,8 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
     const dueDate = notifyDueDate || new Date(Date.now() + 7 * 86400000).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
     setNotifySending(true);
     try {
-      const res = await fetch('/api/fee-reminder', {
+      const res = await apiFetch('/fee-reminder', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           studentId: `student-${detail.id}`,
           studentName: detail.name,
