@@ -218,9 +218,6 @@ const PORT = 5000;
 
 const allowedOrigins = [
   'https://super-admin-with-error-tracking-8b9.vercel.app',
-  'http://localhost:3000',
-  'http://localhost:5000',
-  'http://localhost:19006',
   process.env.APP_URL
 ].filter(Boolean);
 
@@ -272,8 +269,6 @@ const PUBLIC_ROUTES = [
   { method: 'GET',  path: '/api/parent/check-student' },
   { method: 'GET',  path: '/api/school-info' },
   { method: 'GET',  path: '/api/report' },
-  { method: 'GET',  path: '/download/audit-report' },
-  { method: 'GET',  path: '/download/production-report' },
 ];
 
 app.use((req, res, next) => {
@@ -5975,13 +5970,6 @@ app.get('/api/super/schools/:schoolId/security-logs', superAdminLimiter, verifyS
   }
 });
 
-app.get('/download/audit-report', (req, res) => {
-  res.download(path.join(__dirname, 'SAAS_MIGRATION_AUDIT_REPORT.md'), 'SAAS_MIGRATION_AUDIT_REPORT.md');
-});
-
-app.get('/download/production-report', (req, res) => {
-  res.download(path.join(__dirname, 'PRODUCTION_READINESS_REPORT.md'), 'PRODUCTION_READINESS_REPORT.md');
-});
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
