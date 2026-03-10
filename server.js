@@ -5471,45 +5471,6 @@ app.get('/api/report', (req, res) => {
   }
 });
 
-app.get('/api/debug/staff-audit', async (req, res) => {
-  try {
-    const snap = await adminDb.collection('users').get();
-    const users = snap.docs.map(d => ({
-      id: d.id,
-      full_name: d.data().full_name || '',
-      email: d.data().email || '',
-      role: d.data().role || '',
-      role_id: d.data().role_id || '',
-      schoolId: d.data().schoolId || 'MISSING',
-      status: d.data().status || '',
-      createdAt: d.data().created_at || d.data().createdAt || ''
-    }));
-
-    const byRole = {
-      teacher: users.filter(u => u.role === 'teacher').length,
-      driver: users.filter(u => u.role === 'driver').length,
-      cleaner: users.filter(u => u.role === 'cleaner').length,
-      principal: users.filter(u => u.role === 'principal').length,
-      other: users.filter(u => !['teacher','driver','cleaner','principal'].includes(u.role)).length
-    };
-
-    const bySchool = {};
-    users.forEach(u => {
-      const sid = u.schoolId || 'MISSING';
-      bySchool[sid] = (bySchool[sid] || 0) + 1;
-    });
-
-    res.json({
-      total: users.length,
-      byRole,
-      bySchool,
-      users
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // ════════════════════════════════════════
 // SUPER ADMIN — SCHOOL MANAGEMENT
 // ════════════════════════════════════════
