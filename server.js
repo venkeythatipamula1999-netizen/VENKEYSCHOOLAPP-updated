@@ -71,6 +71,33 @@ try {
   console.warn('[Firebase Admin] Skipped:', e.message);
 }
 
+let adminDb = null;
+try {
+  adminDb = admin.firestore();
+  console.log('[Firebase Admin] Firestore initialized');
+} catch (e) {
+  console.warn('[Firebase Admin] Firestore init failed:', e.message);
+}
+
+const checkSchoolActive = async (req, res, next) => {
+  try {
+    const schoolId = req.schoolId;
+    if (!schoolId || schoolId === DEFAULT_SCHOOL_ID) return next();
+
+    if (!adminDb) return next();
+    const schoolSnap = await adminDb.collection('schools').doc(schoolId).get();
+    if (schoolSnap.exists && schoolSnap.data().status === 'suspended') {
+      return res.status(403).json({
+        error: 'School account suspended. Please contact Vidhaya Layam support.',
+        code: 'SCHOOL_SUSPENDED'
+      });
+    }
+    next();
+  } catch (err) {
+    next();
+  }
+};
+
 const { initializeApp } = require('firebase/app');
 const { getFirestore, collection, query, where, getDocs, addDoc, doc, writeBatch, serverTimestamp, updateDoc, getDoc: getDocFS, deleteDoc, setDoc, orderBy } = require('firebase/firestore');
 const { getStorage, ref, uploadBytes, getDownloadURL } = require('firebase/storage');
@@ -5456,12 +5483,12 @@ app.post('/api/super/schools/create', verifySuperAdmin, async (req, res) => {
     }
 
     let schoolId = generateSchoolCode(schoolName, location);
-    const existing = await getDocs(query(collection(db, 'schools'), where('schoolId', '==', schoolId)));
+    const existing = await adminDb.collection('schools').where('schoolId', '==', schoolId).get();
     if (!existing.empty) schoolId = `${schoolId}${Date.now().toString().slice(-3)}`;
 
     const now = new Date().toISOString();
 
-    await setDoc(doc(db, 'schools', schoolId), {
+    await adminDb.collection('schools').doc(schoolId).set({
       schoolId, schoolName, location,
       address: address || '',
       phone: phone || '',
@@ -5478,7 +5505,7 @@ app.post('/api/super/schools/create', verifySuperAdmin, async (req, res) => {
       updatedAt: now
     });
 
-    await setDoc(doc(db, 'settings', schoolId), {
+    await adminDb.collection('settings').doc(schoolId).set({
       schoolId, schoolName, location,
       tagline: `Excellence in Education · ${location}`,
       principalName: principalName || '',
@@ -5499,7 +5526,7 @@ app.post('/api/super/schools/create', verifySuperAdmin, async (req, res) => {
         });
         principalUid = userRecord.uid;
         await adminAuth.setCustomUserClaims(principalUid, { role: 'principal', schoolId, schoolName });
-        await setDoc(doc(db, 'admins', principalUid), {
+        await adminDb.collection('admins').doc(principalUid).set({
           uid: principalUid, email: principalEmail,
           full_name: principalName || '', role: 'principal',
           role_id: `PRIN-${schoolId}`,
@@ -5518,7 +5545,7 @@ app.post('/api/super/schools/create', verifySuperAdmin, async (req, res) => {
 
 app.get('/api/super/schools', verifySuperAdmin, async (req, res) => {
   try {
-    const snap = await getDocs(collection(db, 'schools'));
+    const snap = await adminDb.collection('schools').get();
     const schools = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     schools.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     res.json({ success: true, schools, total: schools.length });
@@ -5530,11 +5557,11 @@ app.get('/api/super/schools', verifySuperAdmin, async (req, res) => {
 app.get('/api/super/schools/:schoolId', verifySuperAdmin, async (req, res) => {
   try {
     const { schoolId } = req.params;
-    const schoolSnap = await getDocFS(doc(db, 'schools', schoolId));
-    if (!schoolSnap.exists()) return res.status(404).json({ error: 'School not found' });
+    const schoolSnap = await adminDb.collection('schools').doc(schoolId).get();
+    if (!schoolSnap.exists) return res.status(404).json({ error: 'School not found' });
     const [studentsSnap, usersSnap] = await Promise.all([
-      getDocs(query(collection(db, 'students'), where('schoolId', '==', schoolId))),
-      getDocs(query(collection(db, 'users'), where('schoolId', '==', schoolId)))
+      adminDb.collection('students').where('schoolId', '==', schoolId).get(),
+      adminDb.collection('users').where('schoolId', '==', schoolId).get()
     ]);
     res.json({
       success: true,
@@ -5551,7 +5578,7 @@ app.post('/api/super/schools/:schoolId/status', verifySuperAdmin, async (req, re
     const { schoolId } = req.params;
     const { status } = req.body;
     if (!['active', 'suspended'].includes(status)) return res.status(400).json({ error: 'status must be active or suspended' });
-    await updateDoc(doc(db, 'schools', schoolId), { status, updatedAt: new Date().toISOString() });
+    await adminDb.collection('schools').doc(schoolId).update({ status, updatedAt: new Date().toISOString() });
     res.json({ success: true, schoolId, status });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -5562,7 +5589,7 @@ app.post('/api/super/schools/:schoolId/subscription', verifySuperAdmin, async (r
   try {
     const { schoolId } = req.params;
     const { subscriptionPlan, subscriptionStatus, expiresAt } = req.body;
-    await updateDoc(doc(db, 'schools', schoolId), {
+    await adminDb.collection('schools').doc(schoolId).update({
       subscriptionPlan: subscriptionPlan || 'basic',
       subscriptionStatus: subscriptionStatus || 'active',
       expiresAt: expiresAt || null,
@@ -5576,11 +5603,11 @@ app.post('/api/super/schools/:schoolId/subscription', verifySuperAdmin, async (r
 
 app.get('/api/super/stats', verifySuperAdmin, async (req, res) => {
   try {
-    const schoolsSnap = await getDocs(collection(db, 'schools'));
+    const schoolsSnap = await adminDb.collection('schools').get();
     const schools = schoolsSnap.docs.map(d => d.data());
     const [studentsSnap, usersSnap] = await Promise.all([
-      getDocs(collection(db, 'students')),
-      getDocs(collection(db, 'users'))
+      adminDb.collection('students').get(),
+      adminDb.collection('users').get()
     ]);
     res.json({
       success: true,
@@ -5611,11 +5638,14 @@ app.post('/api/super/migrate/wipe-school-001', verifySuperAdmin, async (req, res
     let totalDeleted = 0;
     for (const colName of cols) {
       try {
-        const snap = await getDocs(query(collection(db, colName), where('schoolId', '==', 'school_001')));
-        for (const d of snap.docs) { await deleteDoc(d.ref); totalDeleted++; }
+        const snap = await adminDb.collection(colName).where('schoolId', '==', 'school_001').get();
+        for (const d of snap.docs) {
+          await adminDb.collection(colName).doc(d.id).delete();
+          totalDeleted++;
+        }
       } catch(e) { console.warn(`Skipped ${colName}:`, e.message); }
     }
-    try { await deleteDoc(doc(db, 'settings', 'school_001')); totalDeleted++; } catch(e) {}
+    try { await adminDb.collection('settings').doc('school_001').delete(); totalDeleted++; } catch(e) {}
     res.json({ success: true, totalDeleted, message: 'school_001 wiped' });
   } catch (err) {
     res.status(500).json({ error: err.message });
