@@ -1,17 +1,35 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
-import { DRIVER_DEFAULT, TODAY_SCANS } from '../../data/driver';
-
-export default function DriverScans({ onBack }) {
+import { DRIVER_DEFAULT } from '../../data/driver';
+export default function DriverScans({ onBack, currentUser }) {
+  const [scans, setScans] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
-  const filtered = filter === 'all' ? TODAY_SCANS : TODAY_SCANS.filter(s => s.type === filter);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const roleId = currentUser?.role_id || '';
+        const busId = currentUser?.bus_number || currentUser?.busId || '';
+        const res = await fetch(`/api/trip/scans?driverId=${roleId}&busNumber=${busId}`, { headers: { 'x-role-id': roleId } });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.scans)) setScans(data.scans);
+      } catch (e) {
+        console.log('Scans fetch:', e.message);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const filtered = filter === 'all' ? scans : scans.filter(s => s.type === filter);
 
   const filters = [
-    { key: 'all', label: 'All (' + TODAY_SCANS.length + ')', chipBg: C.gold + '26', chipColor: C.gold },
-    { key: 'board', label: 'Boarded (' + TODAY_SCANS.filter(s => s.type === 'board').length + ')', chipBg: C.teal + '26', chipColor: C.teal },
-    { key: 'alight', label: 'Alighted (' + TODAY_SCANS.filter(s => s.type === 'alight').length + ')', chipBg: C.coral + '26', chipColor: C.coral },
+    { key: 'all', label: 'All (' + scans.length + ')', chipBg: C.gold + '26', chipColor: C.gold },
+    { key: 'board', label: 'Boarded (' + scans.filter(s => s.type === 'board').length + ')', chipBg: C.teal + '26', chipColor: C.teal },
+    { key: 'alight', label: 'Alighted (' + scans.filter(s => s.type === 'alight').length + ')', chipBg: C.coral + '26', chipColor: C.coral },
   ];
 
   return (
@@ -22,7 +40,7 @@ export default function DriverScans({ onBack }) {
         </TouchableOpacity>
         <View>
           <Text style={{ fontWeight: '700', fontSize: 18, color: C.white }}>Today's Scans</Text>
-          <Text style={{ color: C.muted, fontSize: 12 }}>Scanned by {DRIVER_DEFAULT.cleaner.name}</Text>
+          <Text style={{ color: C.muted, fontSize: 12 }}>Scanned by {currentUser?.cleaner_name || DRIVER_DEFAULT.cleaner.name}</Text>
         </View>
       </View>
       <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
@@ -33,6 +51,18 @@ export default function DriverScans({ onBack }) {
             </TouchableOpacity>
           ))}
         </View>
+
+        {loading ? (
+          <View style={{ paddingVertical: 30, alignItems: 'center' }}>
+            <ActivityIndicator size="small" color={C.teal} />
+            <Text style={{ color: C.muted, fontSize: 12, marginTop: 8 }}>Loading scans...</Text>
+          </View>
+        ) : scans.length === 0 ? (
+          <View style={{ paddingVertical: 30, alignItems: 'center' }}>
+            <Text style={{ fontSize: 28, marginBottom: 8 }}>{'\uD83D\uDCF7'}</Text>
+            <Text style={{ color: C.muted, fontSize: 13 }}>No scans recorded today</Text>
+          </View>
+        ) : null}
 
         {filtered.map((scan, i) => (
           <View key={scan.id} style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>

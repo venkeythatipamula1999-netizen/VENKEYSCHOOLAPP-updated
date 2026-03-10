@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, TextInput, ScrollView, Modal, StyleSheet, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
-import { ADMIN_FEE_STUDENTS, PAYMENT_MODES, DISCOUNT_TYPES } from '../../data/admin';
+import { PAYMENT_MODES, DISCOUNT_TYPES } from '../../data/admin';
 import { INR, FEE_STATUS_COLOR } from '../../theme/styles';
-
 export default function AdminFeeScreen({ onBack, currentUser }) {
-  const [students, setStudents] = useState(ADMIN_FEE_STUDENTS);
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState(null);
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
@@ -28,6 +28,21 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
   const [saveFlash, setSaveFlash] = useState(false);
   const [payModeOpen, setPayModeOpen] = useState(false);
   const [discTypeOpen, setDiscTypeOpen] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const roleId = currentUser?.role_id || '';
+        const res = await fetch('/api/fee-students', { headers: { 'x-role-id': roleId } });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.students)) setStudents(data.students);
+      } catch (e) {
+        console.log('Fee students fetch:', e.message);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
   const sendFeeNotification = async () => {
     if (!detail) return;
@@ -289,6 +304,15 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
           ))}
         </View>
       </ScrollView>
+    );
+  }
+
+  if (loading) {
+    return (
+      <View style={{ flex:1, backgroundColor:C.navy, alignItems:'center', justifyContent:'center', paddingTop:120 }}>
+        <ActivityIndicator size="large" color={C.teal} />
+        <Text style={{ color:C.muted, fontSize:13, marginTop:12 }}>Loading fee data...</Text>
+      </View>
     );
   }
 

@@ -30,7 +30,11 @@ src/
     colors.js                  — Design tokens (C object)
     styles.js                  — Shared styles (S object)
   data/
-    teacher.js, admin.js, parent.js, driver.js, cleaner.js, marks.js, attendance.js
+    admin.js (PAYMENT_MODES, DISCOUNT_TYPES, SAL_MODES only)
+    teacher.js (TEACHER_LEAVE_REASONS, CAL_MONTHS_T, EVENT_TYPE_META only)
+    driver.js (DRIVER_DEFAULT, LEAVE_TYPES only)
+    cleaner.js (CLEANER_DEFAULT, PHASE_INFO, LEAVE_TYPES, DURATIONS only)
+    marks.js (getGradeColor utility only)
   screens/
     auth/                      — SplashScreen, LoginScreen, SignupScreen, etc.
     parent/                    — Parent portal screens (Dashboard, Attendance, Marks, Bus, etc.)

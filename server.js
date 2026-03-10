@@ -825,6 +825,20 @@ app.post('/api/fee-reminder', async (req, res) => {
   }
 });
 
+app.get('/api/fee-students', verifyAuth, async (req, res) => {
+  try {
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    const studentsRef = collection(db, 'fee_records');
+    const q = query(studentsRef, where('schoolId', '==', schoolId));
+    const snap = await getDocs(q);
+    const students = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    res.json({ success: true, students });
+  } catch (err) {
+    console.error('Fee students error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch fee students' });
+  }
+});
+
 app.get('/api/fee-reminders', async (req, res) => {
   try {
     const { studentId } = req.query;
@@ -2830,6 +2844,32 @@ app.get('/api/attendance/records', async (req, res) => {
   } catch (err) {
     console.error('Attendance records error:', err.message);
     res.status(500).json({ error: 'Failed to fetch records' });
+  }
+});
+
+app.get('/api/attendance/class-summary', verifyAuth, async (req, res) => {
+  try {
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    const classesRef = collection(db, 'classes');
+    const classQ = query(classesRef, where('schoolId', '==', schoolId));
+    const classSnap = await getDocs(classQ);
+    const classes = classSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const today = new Date().toISOString().split('T')[0];
+    const attendanceRef = collection(db, 'attendance_records');
+    const result = [];
+    for (const cls of classes) {
+      const attQ = query(attendanceRef, where('schoolId', '==', schoolId), where('classId', '==', cls.id), where('date', '==', today));
+      const attSnap = await getDocs(attQ);
+      const records = attSnap.docs.map(d => d.data());
+      const total = records.length;
+      const present = records.filter(r => r.status === 'Present').length;
+      const pct = total > 0 ? Math.round((present / total) * 100) : 0;
+      result.push({ cls: cls.name || cls.id, pct, present, total });
+    }
+    res.json({ success: true, classes: result });
+  } catch (err) {
+    console.error('Attendance class summary error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch attendance summary' });
   }
 });
 

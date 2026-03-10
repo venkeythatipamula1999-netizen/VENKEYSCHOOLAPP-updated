@@ -5,7 +5,6 @@ import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import DonutRing from '../../components/DonutRing';
 import UnitDetail from '../../components/UnitDetail';
-import { ADMIN_DATA } from '../../data/admin';
 
 const SUB_PALETTE = [C.gold, C.teal, C.purple, C.coral, '#34D399', '#60A5FA', '#F59E0B', '#EC4899'];
 const subColor = (name, idx) => {
@@ -14,80 +13,7 @@ const subColor = (name, idx) => {
 };
 const subShort = (name) => (name || '').slice(0, 4);
 
-const BUS_DATA = [
-  {
-    id:1, bus:"Bus 01", route:"Route 1 – North Zone",
-    driver:"Kumar S.", driverPhone:"9876001001", driverExp:"8 yrs", driverJoined:"Jun 2017",
-    pet:"Ravi Kumar", petPhone:"9876001011",
-    vehicle:"TN-01-AB-1234", capacity:60, students:88,
-    compliance:98, onTimeRate:96, avgMorning:42, avgEvening:38,
-    stops:["Adyar Stop","Besant Nagar","Tidel Park","School Gate"],
-    classes:["8-A","9-A","11-B"],
-    daily:[
-      { day:"Mon Jan 20", morning:41, evening:38, delay:0, students:86, status:"On Time" },
-      { day:"Tue Jan 21", morning:44, evening:40, delay:4, students:88, status:"Slight Delay" },
-      { day:"Wed Jan 22", morning:40, evening:37, delay:0, students:87, status:"On Time" },
-      { day:"Thu Jan 23", morning:42, evening:39, delay:0, students:88, status:"On Time" },
-      { day:"Fri Jan 24", morning:45, evening:41, delay:8, students:85, status:"Delayed" },
-      { day:"Mon Jan 27", morning:41, evening:38, delay:0, students:88, status:"On Time" },
-      { day:"Tue Jan 28", morning:43, evening:36, delay:0, students:87, status:"On Time" },
-    ],
-  },
-  {
-    id:2, bus:"Bus 02", route:"Route 2 – West Zone",
-    driver:"Rajan M.", driverPhone:"9876001002", driverExp:"5 yrs", driverJoined:"Mar 2020",
-    pet:"Suresh Babu", petPhone:"9876001012",
-    vehicle:"TN-01-CD-5678", capacity:60, students:73,
-    compliance:94, onTimeRate:90, avgMorning:38, avgEvening:35,
-    stops:["Tambaram","Chrompet","Pallavaram","School Gate"],
-    classes:["8-B","10-A","10-B"],
-    daily:[
-      { day:"Mon Jan 20", morning:37, evening:34, delay:0, students:72, status:"On Time" },
-      { day:"Tue Jan 21", morning:40, evening:36, delay:5, students:73, status:"Slight Delay" },
-      { day:"Wed Jan 22", morning:38, evening:35, delay:0, students:71, status:"On Time" },
-      { day:"Thu Jan 23", morning:36, evening:33, delay:0, students:73, status:"On Time" },
-      { day:"Fri Jan 24", morning:42, evening:38, delay:12, students:70, status:"Delayed" },
-      { day:"Mon Jan 27", morning:37, evening:34, delay:0, students:73, status:"On Time" },
-      { day:"Tue Jan 28", morning:39, evening:35, delay:3, students:72, status:"On Time" },
-    ],
-  },
-  {
-    id:3, bus:"Bus 03", route:"Route 3 – South Zone",
-    driver:"Vijay P.", driverPhone:"9876001003", driverExp:"3 yrs", driverJoined:"Sep 2022",
-    pet:"Anitha Devi", petPhone:"9876001013",
-    vehicle:"TN-01-EF-9012", capacity:60, students:67,
-    compliance:87, onTimeRate:82, avgMorning:48, avgEvening:44,
-    stops:["Velachery","Guindy","Saidapet","School Gate"],
-    classes:["9-B","11-A"],
-    daily:[
-      { day:"Mon Jan 20", morning:46, evening:42, delay:6, students:65, status:"Slight Delay" },
-      { day:"Tue Jan 21", morning:50, evening:46, delay:14, students:67, status:"Delayed" },
-      { day:"Wed Jan 22", morning:47, evening:43, delay:7, students:66, status:"Slight Delay" },
-      { day:"Thu Jan 23", morning:45, evening:41, delay:0, students:67, status:"On Time" },
-      { day:"Fri Jan 24", morning:52, evening:48, delay:18, students:64, status:"Delayed" },
-      { day:"Mon Jan 27", morning:48, evening:44, delay:12, students:67, status:"Delayed" },
-      { day:"Tue Jan 28", morning:46, evening:42, delay:5, students:66, status:"Slight Delay" },
-    ],
-  },
-  {
-    id:4, bus:"Bus 04", route:"Route 4 – East Zone",
-    driver:"Suresh K.", driverPhone:"9876001004", driverExp:"6 yrs", driverJoined:"Nov 2019",
-    pet:"Kala Priya", petPhone:"9876001014",
-    vehicle:"TN-01-GH-3456", capacity:60, students:52,
-    compliance:96, onTimeRate:94, avgMorning:35, avgEvening:32,
-    stops:["Sholinganallur","OMR","Thoraipakkam","School Gate"],
-    classes:["9-B","10-B"],
-    daily:[
-      { day:"Mon Jan 20", morning:34, evening:31, delay:0, students:51, status:"On Time" },
-      { day:"Tue Jan 21", morning:36, evening:33, delay:0, students:52, status:"On Time" },
-      { day:"Wed Jan 22", morning:35, evening:32, delay:0, students:52, status:"On Time" },
-      { day:"Thu Jan 23", morning:33, evening:30, delay:0, students:51, status:"On Time" },
-      { day:"Fri Jan 24", morning:38, evening:35, delay:6, students:50, status:"Slight Delay" },
-      { day:"Mon Jan 27", morning:34, evening:31, delay:0, students:52, status:"On Time" },
-      { day:"Tue Jan 28", morning:36, evening:33, delay:0, students:52, status:"On Time" },
-    ],
-  },
-];
+const BUS_DATA = [];
 
 export default function AdminReports({ onBack }) {
   const [tab, setTab] = useState("attendance");
@@ -104,6 +30,8 @@ export default function AdminReports({ onBack }) {
   const [classMarksData, setClassMarksData] = useState(null);
   const [studentMarksData, setStudentMarksData] = useState(null);
   const [marksLoading, setMarksLoading] = useState(false);
+  const [classAttData, setClassAttData] = useState([]);
+  const [attLoading, setAttLoading] = useState(true);
 
   useEffect(() => {
     fetch('/api/classes?t=' + Date.now(), { cache: 'no-store' })
@@ -116,6 +44,11 @@ export default function AdminReports({ onBack }) {
         }
       })
       .catch(() => {});
+    fetch('/api/attendance/class-summary')
+      .then(r => r.json())
+      .then(d => { if (d.success && Array.isArray(d.classes)) setClassAttData(d.classes); })
+      .catch(() => {})
+      .finally(() => setAttLoading(false));
     fetch('/api/marks/summary')
       .then(r => r.json())
       .then(d => {
@@ -881,7 +814,7 @@ export default function AdminReports({ onBack }) {
           <View>
             <View style={st.secHead}><Text style={st.secTitle}>Term Summary</Text></View>
             <View style={{ flexDirection:'row', gap:10, marginBottom:16 }}>
-              {[["Term 1","91%","#22d38a"],["Term 2","88%",C.teal],["Term 3","85%",C.gold]].map(([t,v,c]) => (
+              {[["Term 1","—","#22d38a"],["Term 2","—",C.teal],["Term 3","—",C.gold]].map(([t,v,c]) => (
                 <View key={t} style={st.metricCard}>
                   <Text style={{ fontWeight:'800', fontSize:22, color:c }}>{v}</Text>
                   <Text style={{ fontSize:11, color:C.muted, marginTop:4 }}>{t}</Text>
@@ -890,7 +823,11 @@ export default function AdminReports({ onBack }) {
             </View>
             <View style={st.secHead}><Text style={st.secTitle}>Class-wise This Month</Text></View>
             <View style={[st.card, st.cardSm, { marginBottom:16 }]}>
-              {ADMIN_DATA.classAtt.map(c => {
+              {attLoading ? (
+                <ActivityIndicator size="small" color={C.teal} />
+              ) : classAttData.length === 0 ? (
+                <Text style={{ color:C.muted, fontSize:12, textAlign:'center', paddingVertical:12 }}>No attendance data available</Text>
+              ) : classAttData.map(c => {
                 const col = c.pct>=90?"#22d38a":c.pct>=80?C.teal:C.gold;
                 return (
                   <View key={c.cls} style={{ flexDirection:'row', alignItems:'center', gap:10, marginBottom:10 }}>
@@ -982,7 +919,7 @@ export default function AdminReports({ onBack }) {
               {[
                 { val:BUS_DATA.length, lbl:"Total Buses", color:C.teal },
                 { val:BUS_DATA.reduce((s,b)=>s+b.students,0), lbl:"Students", color:C.purple },
-                { val:Math.round(BUS_DATA.reduce((s,b)=>s+b.onTimeRate,0)/BUS_DATA.length)+"%", lbl:"On-Time", color:"#22d38a" },
+                { val:BUS_DATA.length > 0 ? Math.round(BUS_DATA.reduce((s,b)=>s+b.onTimeRate,0)/BUS_DATA.length)+"%" : "—", lbl:"On-Time", color:"#22d38a" },
               ].map(s => (
                 <View key={s.lbl} style={st.metricCard}>
                   <Text style={{ fontWeight:'800', fontSize:20, color:s.color }}>{s.val}</Text>

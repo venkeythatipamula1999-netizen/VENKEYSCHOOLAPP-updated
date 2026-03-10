@@ -17,40 +17,11 @@ const typeIcons = {
 const TYPE_LIST = ['Academic', 'Cultural', 'Holiday', 'Sports', 'Meeting', 'Other'];
 const ALL_TYPE_FILTERS = ['All', ...TYPE_LIST];
 
-const CLASS_ACTIVITIES = {
-  'Grade 8-A': [
-    { id:'c1a1', title:'Maths Olympiad Winner', date:'Nov 2024', icon:'\uD83C\uDFC6', color:'#E8A21A', type:'Academic', result:'1st Place', students:'Sneha Pillai, Karthik Rajan' },
-    { id:'c1a2', title:'Science Fair – Best Project', date:'Jan 2025', icon:'\uD83D\uDD2C', color:'#00B8A9', type:'Science', result:'Best Project', students:'Arjun Kumar, Rohit Menon' },
-    { id:'c1a3', title:'Cultural Fest – Folk Dance', date:'Sep 2024', icon:'\uD83D\uDC83', color:'#A78BFA', type:'Cultural', result:'1st Place', students:'Meenakshi Iyer, Divya Sharma' },
-    { id:'c1a4', title:'Cleanest Classroom Award', date:'Dec 2024', icon:'\u2B50', color:'#34D399', type:'Community', result:'Class Award', students:'Entire Class' },
-  ],
-  'Grade 8-B': [
-    { id:'c2a1', title:'Inter-Class Quiz Champions', date:'Oct 2024', icon:'\uD83E\uDDE0', color:'#60A5FA', type:'Academic', result:'1st Place', students:'Kavya Reddy, Ananya Krishnan' },
-    { id:'c2a2', title:'Drama Club – Best Cast', date:'Dec 2024', icon:'\uD83C\uDFAD', color:'#A78BFA', type:'Cultural', result:'Best Cast', students:'Lavanya Suresh, Vikram Singh' },
-  ],
-  'Grade 9-A': [
-    { id:'c3a1', title:'State Science Exhibition', date:'Dec 2024', icon:'\uD83D\uDD2C', color:'#00B8A9', type:'Science', result:'2nd Place', students:'Rahul Sharma, Priya Nair' },
-    { id:'c3a2', title:'Essay Writing Competition', date:'Nov 2024', icon:'\u270D\uFE0F', color:'#60A5FA', type:'Academic', result:'1st Place', students:'Anjali Menon' },
-  ],
-  'Grade 10-A': [
-    { id:'c4a1', title:'Inter-School Debate – District', date:'Apr 2025', icon:'\uD83C\uDF99\uFE0F', color:'#60A5FA', type:'Academic', result:'2nd Place', students:'Rohit Varma, Nisha Pillai' },
-    { id:'c4a2', title:'National Art Competition', date:'Jan 2025', icon:'\uD83C\uDFA8', color:'#7C5CBF', type:'Arts', result:'Special Merit', students:'Kavya Krishnan' },
-  ],
-};
+const CLASS_ACTIVITIES = {};
 
-const SCHOOL_ACHIEVEMENTS = [
-  { id:1, title:'Best School – District Education Award 2024', date:'Dec 2024', level:'District', icon:'\uD83C\uDFC6', color:'#E8A21A', awardedBy:'District Education Office', desc:'Awarded for outstanding academic performance, 100% board pass rate, and excellent co-curricular achievements across all departments.' },
-  { id:2, title:'State-Level Green School Certificate', date:'Nov 2024', level:'State', icon:'\uD83C\uDF3F', color:'#34D399', awardedBy:'State Environment Board', desc:'Recognized for exceptional eco-friendly initiatives including zero-waste cafeteria, solar panels, and student-led tree plantation drives.' },
-  { id:3, title:'Excellence in Sports – Regional Trophy', date:'Oct 2024', level:'Regional', icon:'\uD83C\uDFBD', color:'#FF6B6B', awardedBy:'Regional Sports Authority', desc:'School cricket and athletics teams brought home district gold. Over 120 students represented the school at inter-district level.' },
-  { id:4, title:'Digital Innovation School Award', date:'Sep 2024', level:'National', icon:'\uD83D\uDCBB', color:'#60A5FA', awardedBy:'National EdTech Forum', desc:'Top 10 schools nationally for digital adoption, coding curriculum integration, and student innovation projects.' },
-];
+const SCHOOL_ACHIEVEMENTS = [];
 
-const ADS_DATA = [
-  { id:1, title:'Science Fair Registration Open', type:'Notice', to:'All Parents & Students', posted:'Jan 28, 2025', expiry:'Feb 20, 2025', icon:'\uD83D\uDD2C', color:'#00B8A9', pinned:true, body:'Register your child for the Annual Science Fair by Feb 20. Projects must be submitted to the class teacher. Theme: Sustainable Future.' },
-  { id:2, title:'Sports Day Uniform Reminder', type:'Notice', to:'All Students', posted:'Jan 30, 2025', expiry:'Mar 8, 2025', icon:'\uD83C\uDFC3', color:'#FF6B6B', pinned:true, body:'All students must wear their house colour t-shirts on Sports Day (Mar 8). White shoes are mandatory. Permission slips due by Mar 1.' },
-  { id:3, title:'PTM – Confirm Your Slot', type:'Notice', to:'All Parents', posted:'Feb 1, 2025', expiry:'Mar 15, 2025', icon:'\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67', color:'#E8A21A', pinned:false, body:'Parent-Teacher Meeting on Mar 15. Book your 15-minute slot via the school app.' },
-  { id:4, title:'Cultural Fest Auditions', type:'Ad', to:'Grades 8–10', posted:'Feb 3, 2025', expiry:'Feb 28, 2025', icon:'\uD83C\uDFAD', color:'#A78BFA', pinned:false, body:'Auditions for Kaleidoscope 2025 begin Feb 10. Dance, Drama and Music categories open.' },
-];
+const ADS_DATA = [];
 
 const EMPTY_FORM = { title: '', date: '', time: '', venue: '', type: 'Academic', forClasses: 'All Classes', description: '' };
 
@@ -607,7 +578,12 @@ export default function AdminActivities({ onBack, currentUser }) {
               </View>
             </LinearGradient>
             <View style={st.secHead}><Text style={st.secTitle}>School Awards & Recognitions</Text></View>
-            {SCHOOL_ACHIEVEMENTS.map(a => (
+            {SCHOOL_ACHIEVEMENTS.length === 0 ? (
+              <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 16, padding: 24, alignItems: 'center' }}>
+                <Text style={{ fontSize: 28, marginBottom: 8 }}>{'\uD83C\uDFC6'}</Text>
+                <Text style={{ color: C.muted, fontSize: 13, textAlign: 'center' }}>No achievements recorded yet</Text>
+              </View>
+            ) : SCHOOL_ACHIEVEMENTS.map(a => (
               <View key={a.id} style={[st.cardLg, { marginBottom: 12, borderLeftWidth: 3, borderLeftColor: a.color }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 12 }}>
                   <View style={{ width: 56, height: 56, borderRadius: 18, backgroundColor: a.color + '22', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Text style={{ fontSize: 28 }}>{a.icon}</Text></View>
@@ -631,6 +607,12 @@ export default function AdminActivities({ onBack, currentUser }) {
         {tab === 'ads' && (
           <View>
             <View style={st.secHead}><Text style={st.secTitle}>Active Notices & Ads</Text></View>
+            {ADS_DATA.length === 0 ? (
+              <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 16, padding: 24, alignItems: 'center' }}>
+                <Text style={{ fontSize: 28, marginBottom: 8 }}>{'\uD83D\uDCE2'}</Text>
+                <Text style={{ color: C.muted, fontSize: 13, textAlign: 'center' }}>No notices or ads posted yet</Text>
+              </View>
+            ) : null}
             {ADS_DATA.map(ad => (
               <View key={ad.id} style={[st.card, { marginBottom: 12, borderLeftWidth: 3, borderLeftColor: ad.color }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>

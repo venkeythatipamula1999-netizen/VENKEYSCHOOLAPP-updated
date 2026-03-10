@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, ActivityIndicator } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
-import { TEACHER_NOTIFS } from '../../data/teacher';
 
 const REASON_COLORS = {
   Medical: '#F59E0B',
@@ -526,21 +525,12 @@ export default function TeacherAlertsScreen({ onBack, currentUser }) {
               </View>
             )}
 
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, marginTop: liveNotifs.length > 0 ? 8 : 0 }}>
-              <Text style={{ fontSize: 16, fontWeight: '600', color: C.white }}>School Notifications</Text>
-            </View>
-            {TEACHER_NOTIFS.map((n, i) => (
-              <View key={i} style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderLeftWidth: 3, borderLeftColor: n.color, borderRadius: 16, padding: 16, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: n.color + '22', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Text style={{ fontSize: 22 }}>{n.icon}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontWeight: '700', fontSize: 14, marginBottom: 3, color: C.white }}>{n.title}</Text>
-                  <Text style={{ color: C.muted, fontSize: 12 }}>{n.desc}</Text>
-                </View>
-                <Text style={{ fontSize: 11, color: n.color, flexShrink: 0 }}>{n.time}</Text>
+            {liveNotifs.length === 0 && !loadingNotifs && (
+              <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 16, padding: 24, alignItems: 'center' }}>
+                <Text style={{ fontSize: 28, marginBottom: 8 }}>{'\uD83D\uDD14'}</Text>
+                <Text style={{ color: C.muted, fontSize: 13, textAlign: 'center' }}>No notifications yet</Text>
               </View>
-            ))}
+            )}
           </>
         )}
       </View>
