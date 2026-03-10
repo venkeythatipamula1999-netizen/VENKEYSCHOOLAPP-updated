@@ -44,6 +44,7 @@ import AdminReports from './src/screens/admin/AdminReports';
 import AdminAlerts from './src/screens/admin/AdminAlerts';
 import AdminActivities from './src/screens/admin/AdminActivities';
 import AdminSettings from './src/screens/admin/AdminSettings';
+import AdminStudentQR from './src/screens/admin/AdminStudentQR';
 import AdminLeaveScreen from './src/screens/admin/AdminLeaveScreen';
 import AdminFeeScreen from './src/screens/admin/AdminFeeScreen';
 import AdminSalaryScreen from './src/screens/admin/AdminSalaryScreen';
@@ -307,7 +308,8 @@ export default function App() {
       case 'cleaner-leave': return <CleanerLeave onBack={() => navigate('cleaner-home')} currentUser={currentUser} />;
       case 'admin-home': return <AdminOverview onNavigate={navigate} currentUser={currentUser} />;
       case 'admin-users': return <AdminUsers onBack={() => navigate('admin-home')} />;
-      case 'admin-classes': return <AdminClasses onBack={() => navigate('admin-home')} currentUser={currentUser} />;
+      case 'admin-classes': return <AdminClasses onBack={() => navigate('admin-home')} currentUser={currentUser} onNavigate={navigate} />;
+      case 'admin-student-qr': return <AdminStudentQR onBack={() => navigate('admin-classes')} currentUser={currentUser} />;
       case 'admin-buses': return <AdminBuses onBack={() => navigate('admin-home')} currentUser={currentUser} />;
       case 'admin-reports': return <AdminReports onBack={() => navigate('admin-home')} />;
       case 'admin-alerts': return <AdminAlerts onBack={() => navigate('admin-home')} />;

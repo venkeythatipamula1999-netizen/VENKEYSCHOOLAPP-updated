@@ -8,7 +8,7 @@ import Icon from '../../components/Icon';
 import { LinearGradient } from 'expo-linear-gradient';
 import AdminStudents from './AdminStudents';
 
-function AdminClasses({ onBack, currentUser }) {
+function AdminClasses({ onBack, currentUser, onNavigate }) {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedClass, setSelectedClass] = useState(null);
@@ -97,6 +97,17 @@ function AdminClasses({ onBack, currentUser }) {
           <Icon name="back" size={20} color={C.white} />
         </TouchableOpacity>
         <Text style={st.headerTitle}>Class Management</Text>
+        <TouchableOpacity
+          onPress={() => onNavigate && onNavigate('admin-student-qr')}
+          style={{
+            backgroundColor: C.teal + '22', borderRadius: 12,
+            paddingHorizontal: 14, paddingVertical: 8,
+            borderWidth: 1, borderColor: C.teal + '44',
+            flexDirection: 'row', alignItems: 'center', gap: 6
+          }}
+        >
+          <Text style={{ color: C.teal, fontWeight: '600', fontSize: 13 }}>⊙ QR Codes</Text>
+        </TouchableOpacity>
         <TouchableOpacity onPress={() => setShowAddModal(true)} style={st.addBtn}>
           <Text style={{ color: C.navy, fontWeight: '700' }}>+ Add Class</Text>
         </TouchableOpacity>
