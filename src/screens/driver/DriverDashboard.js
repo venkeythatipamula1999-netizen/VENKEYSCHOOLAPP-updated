@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Platform, ActivityIndicator, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
@@ -249,6 +249,39 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
     }
   }, [lat, lng]);
 
+  const confirmStartTrip = () => {
+    Alert.alert(
+      'Start Trip',
+      'This will notify all parents that the trip has begun. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Start Trip', onPress: () => handleStartTrip() },
+      ]
+    );
+  };
+
+  const confirmEndTrip = () => {
+    Alert.alert(
+      'End Trip',
+      'This will mark all students as dropped and close the trip. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'End Trip', style: 'destructive', onPress: () => handleEndTrip() },
+      ]
+    );
+  };
+
+  const confirmSetStop = (student) => {
+    Alert.alert(
+      'Set Pickup Stop',
+      `This will record your current GPS location as the pickup stop for ${student.name}. Are you sure?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Set Stop', onPress: () => handleSetStop(student) },
+      ]
+    );
+  };
+
   const handleStartTrip = async () => {
     setTripLoading(true);
     try {
@@ -479,7 +512,7 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
 
           {!tripActive ? (
             <TouchableOpacity
-              onPress={handleStartTrip}
+              onPress={confirmStartTrip}
               disabled={tripLoading}
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: C.teal, borderRadius: 14, paddingVertical: 14, opacity: tripLoading ? 0.6 : 1 }}
             >
@@ -494,7 +527,7 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              onPress={handleEndTrip}
+              onPress={confirmEndTrip}
               disabled={tripLoading}
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: C.coral, borderRadius: 14, paddingVertical: 14, opacity: tripLoading ? 0.6 : 1 }}
             >
@@ -561,7 +594,7 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
                   </View>
                 ) : isSet ? (
                   <TouchableOpacity
-                    onPress={() => handleSetStop(student)}
+                    onPress={() => confirmSetStop(student)}
                     disabled={isSetting}
                     style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, backgroundColor: '#34D39922', borderWidth: 1, borderColor: '#34D39944', opacity: isSetting ? 0.5 : 1 }}
                   >
@@ -573,7 +606,7 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity
-                    onPress={() => handleSetStop(student)}
+                    onPress={() => confirmSetStop(student)}
                     disabled={isSetting}
                     style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, backgroundColor: C.teal, opacity: isSetting ? 0.5 : 1 }}
                   >
