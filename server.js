@@ -5444,6 +5444,184 @@ app.get('/api/report', (req, res) => {
   }
 });
 
+// ════════════════════════════════════════
+// SUPER ADMIN — SCHOOL MANAGEMENT
+// ════════════════════════════════════════
+
+app.post('/api/super/schools/create', verifySuperAdmin, async (req, res) => {
+  try {
+    const { schoolName, location, address, phone, email, principalName, principalEmail, principalPassword, board, subscriptionPlan } = req.body;
+    if (!schoolName || !location || !principalEmail || !principalPassword) {
+      return res.status(400).json({ error: 'schoolName, location, principalEmail, principalPassword are required' });
+    }
+
+    let schoolId = generateSchoolCode(schoolName, location);
+    const existing = await getDocs(query(collection(db, 'schools'), where('schoolId', '==', schoolId)));
+    if (!existing.empty) schoolId = `${schoolId}${Date.now().toString().slice(-3)}`;
+
+    const now = new Date().toISOString();
+
+    await setDoc(doc(db, 'schools', schoolId), {
+      schoolId, schoolName, location,
+      address: address || '',
+      phone: phone || '',
+      email: email || '',
+      principalName: principalName || '',
+      principalEmail,
+      board: board || 'State Board',
+      subscriptionPlan: subscriptionPlan || 'basic',
+      subscriptionStatus: 'active',
+      status: 'active',
+      studentCount: 0,
+      staffCount: 0,
+      createdAt: now,
+      updatedAt: now
+    });
+
+    await setDoc(doc(db, 'settings', schoolId), {
+      schoolId, schoolName, location,
+      tagline: `Excellence in Education · ${location}`,
+      principalName: principalName || '',
+      phone: phone || '',
+      email: email || '',
+      address: address || '',
+      board: board || 'State Board',
+      createdAt: now
+    });
+
+    let principalUid = null;
+    if (adminAuth) {
+      try {
+        const userRecord = await adminAuth.createUser({
+          email: principalEmail,
+          password: principalPassword,
+          displayName: principalName || `${schoolName} Principal`
+        });
+        principalUid = userRecord.uid;
+        await adminAuth.setCustomUserClaims(principalUid, { role: 'principal', schoolId, schoolName });
+        await setDoc(doc(db, 'admins', principalUid), {
+          uid: principalUid, email: principalEmail,
+          full_name: principalName || '', role: 'principal',
+          role_id: `PRIN-${schoolId}`,
+          schoolId, schoolName, createdAt: now
+        });
+      } catch (authErr) {
+        console.error('[Create School] Auth error:', authErr.message);
+      }
+    }
+
+    res.json({ success: true, schoolId, schoolName, principalEmail, principalUid, message: `School created: ${schoolId}` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/super/schools', verifySuperAdmin, async (req, res) => {
+  try {
+    const snap = await getDocs(collection(db, 'schools'));
+    const schools = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    schools.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    res.json({ success: true, schools, total: schools.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/super/schools/:schoolId', verifySuperAdmin, async (req, res) => {
+  try {
+    const { schoolId } = req.params;
+    const schoolSnap = await getDocFS(doc(db, 'schools', schoolId));
+    if (!schoolSnap.exists()) return res.status(404).json({ error: 'School not found' });
+    const [studentsSnap, usersSnap] = await Promise.all([
+      getDocs(query(collection(db, 'students'), where('schoolId', '==', schoolId))),
+      getDocs(query(collection(db, 'users'), where('schoolId', '==', schoolId)))
+    ]);
+    res.json({
+      success: true,
+      school: { id: schoolSnap.id, ...schoolSnap.data() },
+      stats: { studentCount: studentsSnap.size, staffCount: usersSnap.size }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/super/schools/:schoolId/status', verifySuperAdmin, async (req, res) => {
+  try {
+    const { schoolId } = req.params;
+    const { status } = req.body;
+    if (!['active', 'suspended'].includes(status)) return res.status(400).json({ error: 'status must be active or suspended' });
+    await updateDoc(doc(db, 'schools', schoolId), { status, updatedAt: new Date().toISOString() });
+    res.json({ success: true, schoolId, status });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/super/schools/:schoolId/subscription', verifySuperAdmin, async (req, res) => {
+  try {
+    const { schoolId } = req.params;
+    const { subscriptionPlan, subscriptionStatus, expiresAt } = req.body;
+    await updateDoc(doc(db, 'schools', schoolId), {
+      subscriptionPlan: subscriptionPlan || 'basic',
+      subscriptionStatus: subscriptionStatus || 'active',
+      expiresAt: expiresAt || null,
+      updatedAt: new Date().toISOString()
+    });
+    res.json({ success: true, schoolId, subscriptionPlan, subscriptionStatus });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/super/stats', verifySuperAdmin, async (req, res) => {
+  try {
+    const schoolsSnap = await getDocs(collection(db, 'schools'));
+    const schools = schoolsSnap.docs.map(d => d.data());
+    const [studentsSnap, usersSnap] = await Promise.all([
+      getDocs(collection(db, 'students')),
+      getDocs(collection(db, 'users'))
+    ]);
+    res.json({
+      success: true,
+      stats: {
+        totalSchools: schools.length,
+        activeSchools: schools.filter(s => s.status === 'active').length,
+        suspendedSchools: schools.filter(s => s.status === 'suspended').length,
+        totalStudents: studentsSnap.size,
+        totalStaff: usersSnap.size
+      },
+      schools: schools.map(s => ({
+        schoolId: s.schoolId, schoolName: s.schoolName, location: s.location,
+        status: s.status, subscriptionPlan: s.subscriptionPlan,
+        subscriptionStatus: s.subscriptionStatus, createdAt: s.createdAt
+      }))
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/super/migrate/wipe-school-001', verifySuperAdmin, async (req, res) => {
+  try {
+    const cols = ['students','classes','users','student_marks','student_attendance',
+      'attendance_records','leaveRequests','leave_requests','buses','bus_trips',
+      'trip_scans','events','activities','salary_settings','salary_payments',
+      'staff_duty','fee_reminders'];
+    let totalDeleted = 0;
+    for (const colName of cols) {
+      try {
+        const snap = await getDocs(query(collection(db, colName), where('schoolId', '==', 'school_001')));
+        for (const d of snap.docs) { await deleteDoc(d.ref); totalDeleted++; }
+      } catch(e) { console.warn(`Skipped ${colName}:`, e.message); }
+    }
+    try { await deleteDoc(doc(db, 'settings', 'school_001')); totalDeleted++; } catch(e) {}
+    res.json({ success: true, totalDeleted, message: 'school_001 wiped' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use(express.static(path.join(__dirname, 'dist'), {
