@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import { apiFetch } from '../../api/client';
 
 const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -53,7 +54,7 @@ export default function TeacherScheduleScreen({ onBack, currentUser }) {
       let allEvents = [];
       for (const m of months) {
         const [year, month] = m.split('-');
-        const res = await fetch(`/api/teacher-calendar?roleId=${encodeURIComponent(roleId)}&month=${month}&year=${year}`);
+        const res = await apiFetch(`/teacher-calendar?roleId=${encodeURIComponent(roleId)}&month=${month}&year=${year}`);
         const data = await res.json();
         if (res.ok && data.events) allEvents = allEvents.concat(data.events);
       }
@@ -62,7 +63,7 @@ export default function TeacherScheduleScreen({ onBack, currentUser }) {
       console.error('Failed to fetch calendar:', err.message);
     }
     try {
-      const res = await fetch(`/api/teacher-timetable?roleId=${encodeURIComponent(roleId)}`);
+      const res = await apiFetch(`/teacher-timetable?roleId=${encodeURIComponent(roleId)}`);
       const data = await res.json();
       if (res.ok && data.timetable) setTimetable(data.timetable);
     } catch (err) {}

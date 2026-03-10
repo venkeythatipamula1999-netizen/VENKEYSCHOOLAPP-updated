@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'rea
 import { WebView } from 'react-native-webview';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import { apiFetch } from '../../api/client';
 
 const statusColor = s => {
   if (s === 'active') return C.teal;
@@ -27,7 +28,7 @@ export default function TeacherBusMonitor({ onBack }) {
 
   const fetchTrips = () => {
     setLoading(true);
-    fetch('/api/bus/active-trips')
+    apiFetch('/bus/active-trips')
       .then(r => r.json())
       .then(data => {
         setTrips(data.trips || []);

@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Modal } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import { apiFetch } from '../../api/client';
 
 function getToday() {
   return new Date(Date.now() + 330 * 60000).toISOString().split('T')[0];
@@ -120,7 +121,7 @@ export default function TeacherAttendance({ onBack, currentUser }) {
   const normalizedCT = normalizeGrade(classTeacherOf);
 
   useEffect(() => {
-    fetch('/api/classes?t=' + Date.now(), { cache: 'no-store' })
+    apiFetch('/classes?t=' + Date.now(), { cache: 'no-store' })
       .then(r => r.json())
       .then(data => {
         if (data.success && Array.isArray(data.classes)) {
@@ -135,7 +136,7 @@ export default function TeacherAttendance({ onBack, currentUser }) {
       .finally(() => setLoadingClasses(false));
 
     if (roleId && !isAdmin) {
-      fetch('/api/teacher/profile?roleId=' + encodeURIComponent(roleId) + '&t=' + Date.now(), { cache: 'no-store' })
+      apiFetch('/teacher/profile?roleId=' + encodeURIComponent(roleId) + '&t=' + Date.now(), { cache: 'no-store' })
         .then(r => r.json())
         .then(data => { if (!data.error) setFreshProfile(data); })
         .catch(() => {})
@@ -169,7 +170,7 @@ export default function TeacherAttendance({ onBack, currentUser }) {
     setSubmissionStatus(null);
     setSubmittedRecords([]);
 
-    const studentFetch = fetch('/api/students/' + selectedClass + '?t=' + Date.now(), { cache: 'no-store' })
+    const studentFetch = apiFetch('/students/' + selectedClass + '?t=' + Date.now(), { cache: 'no-store' })
       .then(r => r.json())
       .then(data => {
         if (data.success && Array.isArray(data.students)) {
@@ -195,11 +196,11 @@ export default function TeacherAttendance({ onBack, currentUser }) {
     if (!selectedClass || !date) return;
     setCheckingStatus(true);
     try {
-      const res = await fetch(`/api/attendance/submission-status?classId=${selectedClass}&date=${date}&t=${Date.now()}`, { cache: 'no-store' });
+      const res = await apiFetch(`/attendance/submission-status?classId=${selectedClass}&date=${date}&t=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
       setSubmissionStatus(data.submitted ? data : null);
       if (data.submitted && students.length > 0) {
-        const attQ = await fetch(`/api/attendance/records?classId=${selectedClass}&date=${date}`);
+        const attQ = await apiFetch(`/attendance/records?classId=${selectedClass}&date=${date}`);
         const attRecs = await attQ.json();
         if (attRecs.records) {
           const statusMap = {};
@@ -273,9 +274,8 @@ export default function TeacherAttendance({ onBack, currentUser }) {
         status: absentSet.has(s.id) ? 'Absent' : 'Present',
         markedBy: currentUser?.role_id || currentUser?.email || 'teacher',
       }));
-      const res = await fetch('/api/attendance/save', {
+      const res = await apiFetch('/attendance/save', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           records,
           date,
@@ -309,9 +309,8 @@ export default function TeacherAttendance({ onBack, currentUser }) {
     if (!editingStudent) return;
     setSavingEdit(editingStudent.id);
     try {
-      const res = await fetch('/api/attendance/edit', {
+      const res = await apiFetch('/attendance/edit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           studentId: editingStudent.id,
           studentName: editingStudent.name,

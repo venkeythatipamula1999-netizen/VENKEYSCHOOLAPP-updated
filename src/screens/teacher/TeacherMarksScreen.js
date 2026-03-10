@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import { apiFetch } from '../../api/client';
 
 const EDIT_REASONS = [
   'Data entry mistake',
@@ -95,7 +96,7 @@ export default function TeacherMarksScreen({ onBack, currentUser }) {
   const [showViewClassPicker, setShowViewClassPicker] = useState(false);
 
   useEffect(() => {
-    fetch('/api/classes?t=' + Date.now(), { cache: 'no-store' })
+    apiFetch('/classes?t=' + Date.now(), { cache: 'no-store' })
       .then(r => r.json())
       .then(data => {
         if (data.success && Array.isArray(data.classes)) {
@@ -146,7 +147,7 @@ export default function TeacherMarksScreen({ onBack, currentUser }) {
 
     if (!roleId) { buildFromProfile(null); setPermLoading(false); return; }
 
-    fetch(`/api/teacher/permissions?roleId=${encodeURIComponent(roleId)}&t=` + Date.now(), { cache: 'no-store' })
+    apiFetch(`/teacher/permissions?roleId=${encodeURIComponent(roleId)}&t=` + Date.now(), { cache: 'no-store' })
       .then(r => r.json())
       .then(data => {
         const filtered = ALL_SUBJECTS.filter(s =>
@@ -159,7 +160,7 @@ export default function TeacherMarksScreen({ onBack, currentUser }) {
         }
       })
       .catch(() => {
-        fetch(`/api/teacher/profile?roleId=${encodeURIComponent(roleId)}&t=` + Date.now(), { cache: 'no-store' })
+        apiFetch(`/teacher/profile?roleId=${encodeURIComponent(roleId)}&t=` + Date.now(), { cache: 'no-store' })
           .then(r => r.json())
           .then(profile => buildFromProfile(profile))
           .catch(() => buildFromProfile(null));
@@ -212,7 +213,7 @@ export default function TeacherMarksScreen({ onBack, currentUser }) {
   useEffect(() => {
     if (!selectedClassId) { setStudents([]); return; }
     setLoadingStudents(true);
-    fetch('/api/students/' + selectedClassId + '?t=' + Date.now(), { cache: 'no-store' })
+    apiFetch('/students/' + selectedClassId + '?t=' + Date.now(), { cache: 'no-store' })
       .then(r => r.json())
       .then(data => {
         if (data.success && Array.isArray(data.students)) {
@@ -233,7 +234,7 @@ export default function TeacherMarksScreen({ onBack, currentUser }) {
     setErrorMsg('');
     if (!selectedClassId || !entrySubject || !exam) { setMarks({}); return; }
     setLoadingMarks(true);
-    fetch(`/api/marks/view?examType=${exam.id}&classId=${selectedClassId}`)
+    apiFetch(`/marks/view?examType=${exam.id}&classId=${selectedClassId}`)
       .then(r => r.json())
       .then(data => {
         const existing = {};
@@ -251,7 +252,7 @@ export default function TeacherMarksScreen({ onBack, currentUser }) {
   useEffect(() => {
     if (!selectedClassId || !entrySubject) { setSubmittedExams(new Set()); return; }
     setLoadingSubmittedExams(true);
-    fetch(`/api/marks/submitted-exams?classId=${selectedClassId}&subject=${encodeURIComponent(entrySubject.name)}`)
+    apiFetch(`/marks/submitted-exams?classId=${selectedClassId}&subject=${encodeURIComponent(entrySubject.name)}`)
       .then(r => r.json())
       .then(data => {
         if (data.success && Array.isArray(data.submittedExams)) {
@@ -271,7 +272,7 @@ export default function TeacherMarksScreen({ onBack, currentUser }) {
     setViewData(null);
     try {
       console.log('STEP 7 - Teacher view: loading marks for classId:', classId);
-      const res = await fetch(`/api/marks/class/${classId}`);
+      const res = await apiFetch(`/marks/class/${classId}`);
       const data = await res.json();
       console.log('STEP 7 - Teacher view: records =', data.total, ', students =', data.students?.length);
       if (data.success) setViewData(data);
@@ -329,9 +330,8 @@ export default function TeacherMarksScreen({ onBack, currentUser }) {
     setSubmitting(true);
     setSyncStatus('syncing');
     try {
-      const res = await fetch('/api/marks/save', {
+      const res = await apiFetch('/marks/save', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           records,
           subject: entrySubject.name,
@@ -351,7 +351,7 @@ export default function TeacherMarksScreen({ onBack, currentUser }) {
         loadViewData(selectedClassId);
       }
       // Reload marks for this exam to reflect submitted state
-      fetch(`/api/marks/view?examType=${exam.id}&classId=${selectedClassId}`)
+      apiFetch(`/marks/view?examType=${exam.id}&classId=${selectedClassId}`)
         .then(r => r.json())
         .then(data => {
           const updated = {};
@@ -391,9 +391,8 @@ export default function TeacherMarksScreen({ onBack, currentUser }) {
 
     setEditSubmitting(true);
     try {
-      const res = await fetch('/api/marks/edit', {
+      const res = await apiFetch('/marks/edit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           studentId: editStudent.id,
           studentName: editStudent.name,

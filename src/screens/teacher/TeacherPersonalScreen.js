@@ -6,6 +6,7 @@ import {
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { LinearGradient } from 'expo-linear-gradient';
+import { apiFetch } from '../../api/client';
 
 const INR = v => '₹' + Number(v || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
 const CAL_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -166,8 +167,8 @@ function LeaveTab({ staffId, currentUser }) {
   useEffect(() => {
     if (!staffId) { setLoading(false); return; }
     Promise.all([
-      fetch(`/api/leave-requests/mine?staffId=${encodeURIComponent(staffId)}`).then(r => r.json()),
-      fetch(`/api/leave-balance?roleId=${encodeURIComponent(staffId)}`).then(r => r.json()),
+      apiFetch(`/leave-requests/mine?staffId=${encodeURIComponent(staffId)}`).then(r => r.json()),
+      apiFetch(`/leave-balance?roleId=${encodeURIComponent(staffId)}`).then(r => r.json()),
     ]).then(([hist, bal]) => {
       setHistory(hist.requests || []);
       if (bal.balance) setBalance(bal.balance);
@@ -178,8 +179,8 @@ function LeaveTab({ staffId, currentUser }) {
     if (!reason || dates.length === 0 || !staffId) return;
     setSubmitting(true); setSubmitError('');
     try {
-      const res = await fetch('/api/leave-request/submit', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+      const res = await apiFetch('/leave-request/submit', {
+        method: 'POST',
         body: JSON.stringify({
           staffId,
           staffName: currentUser?.full_name || currentUser?.name || staffId,
@@ -351,7 +352,7 @@ function SalaryTab({ staffId, currentUser }) {
 
   useEffect(() => {
     if (!staffId) { setLoadingMain(false); return; }
-    fetch(`/api/payroll/my-salary?roleId=${encodeURIComponent(staffId)}`)
+    apiFetch(`/payroll/my-salary?roleId=${encodeURIComponent(staffId)}`)
       .then(r => r.json())
       .then(data => setSalaryData(data))
       .catch(() => {})
@@ -362,7 +363,7 @@ function SalaryTab({ staffId, currentUser }) {
     if (!staffId) return;
     setLoadingPayslip(true);
     try {
-      const r = await fetch(`/api/payroll/my-payslip?roleId=${encodeURIComponent(staffId)}&month=${m}`);
+      const r = await apiFetch(`/payroll/my-payslip?roleId=${encodeURIComponent(staffId)}&month=${m}`);
       const data = await r.json();
       setPayslip(data);
     } catch (e) { console.error(e); } finally { setLoadingPayslip(false); }
@@ -372,7 +373,7 @@ function SalaryTab({ staffId, currentUser }) {
     if (!staffId) return;
     try {
       const year = month.split('-')[0];
-      const r = await fetch(`/api/payroll/my-year?roleId=${encodeURIComponent(staffId)}&year=${year}`);
+      const r = await apiFetch(`/payroll/my-year?roleId=${encodeURIComponent(staffId)}&year=${year}`);
       const data = await r.json();
       setYearData(data);
     } catch (e) { console.error(e); }

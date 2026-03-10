@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Modal, ActivityIndicator } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import { apiFetch } from '../../api/client';
 
 const CLASS_COLORS = [C.teal, C.gold, C.purple, C.coral, '#60A5FA', '#F472B6', '#34D399', '#FB923C'];
 
@@ -216,11 +217,11 @@ export default function TeacherDashboard({ onNavigate, currentUser }) {
     async function loadData() {
       try {
         const fetches = [
-          fetch('/api/classes?t=' + Date.now(), { cache: 'no-store' }).then(r => r.json()),
+          apiFetch('/classes?t=' + Date.now(), { cache: 'no-store' }).then(r => r.json()),
         ];
         if (teacherId) {
           fetches.push(
-            fetch('/api/teacher/profile?roleId=' + encodeURIComponent(teacherId) + '&t=' + Date.now(), { cache: 'no-store' })
+            apiFetch('/teacher/profile?roleId=' + encodeURIComponent(teacherId) + '&t=' + Date.now(), { cache: 'no-store' })
               .then(r => r.json())
           );
         }
@@ -245,7 +246,7 @@ export default function TeacherDashboard({ onNavigate, currentUser }) {
 
         if (uniqueIds.length > 0) {
           const today = new Date().toISOString().slice(0, 10);
-          const statsRes = await fetch(`/api/attendance/class-stats?date=${today}&classIds=${uniqueIds.join(',')}`);
+          const statsRes = await apiFetch(`/attendance/class-stats?date=${today}&classIds=${uniqueIds.join(',')}`);
           const statsData = await statsRes.json();
           setAttendanceStats(statsData.stats || {});
         }
@@ -260,7 +261,7 @@ export default function TeacherDashboard({ onNavigate, currentUser }) {
 
   useEffect(() => {
     if (!teacherId) return;
-    fetch(`/api/duty/status?roleId=${teacherId}`)
+    apiFetch(`/duty/status?roleId=${teacherId}`)
       .then(r => r.json())
       .then(data => {
         if (data.onDuty === true) {
@@ -276,9 +277,8 @@ export default function TeacherDashboard({ onNavigate, currentUser }) {
     if (!onDuty || !teacherId) return;
     const newStatus = currentClass ? 'Class in Progress' : 'Available';
     setCurrentStatus(newStatus);
-    fetch('/api/duty/update-status', {
+    apiFetch('/duty/update-status', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ roleId: teacherId, currentStatus: newStatus }),
     }).catch(() => {});
   }, [onDuty, teacherId, currentClass]);
@@ -288,9 +288,8 @@ export default function TeacherDashboard({ onNavigate, currentUser }) {
     setDutyLoading(true);
     try {
       if (!onDuty) {
-        const res = await fetch('/api/duty/clock-in', {
+        const res = await apiFetch('/duty/clock-in', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: currentUser?.uid || '', name: displayName, role: 'teacher', roleId: teacherId }),
         });
         const data = await res.json();
@@ -299,9 +298,8 @@ export default function TeacherDashboard({ onNavigate, currentUser }) {
           setClockInTime(data.clockIn);
         }
       } else {
-        const res = await fetch('/api/duty/clock-out', {
+        const res = await apiFetch('/duty/clock-out', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: currentUser?.uid || '', name: displayName, role: 'teacher', roleId: teacherId }),
         });
         if (res.ok) {

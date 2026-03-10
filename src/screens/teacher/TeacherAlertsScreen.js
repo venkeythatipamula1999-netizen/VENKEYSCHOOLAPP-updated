@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, ActivityIndicator } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import { apiFetch } from '../../api/client';
 
 const REASON_COLORS = {
   Medical: '#F59E0B',
@@ -52,7 +53,7 @@ export default function TeacherAlertsScreen({ onBack, currentUser }) {
     setLoadingLeaves(true);
     setLeaveError('');
     try {
-      const res = await fetch(`/api/leave-requests/student-class?teacherRoleId=${encodeURIComponent(roleId)}`);
+      const res = await apiFetch(`/leave-requests/student-class?teacherRoleId=${encodeURIComponent(roleId)}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load');
       setClassTeacherOf(data.classTeacherOf || null);
@@ -69,7 +70,7 @@ export default function TeacherAlertsScreen({ onBack, currentUser }) {
     if (!roleId) return;
     setLoadingNotifs(true);
     try {
-      const res = await fetch(`/api/teacher-notifications?roleId=${encodeURIComponent(roleId)}`);
+      const res = await apiFetch(`/teacher-notifications?roleId=${encodeURIComponent(roleId)}`);
       const data = await res.json();
       if (res.ok) setLiveNotifs(data.notifications || []);
     } catch (err) { console.error('Failed to fetch teacher notifications:', err.message); }
@@ -98,9 +99,8 @@ export default function TeacherAlertsScreen({ onBack, currentUser }) {
 
   const markAsRead = async (ids) => {
     try {
-      await fetch('/api/teacher-notifications/mark-read', {
+      await apiFetch('/teacher-notifications/mark-read', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notificationIds: ids }),
       });
       setLiveNotifs(prev => prev.map(n => ids.includes(n.id) ? { ...n, read: true } : n));
@@ -110,9 +110,8 @@ export default function TeacherAlertsScreen({ onBack, currentUser }) {
   const act = async (id, action, note) => {
     setActioning(id + action);
     try {
-      const res = await fetch('/api/leave-request/update-status', {
+      const res = await apiFetch('/leave-request/update-status', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           requestId: id,
           status: action,
