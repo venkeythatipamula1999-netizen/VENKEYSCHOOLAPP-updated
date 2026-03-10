@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, Platform, Modal } 
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from '../../components/Icon';
 import { C } from '../../theme/colors';
+import { apiFetch } from '../../api/client';
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
 
@@ -64,9 +65,8 @@ export default function CompleteProfileScreen({ currentUser, onComplete }) {
 
     setLoading(true);
     try {
-      const res = await fetch('/api/complete-profile', {
+      const res = await apiFetch('/complete-profile', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           uid: currentUser.uid,
           docId: currentUser.id,
