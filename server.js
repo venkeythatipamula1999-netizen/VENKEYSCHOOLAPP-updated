@@ -63,51 +63,21 @@ const verifyAuth = async (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
-    if (token) {
-      const decoded = verifyToken(token);
-      if (decoded) {
-        req.user     = decoded;
-        req.schoolId = decoded.schoolId || DEFAULT_SCHOOL_ID;
-        req.userId   = decoded.userId;
-        req.userRole = decoded.role;
-        return next();
-      }
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized — Bearer token required' });
     }
 
-    const roleId = req.headers['x-role-id'] || req.body?.roleId
-      || req.query?.roleId || req.body?.markedBy || req.body?.scannedBy;
-
-    if (roleId) {
-      const userSnap = await getDocs(query(
-        collection(db, 'users'), where('role_id', '==', roleId)
-      ));
-      if (!userSnap.empty) {
-        const u = userSnap.docs[0].data();
-        req.schoolId = u.schoolId || DEFAULT_SCHOOL_ID;
-        req.userId   = userSnap.docs[0].id;
-        req.userRole = u.role;
-        req.user     = { userId: req.userId, role: u.role, schoolId: req.schoolId };
-        return next();
-      }
-
-      const adminSnap = await getDocs(query(
-        collection(db, 'admins'), where('role_id', '==', roleId)
-      ));
-      if (!adminSnap.empty) {
-        const a = adminSnap.docs[0].data();
-        req.schoolId = a.schoolId || DEFAULT_SCHOOL_ID;
-        req.userId   = adminSnap.docs[0].id;
-        req.userRole = 'principal';
-        req.user     = { userId: req.userId, role: 'principal', schoolId: req.schoolId };
-        return next();
-      }
-
-      req.schoolId = DEFAULT_SCHOOL_ID;
-      req.userRole = 'unknown';
-      return next();
+    const decoded = verifyToken(token);
+    if (!decoded) {
+      return res.status(401).json({ error: 'Unauthorized — invalid or expired token' });
     }
 
-    return res.status(401).json({ error: 'Unauthorized — token or roleId required' });
+    req.user     = decoded;
+    req.schoolId = decoded.schoolId || DEFAULT_SCHOOL_ID;
+    req.userId   = decoded.userId;
+    req.userRole = decoded.role;
+    return next();
+
   } catch (err) {
     console.error('[verifyAuth]', err.message);
     res.status(401).json({ error: 'Unauthorized' });
