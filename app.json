@@ -20,10 +20,18 @@
     ],
     "android": {
       "package": "com.venkateshthati.sreepragathi",
-      "versionCode": 1
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
     },
     "plugins": [
       "expo-barcode-scanner"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "91a715f3-7d72-49c3-bbe4-8984a15acb46"
+      }
+    }
   }
 }

@@ -192,6 +192,7 @@ const PORT = 5000;
 
 const allowedOrigins = [
   'https://super-admin-with-error-tracking-8b9.vercel.app',
+  'https://workspace.venkateshthati3.replit.app',
   process.env.APP_URL
 ].filter(Boolean);
 
