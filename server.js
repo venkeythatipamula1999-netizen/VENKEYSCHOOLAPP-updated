@@ -5921,6 +5921,10 @@ app.get('/download/audit-report', (req, res) => {
   res.download(path.join(__dirname, 'SAAS_MIGRATION_AUDIT_REPORT.md'), 'SAAS_MIGRATION_AUDIT_REPORT.md');
 });
 
+app.get('/download/production-report', (req, res) => {
+  res.download(path.join(__dirname, 'PRODUCTION_READINESS_REPORT.md'), 'PRODUCTION_READINESS_REPORT.md');
+});
+
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use(express.static(path.join(__dirname, 'dist'), {
