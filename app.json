@@ -2,6 +2,7 @@
   "expo": {
     "name": "Venkeys International School",
     "slug": "venkeys-school-app",
+    "owner": "venkey3",
     "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
