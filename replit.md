@@ -211,6 +211,7 @@ FIREBASE_APP_ID=1:774655999002:android:6ccc7fd89c5c57598565a3
 - **`sendEventNotifications()`** accepts `schoolId` as last parameter for user/student scoping
 
 ## Rate Limiting & Security
+- **Global Auth Guard**: All `/api/*` and `/download/*` routes require `verifyAuth` by default. Only 14 explicitly listed `PUBLIC_ROUTES` are exempt (login, register, forgot-password, verify-pin, check-student, school-info, report downloads). Super admin routes (`/api/super/*`) skip the guard (handled by `verifySuperAdmin`).
 - **Package**: `express-rate-limit`
 - **Global API limiter**: 300 requests/minute per IP on all `/api/` routes
 - **Login limiter**: 10 attempts per 15 minutes per IP — applied to `/api/login`, `/api/parent/email-login`, `/api/parent/verify-pin`, `/api/forgot-password`, `/api/parent/forgot-password`

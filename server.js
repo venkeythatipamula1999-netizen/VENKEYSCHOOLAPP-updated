@@ -288,6 +288,37 @@ app.use((req, res, next) => {
   next();
 });
 app.use('/api/', apiLimiter);
+
+// ── GLOBAL AUTH GUARD ──────────────────────────────────────────
+const PUBLIC_ROUTES = [
+  { method: 'POST', path: '/api/login' },
+  { method: 'POST', path: '/api/admin/login' },
+  { method: 'POST', path: '/api/register' },
+  { method: 'POST', path: '/api/forgot-password' },
+  { method: 'POST', path: '/api/parent/register' },
+  { method: 'POST', path: '/api/parent/email-login' },
+  { method: 'POST', path: '/api/parent/forgot-password' },
+  { method: 'POST', path: '/api/parent/verify-pin' },
+  { method: 'GET',  path: '/api/parent/check-student' },
+  { method: 'GET',  path: '/api/school-info' },
+  { method: 'GET',  path: '/api/report' },
+  { method: 'GET',  path: '/download/audit-report' },
+  { method: 'GET',  path: '/download/production-report' },
+];
+
+app.use((req, res, next) => {
+  if (!req.path.startsWith('/api/') && !req.path.startsWith('/download/')) {
+    return next();
+  }
+  if (req.path.startsWith('/api/super/')) return next();
+  const isPublic = PUBLIC_ROUTES.some(
+    r => r.method === req.method && req.path === r.path
+  );
+  if (isPublic) return next();
+  return verifyAuth(req, res, next);
+});
+// ── END GLOBAL AUTH GUARD ───────────────────────────────────────
+
 app.use((req, res, next) => {
   res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.set("Pragma", "no-cache");
@@ -834,7 +865,7 @@ app.post('/api/fee-reminder', async (req, res) => {
   }
 });
 
-app.get('/api/fee-students', verifyAuth, async (req, res) => {
+app.get('/api/fee-students', async (req, res) => {
   try {
     const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
     const studentsRef = collection(db, 'fee_records');
@@ -1581,7 +1612,7 @@ function normalizeSubjectName(name) {
   return map[key] || name;
 }
 
-app.post('/api/marks/save', verifyAuth, async (req, res) => {
+app.post('/api/marks/save', async (req, res) => {
   try {
     const { records, subject: rawSubject, examType, teacherId, classId, className } = req.body;
     const subject = normalizeSubjectName(rawSubject);
@@ -2856,7 +2887,7 @@ app.get('/api/attendance/records', async (req, res) => {
   }
 });
 
-app.get('/api/attendance/class-summary', verifyAuth, async (req, res) => {
+app.get('/api/attendance/class-summary', async (req, res) => {
   try {
     const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
     const classesRef = collection(db, 'classes');
@@ -2905,7 +2936,7 @@ app.get('/api/attendance/class-stats', async (req, res) => {
 });
 
 
-app.post('/api/leave-request/submit', verifyAuth, async (req, res) => {
+app.post('/api/leave-request/submit', async (req, res) => {
   try {
     const { staffId, staffName, role, dept, reasonId, reasonLabel, reasonIcon, customReason, dates, leaveType, fromDate, toDate } = req.body;
     if (!staffId || !staffName || !reasonId) {
@@ -3173,7 +3204,7 @@ function normalizeClassName(name) {
   return name?.toLowerCase().replace(/\s+/g, '').replace('grade', '').trim() || '';
 }
 
-app.post('/api/leave-request/student/submit', verifyAuth, async (req, res) => {
+app.post('/api/leave-request/student/submit', async (req, res) => {
   try {
     const { studentId, studentName, rollNumber, studentClass, schoolId, parentId, parentName, reasonId, reasonLabel, reasonIcon, customReason, dates, from, to } = req.body;
     if (!studentId || !studentName || !studentClass || !from) {
@@ -3870,7 +3901,7 @@ app.post('/api/bus/end-trip', async (req, res) => {
   }
 });
 
-app.get('/api/trip/onboard-count', verifyAuth, async (req, res) => {
+app.get('/api/trip/onboard-count', async (req, res) => {
   try {
     const { busId, date } = req.query;
     if (!busId) return res.status(400).json({ error: 'busId required' });
@@ -3905,7 +3936,7 @@ app.get('/api/trip/onboard-count', verifyAuth, async (req, res) => {
   }
 });
 
-app.get('/api/admin/buses', verifyAuth, async (req, res) => {
+app.get('/api/admin/buses', async (req, res) => {
   try {
     const snap = await getDocs(query(collection(db, 'buses'), where('schoolId', '==', (req.schoolId || DEFAULT_SCHOOL_ID))));
     const buses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -3970,7 +4001,7 @@ app.post('/api/admin/buses/assign-students', verifyAdmin, async (req, res) => {
   }
 });
 
-app.get('/api/bus/onboard-students', verifyAuth, async (req, res) => {
+app.get('/api/bus/onboard-students', async (req, res) => {
   try {
     const { busId, date } = req.query;
     if (!busId) return res.status(400).json({ error: 'busId required' });
@@ -4009,7 +4040,7 @@ app.get('/api/bus/onboard-students', verifyAuth, async (req, res) => {
   }
 });
 
-app.get('/api/trip/scans', verifyAuth, async (req, res) => {
+app.get('/api/trip/scans', async (req, res) => {
   try {
     const { tripId, busNumber, driverId } = req.query;
     const now = new Date();
@@ -4055,7 +4086,7 @@ app.get('/api/trip/scans', verifyAuth, async (req, res) => {
 
 const recentScans = {};
 
-app.post('/api/trip/scan', scanLimiter, verifyAuth, async (req, res) => {
+app.post('/api/trip/scan', scanLimiter, async (req, res) => {
   try {
     const { qrData, studentId: legacyStudentId, driverId, busId, scannedBy, role, timestamp } = req.body;
     const scanTime = timestamp || new Date().toISOString();
@@ -4332,7 +4363,7 @@ async function checkInvalidScanThreshold(driverId, busId, timestamp) {
   }
 }
 
-app.get('/api/student/qr/:studentId', verifyAuth, async (req, res) => {
+app.get('/api/student/qr/:studentId', async (req, res) => {
   try {
     const { studentId } = req.params;
     const studentQ = query(collection(db, 'students'), where('studentId', '==', studentId));
