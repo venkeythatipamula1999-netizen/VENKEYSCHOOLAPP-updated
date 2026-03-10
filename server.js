@@ -7927,6 +7927,12 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
+app.get('/audit-report', (req, res) => {
+  const path = require('path');
+  res.setHeader('Content-Disposition', 'attachment; filename="sree-pragathi-audit-report.html"');
+  res.sendFile(path.join(__dirname, 'audit-report.html'));
+});
+
 app.listen(PORT, '0.0.0.0', async () => {
   console.log(`Venkeys School App server running on port ${PORT}`);
   console.log('Database: Firebase Firestore (project: ' + firebaseConfig.projectId + ')');
