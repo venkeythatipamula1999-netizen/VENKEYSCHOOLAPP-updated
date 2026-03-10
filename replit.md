@@ -206,6 +206,10 @@ FIREBASE_APP_ID=1:774655999002:android:6ccc7fd89c5c57598565a3
 - **QR scan limiter**: 60 scans per minute per IP — applied to `/api/trip/scan`
 - **Super Admin limiter**: 50 requests per minute per IP — applied to all `/api/super/*` routes
 - **Security headers**: X-Content-Type-Options (nosniff), X-Frame-Options (DENY), X-XSS-Protection, Referrer-Policy (strict-origin-when-cross-origin), X-Powered-By removed
+- **CORS**: Restricted to allowed origins (Vercel super admin app, localhost:3000/5000/19006, APP_URL env var). No-origin requests allowed (mobile apps, Postman). Custom headers: Content-Type, Authorization, x-role-id, x-super-admin-key
+- **Request size limit**: 10mb for JSON and URL-encoded bodies
+- **Global error handler**: Catches unhandled errors, returns 403 for CORS violations, 500 for other errors
+- **APP_URL**: Set in environment secrets (Replit dev domain)
 
 ## Notes
 - All API calls use relative `/api` path (proxied by Express)

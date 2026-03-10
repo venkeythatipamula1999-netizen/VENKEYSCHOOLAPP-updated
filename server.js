@@ -189,8 +189,28 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 const app = express();
 const PORT = 5000;
 
-app.use(cors());
-app.use(express.json());
+const allowedOrigins = [
+  'https://super-admin-with-error-tracking-8b9.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:5000',
+  'http://localhost:19006',
+  process.env.APP_URL
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.some(o => origin.startsWith(o))) {
+      return callback(null, true);
+    }
+    callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-role-id', 'x-super-admin-key']
+}));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
@@ -6496,6 +6516,14 @@ app.get('/api/admin/bus-alerts', async (req, res) => {
 });
 
 setInterval(retrySyncErrors, 5 * 60 * 1000);
+
+app.use((err, req, res, next) => {
+  console.error('[Global Error]', err.message);
+  if (err.message === 'Not allowed by CORS') {
+    return res.status(403).json({ error: 'CORS: Origin not allowed' });
+  }
+  res.status(500).json({ error: 'Internal server error' });
+});
 
 app.listen(PORT, '0.0.0.0', async () => {
   console.log(`Venkeys School App server running on port ${PORT}`);
