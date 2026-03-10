@@ -85,34 +85,6 @@ const verifyAuth = async (req, res, next) => {
   }
 };
 
-const verifyAdmin = async (req, res, next) => {
-  try {
-    const roleId = req.headers['x-role-id'] || req.body?.roleId || req.query?.roleId;
-    if (!roleId) return res.status(401).json({ error: 'Unauthorized — roleId required' });
-
-    const userSnap = await getDocs(query(
-      collection(db, 'users'),
-      where('role_id', '==', roleId)
-    ));
-
-    if (userSnap.empty) {
-      const adminSnap = await getDocs(query(
-        collection(db, 'admins'),
-        where('role_id', '==', roleId)
-      ));
-      if (adminSnap.empty) return res.status(403).json({ error: 'Forbidden — admin access only' });
-    } else {
-      const userData = userSnap.docs[0].data();
-      if (userData.role !== 'admin' && userData.role !== 'principal') {
-        return res.status(403).json({ error: 'Forbidden — admin access only' });
-      }
-    }
-    next();
-  } catch (err) {
-    res.status(403).json({ error: 'Forbidden' });
-  }
-};
-
 const verifySuperAdmin = (req, res, next) => {
   const key = req.headers['x-super-admin-key'];
   if (!key) return res.status(401).json({ error: 'Super admin key required' });
@@ -6689,7 +6661,6 @@ app.get('/api/report/master-audit', verifyAuth, (req, res) => {
     bulletPoint('Firebase Auth: email/password verification');
     bulletPoint('JWT tokens: 30-day expiry, HS256 algorithm, Bearer header');
     bulletPoint('verifyAuth: global middleware on all protected routes');
-    bulletPoint('verifyAdmin (legacy): x-role-id header for older admin routes');
     bulletPoint('verifySuperAdmin: x-super-admin-key header for super admin routes');
     bulletPoint('Parent PIN: additional 4-digit PIN verification after login');
 
