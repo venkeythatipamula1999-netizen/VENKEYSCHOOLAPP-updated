@@ -85,6 +85,46 @@ export default function App() {
     }
   }, [currentUser]);
 
+  useEffect(() => {
+    global.__onAuthExpired = () => {
+      setCurrentUser(null);
+      setPendingPINUser(null);
+      setRole(null);
+      navigate('splash');
+      setTimeout(() => {
+        alert('Your session has expired. Please log in again.');
+      }, 300);
+    };
+
+    return () => {
+      global.__onAuthExpired = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const checkStoredAuth = async () => {
+      try {
+        const token = await AsyncStorage.getItem('authToken');
+        if (!token) return;
+
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const expiry = payload.exp * 1000;
+        const now = Date.now();
+
+        if (expiry < now) {
+          await AsyncStorage.removeItem('authToken');
+          await AsyncStorage.removeItem('schoolId');
+          console.log('[Auth] Stored token expired — cleared');
+        }
+      } catch (e) {
+        await AsyncStorage.removeItem('authToken');
+        await AsyncStorage.removeItem('schoolId');
+      }
+    };
+
+    checkStoredAuth();
+  }, []);
+
   const navigate = (s) => {
     setScreen(s);
     if (scrollRef.current && scrollRef.current.scrollTo) {

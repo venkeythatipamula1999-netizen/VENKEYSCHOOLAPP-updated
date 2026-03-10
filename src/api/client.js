@@ -5,13 +5,11 @@ const API_BASE = '/api';
 
 export async function apiFetch(path, options = {}) {
   const token = await AsyncStorage.getItem('authToken');
-  const roleId = options.roleId || null;
   const isFormData = options.body instanceof FormData;
 
   const headers = {
     ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-    ...(roleId ? { 'x-role-id': roleId } : {}),
     ...options.headers,
   };
 
@@ -19,6 +17,14 @@ export async function apiFetch(path, options = {}) {
     ...options,
     headers,
   });
+
+  if (res.status === 401) {
+    await AsyncStorage.removeItem('authToken');
+    await AsyncStorage.removeItem('schoolId');
+    if (typeof global.__onAuthExpired === 'function') {
+      global.__onAuthExpired();
+    }
+  }
 
   return res;
 }
