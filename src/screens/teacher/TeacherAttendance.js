@@ -3,6 +3,10 @@ import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator,
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import ErrorBanner from '../../components/ErrorBanner';
+import Toast from '../../components/Toast';
+import { getFriendlyError } from '../../utils/errorMessages';
 
 function getToday() {
   return new Date(Date.now() + 330 * 60000).toISOString().split('T')[0];
@@ -106,8 +110,7 @@ export default function TeacherAttendance({ onBack, currentUser }) {
   const [searchText, setSearchText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [syncStatus, setSyncStatus] = useState('idle');
-  const [toastMsg, setToastMsg] = useState('');
-  const [toastType, setToastType] = useState('success');
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
   const [errorMsg, setErrorMsg] = useState('');
 
   const [submissionStatus, setSubmissionStatus] = useState(null);
@@ -243,11 +246,7 @@ export default function TeacherAttendance({ onBack, currentUser }) {
   const markAllPresent = () => setAbsentSet(new Set());
   const markAllAbsent = () => setAbsentSet(new Set(students.map(s => s.id)));
 
-  const showToast = (msg, type = 'success') => {
-    setToastMsg(msg);
-    setToastType(type);
-    setTimeout(() => setToastMsg(''), 5000);
-  };
+  const showToast = (msg, type = 'success') => setToast({ visible: true, message: msg, type });
 
   const handleSubmit = async () => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -295,7 +294,7 @@ export default function TeacherAttendance({ onBack, currentUser }) {
       setTimeout(() => setSyncStatus('idle'), 5000);
       await checkSubmissionStatus();
     } catch (err) {
-      const msg = err.message || 'Failed to save. Please check your connection.';
+      const msg = getFriendlyError(err, 'Failed to save. Please check your connection.');
       setErrorMsg(msg);
       setSyncStatus('error');
       showToast(msg, 'error');
@@ -350,7 +349,7 @@ export default function TeacherAttendance({ onBack, currentUser }) {
       setEditingStudent(null);
       showToast('Attendance updated successfully.' + (data.sheetSync ? ' Synced to Google Sheets.' : ''), 'success');
     } catch (err) {
-      showToast(err.message || 'Failed to update attendance.', 'error');
+      showToast(getFriendlyError(err, 'Failed to update attendance.'), 'error');
     } finally {
       setSavingEdit(null);
     }
@@ -391,17 +390,7 @@ export default function TeacherAttendance({ onBack, currentUser }) {
         />
       )}
 
-      {toastMsg ? (
-        <View style={{
-          position: 'absolute', top: 10, left: 20, right: 20, zIndex: 100,
-          backgroundColor: toastType === 'success' ? '#34D399' : C.coral,
-          borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10,
-          shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 10, elevation: 10,
-        }}>
-          <Icon name={toastType === 'success' ? 'check' : 'info'} size={18} color={C.white} />
-          <Text style={{ color: C.white, fontWeight: '600', fontSize: 13, flex: 1 }}>{toastMsg}</Text>
-        </View>
-      ) : null}
+      <Toast {...toast} onHide={() => setToast(t => ({ ...t, visible: false }))} />
 
       <ScrollView style={{ flex: 1 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingTop: 16, paddingBottom: 8, paddingHorizontal: 20 }}>
@@ -613,11 +602,7 @@ export default function TeacherAttendance({ onBack, currentUser }) {
                     </View>
                   )}
 
-                  {errorMsg ? (
-                    <View style={{ backgroundColor: C.coral + '22', borderWidth: 1, borderColor: C.coral + '55', borderRadius: 12, padding: 14, marginBottom: 16 }}>
-                      <Text style={{ color: C.coral, fontSize: 13, fontWeight: '600' }}>{errorMsg}</Text>
-                    </View>
-                  ) : null}
+                  <ErrorBanner message={errorMsg} onDismiss={() => setErrorMsg('')} />
 
                   <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 20, paddingVertical: 4, paddingHorizontal: 16, marginBottom: 20, minHeight: 80 }}>
                     {loadingStudents ? (

@@ -3,6 +3,9 @@ import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator,
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
+import ErrorBanner from '../../components/ErrorBanner';
+import Toast from '../../components/Toast';
+import { getFriendlyError } from '../../utils/errorMessages';
 
 const EDIT_REASONS = [
   'Data entry mistake',
@@ -78,8 +81,7 @@ export default function TeacherMarksScreen({ onBack, currentUser }) {
 
   const [submitting, setSubmitting] = useState(false);
   const [syncStatus, setSyncStatus] = useState('idle');
-  const [toastMsg, setToastMsg] = useState('');
-  const [toastType, setToastType] = useState('success');
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
   const [errorMsg, setErrorMsg] = useState('');
 
   const [editDialogVisible, setEditDialogVisible] = useState(false);
@@ -284,10 +286,7 @@ export default function TeacherMarksScreen({ onBack, currentUser }) {
     }
   };
 
-  const showToast = (msg, type = 'success') => {
-    setToastMsg(msg); setToastType(type);
-    setTimeout(() => setToastMsg(''), 4000);
-  };
+  const showToast = (msg, type = 'success') => setToast({ visible: true, message: msg, type });
 
   const handleMarksChange = (studentId, value) => {
     const cleaned = value.replace(/[^0-9]/g, '');
@@ -365,9 +364,9 @@ export default function TeacherMarksScreen({ onBack, currentUser }) {
         .catch(() => {});
       setTimeout(() => setSyncStatus('idle'), 5000);
     } catch (err) {
-      setErrorMsg(err.message || 'Failed to save marks.');
+      setErrorMsg(getFriendlyError(err, 'Failed to save marks.'));
       setSyncStatus('error');
-      showToast(err.message || 'Failed to save marks', 'error');
+      showToast(getFriendlyError(err, 'Failed to save marks'), 'error');
       setTimeout(() => setSyncStatus('idle'), 5000);
     } finally {
       setSubmitting(false);
@@ -412,7 +411,7 @@ export default function TeacherMarksScreen({ onBack, currentUser }) {
       setEditDialogVisible(false);
       showToast(`Marks updated for ${editStudent.name}: ${data.oldMarks} → ${newVal}`, 'success');
     } catch (err) {
-      showToast(err.message || 'Failed to update marks', 'error');
+      showToast(getFriendlyError(err, 'Failed to update marks'), 'error');
     } finally {
       setEditSubmitting(false);
     }
@@ -454,16 +453,7 @@ export default function TeacherMarksScreen({ onBack, currentUser }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.navy }}>
-      {toastMsg ? (
-        <View style={{
-          position: 'absolute', top: 10, left: 20, right: 20, zIndex: 100,
-          backgroundColor: toastType === 'success' ? '#34D399' : C.coral,
-          borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10,
-        }}>
-          <Icon name={toastType === 'success' ? 'check' : 'info'} size={18} color={C.white} />
-          <Text style={{ color: C.white, fontWeight: '600', fontSize: 13, flex: 1 }}>{toastMsg}</Text>
-        </View>
-      ) : null}
+      <Toast {...toast} onHide={() => setToast(t => ({ ...t, visible: false }))} />
 
       <Modal visible={editDialogVisible} transparent animationType="fade" onRequestClose={() => !editSubmitting && setEditDialogVisible(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
@@ -700,11 +690,7 @@ export default function TeacherMarksScreen({ onBack, currentUser }) {
               </View>
             )}
 
-            {errorMsg ? (
-              <View style={{ backgroundColor: C.coral + '22', borderWidth: 1, borderColor: C.coral + '44', borderRadius: 12, padding: 12, marginBottom: 12 }}>
-                <Text style={{ color: C.coral, fontSize: 13, fontWeight: '600' }}>{errorMsg}</Text>
-              </View>
-            ) : null}
+            <ErrorBanner message={errorMsg} onDismiss={() => setErrorMsg('')} />
 
             <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 20, paddingVertical: 4, paddingHorizontal: 16, marginBottom: 16 }}>
               {students.map((s, idx) => {

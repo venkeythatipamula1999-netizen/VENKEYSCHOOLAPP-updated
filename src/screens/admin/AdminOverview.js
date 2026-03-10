@@ -3,6 +3,9 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Image, ActivityIn
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import Toast from '../../components/Toast';
+import { getFriendlyError } from '../../utils/errorMessages';
 const ROLE_COLORS = { teacher: C.gold, driver: C.teal, cleaner: C.coral };
 const STATUS_COLORS = {
   'Class in Progress': C.purple,
@@ -116,7 +119,7 @@ export default function AdminOverview({ onNavigate, currentUser }) {
           setTimeout(() => setLocationMsg(''), 4000);
         }
       })
-      .catch(() => { setLocationMsg('Network error approving request'); setTimeout(() => setLocationMsg(''), 4000); })
+      .catch((err) => { setLocationMsg(getFriendlyError(err, 'Network error approving request')); setTimeout(() => setLocationMsg(''), 4000); })
       .finally(() => setApprovingId(null));
   };
 
@@ -138,7 +141,7 @@ export default function AdminOverview({ onNavigate, currentUser }) {
           setTimeout(() => setLocationMsg(''), 4000);
         }
       })
-      .catch(() => { setLocationMsg('Network error rejecting request'); setTimeout(() => setLocationMsg(''), 4000); })
+      .catch((err) => { setLocationMsg(getFriendlyError(err, 'Network error rejecting request')); setTimeout(() => setLocationMsg(''), 4000); })
       .finally(() => setRejectingId(null));
   };
 
@@ -225,7 +228,7 @@ export default function AdminOverview({ onNavigate, currentUser }) {
         <Text style={styles.secTitle}>Live Staff Board</Text>
         {staffLoading ? (
           <View style={[styles.card, { marginBottom: 20, alignItems: 'center', padding: 24 }]}>
-            <ActivityIndicator color={C.teal} />
+            <LoadingSpinner message="Loading staff..." size="small" />
           </View>
         ) : staffDuty.length === 0 ? (
           <View style={[styles.card, { marginBottom: 20, alignItems: 'center', padding: 24 }]}>
