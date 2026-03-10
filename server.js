@@ -3,6 +3,16 @@ const path = require('path');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
+const jwt = require('jsonwebtoken');
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback_dev_secret';
+
+function signToken(payload) {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '30d' });
+}
+function verifyToken(token) {
+  try { return jwt.verify(token, JWT_SECRET); }
+  catch (e) { return null; }
+}
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -47,13 +57,58 @@ const registerLimiter = rateLimit({
 // Dynamic per-request — set from JWT. This constant is only used as fallback.
 const DEFAULT_SCHOOL_ID = 'school_001';
 
-// Basic auth middleware — verifies roleId exists
 const verifyAuth = async (req, res, next) => {
   try {
-    const roleId = req.headers['x-role-id'] || req.body?.roleId || req.query?.roleId || req.body?.markedBy || req.body?.scannedBy || req.body?.studentId;
-    if (!roleId) return res.status(401).json({ error: 'Unauthorized — roleId required' });
-    next();
+    const authHeader = req.headers['authorization'];
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+    if (token) {
+      const decoded = verifyToken(token);
+      if (decoded) {
+        req.user     = decoded;
+        req.schoolId = decoded.schoolId || DEFAULT_SCHOOL_ID;
+        req.userId   = decoded.userId;
+        req.userRole = decoded.role;
+        return next();
+      }
+    }
+
+    const roleId = req.headers['x-role-id'] || req.body?.roleId
+      || req.query?.roleId || req.body?.markedBy || req.body?.scannedBy;
+
+    if (roleId) {
+      const userSnap = await getDocs(query(
+        collection(db, 'users'), where('role_id', '==', roleId)
+      ));
+      if (!userSnap.empty) {
+        const u = userSnap.docs[0].data();
+        req.schoolId = u.schoolId || DEFAULT_SCHOOL_ID;
+        req.userId   = userSnap.docs[0].id;
+        req.userRole = u.role;
+        req.user     = { userId: req.userId, role: u.role, schoolId: req.schoolId };
+        return next();
+      }
+
+      const adminSnap = await getDocs(query(
+        collection(db, 'admins'), where('role_id', '==', roleId)
+      ));
+      if (!adminSnap.empty) {
+        const a = adminSnap.docs[0].data();
+        req.schoolId = a.schoolId || DEFAULT_SCHOOL_ID;
+        req.userId   = adminSnap.docs[0].id;
+        req.userRole = 'principal';
+        req.user     = { userId: req.userId, role: 'principal', schoolId: req.schoolId };
+        return next();
+      }
+
+      req.schoolId = DEFAULT_SCHOOL_ID;
+      req.userRole = 'unknown';
+      return next();
+    }
+
+    return res.status(401).json({ error: 'Unauthorized — token or roleId required' });
   } catch (err) {
+    console.error('[verifyAuth]', err.message);
     res.status(401).json({ error: 'Unauthorized' });
   }
 };
@@ -211,6 +266,17 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use((req, res, next) => {
+  if (
+    req.path.startsWith('/api/super') ||
+    req.path.startsWith('/api/login') ||
+    req.path.startsWith('/api/admin/login') ||
+    req.path.startsWith('/api/parent') ||
+    req.path.startsWith('/api/report') ||
+    req.path.startsWith('/api/register')
+  ) return next();
+  checkSchoolActive(req, res, next);
+});
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');

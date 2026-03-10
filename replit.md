@@ -189,7 +189,10 @@ FIREBASE_APP_ID=1:774655999002:android:6ccc7fd89c5c57598565a3
 ## Multi-Tenant / SaaS Architecture
 - **School Code**: `SP-GOPA` (Sree Pragathi High School, Gopalraopet) — generated via `generateSchoolCode(name, location)`
 - **DEFAULT_SCHOOL_ID**: `'school_001'` — fallback when `req.schoolId` is not set (backwards compat)
-- **`req.schoolId`**: Set from JWT middleware (pending); routes use `(req.schoolId || DEFAULT_SCHOOL_ID)` pattern
+- **`req.schoolId`**: Set by `verifyAuth` — first tries JWT Bearer token (`decoded.schoolId`), then falls back to roleId header lookup from Firestore user doc; routes use `(req.schoolId || DEFAULT_SCHOOL_ID)` pattern
+- **JWT**: `jsonwebtoken` package, `signToken(payload)` / `verifyToken(token)`, 30-day expiry, `JWT_SECRET` from env
+- **`checkSchoolActive`**: Applied globally via `app.use()` — skips super admin, login, parent, register, report routes; blocks suspended schools on all other API calls
+- **Firestore indexes**: `firestore.indexes.json` — 19 composite indexes for schoolId + secondary field queries (deploy with `firebase deploy --only firestore:indexes`)
 - **schoolId filter on ALL queries**: Every Firestore list/getDocs query includes `where('schoolId', '==', ...)` to ensure data isolation between schools
 - **schoolId on ALL writes**: Every `addDoc`/`setDoc`/`batch.set` includes `schoolId` field so new data is correctly tagged
 - **Collections with schoolId**: students, classes, users, student_marks, attendance_records, attendance_submissions, attendance_edits, attendance_overrides, leave_requests, leaveRequests, events, buses, bus_trips, live_bus_locations, trip_scans, trip_summaries, tripLogs, proximity_alert_logs, location_change_requests, parent_notifications, admin_notifications, teacher_notifications, driver_notifications, fee_reminders, student_files, salary_payments, marks_edit_logs, student_stops, parent_accounts, onboarded_users, staff_duty, salary_settings
