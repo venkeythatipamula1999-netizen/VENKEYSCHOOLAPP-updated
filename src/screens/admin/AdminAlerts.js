@@ -3,6 +3,9 @@ import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshCon
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import ErrorBanner from '../../components/ErrorBanner';
+import { getFriendlyError } from '../../utils/errorMessages';
 
 function timeAgo(isoStr) {
   if (!isoStr) return '';
@@ -140,7 +143,7 @@ export default function AdminAlerts({ onBack }) {
       const data = await res.json();
       setNotifications(data.notifications || []);
     } catch (e) {
-      setError('Could not load notifications. Please try again.');
+      setError(getFriendlyError(e, 'Could not load notifications. Please try again.'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -254,19 +257,9 @@ export default function AdminAlerts({ onBack }) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchNotifications(false); }} tintColor={C.teal} />}
       >
         {loading ? (
-          <View style={{ alignItems: 'center', paddingVertical: 60 }}>
-            <ActivityIndicator size="large" color={C.teal} />
-            <Text style={{ color: C.muted, marginTop: 12, fontSize: 13 }}>Loading notifications...</Text>
-          </View>
+          <LoadingSpinner message="Loading notifications..." />
         ) : error ? (
-          <View style={{ backgroundColor: C.coral + '22', borderWidth: 1, borderColor: C.coral + '55', borderRadius: 16, padding: 20, alignItems: 'center' }}>
-            <Text style={{ fontSize: 32, marginBottom: 8 }}>{'⚠️'}</Text>
-            <Text style={{ color: C.coral, fontWeight: '700', marginBottom: 8 }}>Could not load notifications</Text>
-            <Text style={{ color: C.muted, fontSize: 13, textAlign: 'center', marginBottom: 12 }}>{error}</Text>
-            <TouchableOpacity onPress={() => fetchNotifications()} style={{ paddingVertical: 10, paddingHorizontal: 20, borderRadius: 12, backgroundColor: C.teal }}>
-              <Text style={{ color: C.navy, fontWeight: '700' }}>Retry</Text>
-            </TouchableOpacity>
-          </View>
+          <ErrorBanner message={error} onRetry={() => fetchNotifications()} onDismiss={() => setError('')} />
         ) : filtered.length === 0 ? (
           <View style={{ alignItems: 'center', paddingVertical: 60 }}>
             <Text style={{ fontSize: 48, marginBottom: 16 }}>{'🔔'}</Text>

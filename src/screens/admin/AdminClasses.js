@@ -8,6 +8,8 @@ import Icon from '../../components/Icon';
 import { LinearGradient } from 'expo-linear-gradient';
 import { apiFetch } from '../../api/client';
 import AdminStudents from './AdminStudents';
+import Toast from '../../components/Toast';
+import { getFriendlyError } from '../../utils/errorMessages';
 
 function AdminClasses({ onBack, currentUser, onNavigate }) {
   const [classes, setClasses] = useState([]);
@@ -16,6 +18,8 @@ function AdminClasses({ onBack, currentUser, onNavigate }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newClassName, setNewClassName] = useState('');
   const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
+  const showToast = (msg, type = 'success') => setToast({ visible: true, message: msg, type });
 
   useEffect(() => {
     fetchClasses();
@@ -61,10 +65,10 @@ function AdminClasses({ onBack, currentUser, onNavigate }) {
         setShowAddModal(false);
         fetchClasses();
       } else {
-        alert(data.error || 'Failed to add class');
+        showToast(data.error || 'Failed to add class', 'error');
       }
     } catch (err) {
-      alert('Error adding class: ' + err.message);
+      showToast(getFriendlyError(err, 'Error adding class.'), 'error');
     } finally {
       setSaving(false);
     }
@@ -158,6 +162,8 @@ function AdminClasses({ onBack, currentUser, onNavigate }) {
           </View>
         )}
       </ScrollView>
+
+      <Toast {...toast} onHide={() => setToast(t => ({...t, visible: false}))} />
 
       {showAddModal && (
         <View style={st.modalOverlay}>

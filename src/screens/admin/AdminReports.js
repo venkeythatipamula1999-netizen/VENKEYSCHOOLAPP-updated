@@ -5,6 +5,7 @@ import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import DonutRing from '../../components/DonutRing';
 import UnitDetail from '../../components/UnitDetail';
+import { getFriendlyError } from '../../utils/errorMessages';
 import { apiFetch } from '../../api/client';
 
 const SUB_PALETTE = [C.gold, C.teal, C.purple, C.coral, '#34D399', '#60A5FA', '#F59E0B', '#EC4899'];
@@ -58,7 +59,7 @@ export default function AdminReports({ onBack }) {
         console.log('STEP 5 - Computed averages:', d.subjects?.map(s => s.subject + '=' + s.pct + '%'));
         if (d.success) setSchoolSubjectAvgs(d.subjects);
       })
-      .catch(e => console.error('Marks summary fetch error:', e));
+      .catch(e => console.error('Marks summary fetch error:', getFriendlyError(e, 'Could not load marks summary')));
   }, []);
 
   useEffect(() => {
@@ -74,7 +75,7 @@ export default function AdminReports({ onBack }) {
         console.log('STEP 4 - Students data:', d.students?.map(s => s.name + ':' + s.overallPct + '%'));
         if (d.success) setClassMarksData(d);
       })
-      .catch(e => console.error('Class marks fetch error:', e))
+      .catch(e => console.error('Class marks fetch error:', getFriendlyError(e, 'Could not load class marks')))
       .finally(() => setMarksLoading(false));
   }, [selectedClass, marksView]);
 
@@ -87,7 +88,7 @@ export default function AdminReports({ onBack }) {
         console.log('STEP 3 - Student marks raw:', d.total, 'records, byExam:', d.byExam?.length, 'bySubject:', d.bySubject?.length);
         if (d.success) setStudentMarksData(d);
       })
-      .catch(e => console.error('Student marks fetch error:', e));
+      .catch(e => console.error('Student marks fetch error:', getFriendlyError(e, 'Could not load student marks')));
   }, [selectedStudent]);
 
   if (selectedStudent && openUnit && studentMarksData) {

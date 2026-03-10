@@ -6,6 +6,9 @@ import Icon from '../../components/Icon';
 import { PAYMENT_MODES, DISCOUNT_TYPES } from '../../data/admin';
 import { INR, FEE_STATUS_COLOR } from '../../theme/styles';
 import { apiFetch } from '../../api/client';
+import Toast from '../../components/Toast';
+import { getFriendlyError } from '../../utils/errorMessages';
+import LoadingSpinner from '../../components/LoadingSpinner';
 export default function AdminFeeScreen({ onBack, currentUser }) {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,14 +22,14 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
   const [notifyMsg, setNotifyMsg] = useState("");
   const [notifyDueDate, setNotifyDueDate] = useState("");
   const [notifySending, setNotifySending] = useState(false);
-  const [notifyFlash, setNotifyFlash] = useState("");
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
+  const showToast = (msg, type = 'success') => setToast({ visible: true, message: msg, type });
   const [payAmount, setPayAmount] = useState("");
   const [payMode, setPayMode] = useState(PAYMENT_MODES[0]);
   const [payRef, setPayRef] = useState("");
   const [payNote, setPayNote] = useState("");
   const [newDiscType, setNewDiscType] = useState(DISCOUNT_TYPES[0]);
   const [newDiscAmt, setNewDiscAmt] = useState("");
-  const [saveFlash, setSaveFlash] = useState(false);
   const [payModeOpen, setPayModeOpen] = useState(false);
   const [discTypeOpen, setDiscTypeOpen] = useState(false);
 
@@ -48,7 +51,7 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
   const sendFeeNotification = async () => {
     if (!detail) return;
     const balance = Math.max(0, detail.totalFee - detail.paid - detail.discount + detail.fine);
-    if (balance <= 0) { setNotifyFlash("No pending balance"); setTimeout(() => setNotifyFlash(""), 2000); return; }
+    if (balance <= 0) { showToast("No pending balance", 'error'); return; }
     const dueDate = notifyDueDate || new Date(Date.now() + 7 * 86400000).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
     setNotifySending(true);
     try {
@@ -67,18 +70,17 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
       });
       const data = await res.json();
       if (res.ok && data.success !== false) {
-        setNotifyFlash("Notification sent to parent");
+        showToast("Notification sent to parent");
         setNotifyModal(false);
         setNotifyMsg("");
         setNotifyDueDate("");
       } else {
-        setNotifyFlash("Failed to send");
+        showToast("Failed to send", 'error');
       }
     } catch (e) {
-      setNotifyFlash("Network error");
+      showToast(getFriendlyError(e, "Network error"), 'error');
     }
     setNotifySending(false);
-    setTimeout(() => setNotifyFlash(""), 3000);
   };
 
   const filtered = students
@@ -106,7 +108,8 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
       return { ...prev, paid:newPaid, status:balance<=0?"Cleared":newPaid>0?"Partial":"Overdue", history:[...prev.history, newPay] };
     });
     setPayAmount(""); setPayMode(PAYMENT_MODES[0]); setPayRef(""); setPayNote("");
-    setPayModal(false); setSaveFlash(true); setTimeout(()=>setSaveFlash(false),2000);
+    setPayModal(false); showToast('Payment recorded');
+
   };
 
   const addDiscount = () => {
@@ -115,7 +118,7 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
     setStudents(p => p.map(s => s.id===detail.id ? { ...s, discount:s.discount+(+newDiscAmt), discounts:[...s.discounts, disc] } : s));
     setDetail(prev => ({ ...prev, discount:prev.discount+(+newDiscAmt), discounts:[...prev.discounts, disc] }));
     setNewDiscType(DISCOUNT_TYPES[0]); setNewDiscAmt("");
-    setDiscModal(false); setSaveFlash(true); setTimeout(()=>setSaveFlash(false),2000);
+    setDiscModal(false); showToast('Discount applied');
   };
 
   if (detail) {
@@ -131,7 +134,7 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
             <Text style={{ fontWeight:'700', fontSize:18, color:C.white }}>Fee Account</Text>
             <Text style={{ color:C.muted, fontSize:12 }}>{detail.adm}</Text>
           </View>
-          {saveFlash && <View style={{ paddingVertical:4, paddingHorizontal:12, borderRadius:99, backgroundColor:'#34D39922' }}><Text style={{ color:'#34D399', fontSize:11, fontWeight:'700' }}>{'\u2713'} Saved</Text></View>}
+          <Toast {...toast} onHide={() => setToast(t => ({...t, visible: false}))} />
         </View>
 
         <View style={{ paddingHorizontal:20, paddingBottom:32 }}>
@@ -182,11 +185,7 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
           )}
           {balance <= 0 && <View style={{ marginBottom:10 }} />}
 
-          {notifyFlash ? (
-            <View style={{ paddingVertical:10, paddingHorizontal:16, borderRadius:12, backgroundColor:notifyFlash.includes('sent')?'#34D39922':C.coral+'22', marginBottom:14, alignItems:'center' }}>
-              <Text style={{ fontSize:13, fontWeight:'600', color:notifyFlash.includes('sent')?'#34D399':C.coral }}>{notifyFlash}</Text>
-            </View>
-          ) : null}
+          <Toast {...toast} onHide={() => setToast(t => ({...t, visible: false}))} />
 
           {notifyModal && (
             <View style={[st.card, { marginBottom:16, borderRadius:18, borderTopWidth:3, borderTopColor:C.coral }]}>
@@ -308,12 +307,7 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
   }
 
   if (loading) {
-    return (
-      <View style={{ flex:1, backgroundColor:C.navy, alignItems:'center', justifyContent:'center', paddingTop:120 }}>
-        <ActivityIndicator size="large" color={C.teal} />
-        <Text style={{ color:C.muted, fontSize:13, marginTop:12 }}>Loading fee data...</Text>
-      </View>
-    );
+    return <LoadingSpinner fullScreen message="Loading fee data..." />;
   }
 
   return (

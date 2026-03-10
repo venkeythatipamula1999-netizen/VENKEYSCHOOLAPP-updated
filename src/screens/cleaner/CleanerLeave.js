@@ -3,6 +3,9 @@ import { View, Text, TouchableOpacity, TextInput, Modal, ScrollView, ActivityInd
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import ErrorBanner from '../../components/ErrorBanner';
+import { getFriendlyError } from '../../utils/errorMessages';
 
 const LEAVE_TYPES = ['Casual', 'Sick', 'Earned', 'Emergency'];
 const TYPE_KEY = { Casual: 'casual', Sick: 'sick', Earned: 'earned', Emergency: 'emergency' };
@@ -71,7 +74,7 @@ export default function CleanerLeave({ onBack, currentUser }) {
         setForm({ type: '', from: '', to: '', reason: '' });
       }, 1800);
     } catch (e) {
-      setErrorMsg(e.message || 'Submission failed. Please try again.');
+      setErrorMsg(getFriendlyError(e, 'Submission failed. Please try again.'));
     } finally {
       setSubmitting(false);
     }
@@ -103,7 +106,7 @@ export default function CleanerLeave({ onBack, currentUser }) {
 
       <View style={{ paddingHorizontal: 20, paddingBottom: 32 }}>
         {loading ? (
-          <ActivityIndicator size="large" color={C.gold} style={{ marginTop: 60 }} />
+          <LoadingSpinner message="Loading leave data..." />
         ) : (
           <>
             <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
@@ -179,7 +182,7 @@ export default function CleanerLeave({ onBack, currentUser }) {
                 </View>
               ) : (
                 <>
-                  {errorMsg ? <Text style={{ color: C.coral, fontSize: 13, marginBottom: 12 }}>{errorMsg}</Text> : null}
+                  <ErrorBanner message={errorMsg} onDismiss={() => setErrorMsg('')} />
 
                   <Text style={{ fontSize: 13, fontWeight: '500', color: C.muted, marginBottom: 8 }}>Leave Type</Text>
                   <TouchableOpacity onPress={() => setShowTypePicker(p => !p)} style={{ padding: 14, borderRadius: 14, backgroundColor: C.card, borderWidth: 1.5, borderColor: C.border, marginBottom: 4 }}>

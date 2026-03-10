@@ -4,6 +4,9 @@ import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { LinearGradient } from 'expo-linear-gradient';
 import { apiFetch } from '../../api/client';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import ErrorBanner from '../../components/ErrorBanner';
+import { getFriendlyError } from '../../utils/errorMessages';
 
 const REASON_COLORS = {
   Medical: '#F59E0B', medical: '#F59E0B',
@@ -75,7 +78,7 @@ export default function AdminLeaveScreen({ onBack, currentUser }) {
       setStaffRequests(allStaff);
       setStudentRequests(studentData.requests || []);
     } catch (err) {
-      setFetchError('Failed to load leave requests. Check your connection.');
+      setFetchError(getFriendlyError(err, 'Failed to load leave requests. Check your connection.'));
     } finally {
       setLoading(false);
     }
@@ -120,7 +123,7 @@ export default function AdminLeaveScreen({ onBack, currentUser }) {
       setRejectMode(false);
       setRejectNote('');
     } catch (err) {
-      setActionError(err.message || 'Action failed. Try again.');
+      setActionError(getFriendlyError(err, 'Action failed. Try again.'));
       setTimeout(() => setActionError(''), 4000);
     } finally {
       setActioning(null);
@@ -225,11 +228,7 @@ export default function AdminLeaveScreen({ onBack, currentUser }) {
             </View>
           )}
 
-          {actionError ? (
-            <View style={{ backgroundColor: C.coral + '22', borderWidth: 1, borderColor: C.coral + '44', borderRadius: 12, padding: 12, marginBottom: 12 }}>
-              <Text style={{ color: C.coral, fontSize: 13, fontWeight: '600' }}>{actionError}</Text>
-            </View>
-          ) : null}
+          <ErrorBanner message={actionError} onDismiss={() => setActionError('')} />
 
           {currentStatus === 'Pending' && (
             <>
@@ -317,17 +316,9 @@ export default function AdminLeaveScreen({ onBack, currentUser }) {
         </View>
 
         {loading ? (
-          <View style={{ padding: 40, alignItems: 'center' }}>
-            <ActivityIndicator color={C.teal} size="large" />
-            <Text style={{ color: C.muted, marginTop: 12, fontSize: 13 }}>Loading leave requests...</Text>
-          </View>
+          <LoadingSpinner message="Loading leave requests..." />
         ) : fetchError ? (
-          <View style={{ backgroundColor: C.coral + '22', borderWidth: 1, borderColor: C.coral + '44', borderRadius: 14, padding: 20, alignItems: 'center' }}>
-            <Text style={{ color: C.coral, fontSize: 13, textAlign: 'center', marginBottom: 12 }}>{fetchError}</Text>
-            <TouchableOpacity onPress={fetchLeaves} style={{ backgroundColor: C.coral, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 20 }}>
-              <Text style={{ color: C.white, fontWeight: '700' }}>Retry</Text>
-            </TouchableOpacity>
-          </View>
+          <ErrorBanner message={fetchError} onRetry={fetchLeaves} onDismiss={() => setFetchError('')} />
         ) : filtered.length === 0 ? (
           <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 14, padding: 32, alignItems: 'center' }}>
             <Text style={{ fontSize: 28, marginBottom: 10 }}>{'📅'}</Text>

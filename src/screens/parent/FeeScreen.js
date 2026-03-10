@@ -3,12 +3,13 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
+import Toast from '../../components/Toast';
 
 export default function FeeScreen({ onBack, currentUser }) {
   const [reminders, setReminders] = useState([]);
   const [remindersLoading, setRemindersLoading] = useState(false);
   const [ackLoading, setAckLoading] = useState(null);
-  const [ackMsg, setAckMsg] = useState("");
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
 
   const studentId = currentUser?.studentId || 'student-101';
 
@@ -30,8 +31,7 @@ export default function FeeScreen({ onBack, currentUser }) {
       });
       if (res.ok) {
         setReminders(prev => prev.map(r => r.id === reminderId ? { ...r, parentAcknowledged: true } : r));
-        setAckMsg("Acknowledgement sent to school");
-        setTimeout(() => setAckMsg(""), 3000);
+        setToast({ visible: true, message: 'Acknowledgement sent to school', type: 'success' });
       }
     } catch (e) {}
     setAckLoading(null);
@@ -118,11 +118,7 @@ export default function FeeScreen({ onBack, currentUser }) {
           ))}
         </View>
 
-        {ackMsg ? (
-          <View style={{ paddingVertical:10, paddingHorizontal:16, borderRadius:12, backgroundColor:'#34D39922', marginBottom:14, alignItems:'center' }}>
-            <Text style={{ fontSize:13, fontWeight:'600', color:'#34D399' }}>{ackMsg}</Text>
-          </View>
-        ) : null}
+        <Toast {...toast} onHide={() => setToast(t => ({...t, visible: false}))} />
 
         {remindersLoading ? (
           <View style={{ paddingVertical:20, alignItems:'center' }}>

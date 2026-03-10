@@ -6,6 +6,8 @@ import {
 import { Camera, CameraView } from 'expo-camera';
 import { C } from '../../theme/colors';
 import { apiFetch } from '../../api/client';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import { getFriendlyError } from '../../utils/errorMessages';
 
 export default function CleanerScanner({ currentUser, onBack }) {
   const [hasPermission, setHasPermission] = useState(null);
@@ -68,7 +70,7 @@ export default function CleanerScanner({ currentUser, onBack }) {
       const entry = {
         id: Date.now(),
         success: false,
-        error: 'Network error — ' + err.message,
+        error: getFriendlyError(err, 'Network error. Please try again.'),
         time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
       };
       setScanResult(entry);
@@ -83,10 +85,7 @@ export default function CleanerScanner({ currentUser, onBack }) {
 
   if (hasPermission === null) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={C.teal} />
-        <Text style={{ color: C.muted, marginTop: 12 }}>Requesting camera permission...</Text>
-      </View>
+      <LoadingSpinner fullScreen message="Requesting camera permission..." />
     );
   }
 

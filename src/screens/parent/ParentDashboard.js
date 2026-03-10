@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
+import ErrorBanner from '../../components/ErrorBanner';
+import { getFriendlyError } from '../../utils/errorMessages';
 
 function initials(name) {
   if (!name) return '?';
@@ -91,8 +93,8 @@ export default function ParentDashboard({ onNavigate, currentUser, onLogout, onU
         onUpdateUser({ ...currentUser, studentIds: data.newStudentIds });
       }
       setTimeout(() => { setShowAddChild(false); setAddChildSuccess(''); }, 2000);
-    } catch {
-      setAddChildError('Network error. Please try again.');
+    } catch (e) {
+      setAddChildError(getFriendlyError(e, 'Failed to add child'));
     } finally {
       setAddChildLoading(false);
     }
@@ -281,7 +283,7 @@ export default function ParentDashboard({ onNavigate, currentUser, onLogout, onU
               </View>
             ) : (
               <>
-                {addChildError ? <View style={{ backgroundColor: C.coral + '22', borderRadius: 10, padding: 12, marginBottom: 14, borderWidth: 1, borderColor: C.coral + '44' }}><Text style={{ color: C.coral, fontSize: 13 }}>{addChildError}</Text></View> : null}
+                {addChildError ? <ErrorBanner message={addChildError} onDismiss={() => setAddChildError('')} /> : null}
 
                 <Text style={lbl}>Student ID of Other Child</Text>
                 <TextInput style={inp} placeholder="e.g. STU17725247907682810" placeholderTextColor={C.muted} value={addChildId} onChangeText={setAddChildId} autoCapitalize="characters" />

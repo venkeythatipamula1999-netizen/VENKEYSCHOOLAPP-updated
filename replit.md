@@ -23,7 +23,12 @@ src/
     googleSheets.js            — Google Sheets sync integration
   components/
     ErrorBoundary.js           — React error boundary (catches render crashes)
+    LoadingSpinner.js          — Reusable loading indicator (fullScreen/inline modes)
+    ErrorBanner.js             — Reusable error banner with dismiss/retry actions
+    Toast.js                   — Animated toast notifications (success/error/info)
     Icon.js, DonutRing.js, UnitDetail.js, ChangePasswordModal.js
+  utils/
+    errorMessages.js           — getFriendlyError() maps API/network errors to user-friendly text
   hooks/
     useGlobalErrorListener.js   — Global error & promise rejection listener
   theme/

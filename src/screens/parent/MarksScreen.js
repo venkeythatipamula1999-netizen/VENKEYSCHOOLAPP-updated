@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import DonutRing from '../../components/DonutRing';
 import UnitDetail from '../../components/UnitDetail';
 import { apiFetch } from '../../api/client';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import ErrorBanner from '../../components/ErrorBanner';
+import { getFriendlyError } from '../../utils/errorMessages';
 
 const SUB_PALETTE = [C.gold, C.teal, C.purple, C.coral, '#34D399', '#60A5FA', '#F59E0B', '#EC4899'];
 const subColor = (name, idx) => {
@@ -30,7 +33,7 @@ export default function MarksScreen({ onBack, currentUser }) {
         if (d.success) setMarksData(d);
         else setError('Could not load marks.');
       })
-      .catch(e => { console.error('Parent marks fetch error:', e); setError('Network error. Please try again.'); })
+      .catch(e => setError(getFriendlyError(e, 'Failed to load marks')))
       .finally(() => setLoading(false));
   };
 
@@ -71,12 +74,9 @@ export default function MarksScreen({ onBack, currentUser }) {
 
       <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
         {loading ? (
-          <ActivityIndicator size="large" color={C.gold} style={{ marginTop: 80 }} />
+          <LoadingSpinner message="Loading marks..." />
         ) : error ? (
-          <View style={{ alignItems: 'center', marginTop: 60 }}>
-            <Text style={{ fontSize: 36, marginBottom: 12 }}>{'⚠️'}</Text>
-            <Text style={{ color: C.muted, fontSize: 14, textAlign: 'center' }}>{error}</Text>
-          </View>
+          <ErrorBanner message={error} onRetry={() => { setError(null); fetchMarks(); }} onDismiss={() => setError(null)} />
         ) : !studentId ? (
           <View style={{ alignItems: 'center', marginTop: 60 }}>
             <Text style={{ fontSize: 36, marginBottom: 12 }}>{'👨‍🎓'}</Text>

@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Modal,
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { LinearGradient } from 'expo-linear-gradient';
+import { getFriendlyError } from '../../utils/errorMessages';
 import { apiFetch } from '../../api/client';
 
 export default function AdminUsers({ onBack }) {
@@ -298,7 +299,7 @@ export default function AdminUsers({ onBack }) {
         setCtMsg(data.error || 'Failed to save');
       }
     } catch (err) {
-      setCtMsg('Error: ' + err.message);
+      setCtMsg(getFriendlyError(err, 'Failed to save class teacher'));
     } finally {
       setSavingCt(false);
     }
@@ -386,7 +387,7 @@ export default function AdminUsers({ onBack }) {
       setTtMsg(parts.length > 0 ? 'Saved! ' + parts.join(', ') : 'Timetable saved successfully!');
       setTtMsgType('success');
     } catch (err) {
-      setTtMsg(err.message);
+      setTtMsg(getFriendlyError(err, 'Failed to save timetable'));
       setTtMsgType('error');
     } finally {
       setSavingTimetable(false);
@@ -412,7 +413,7 @@ export default function AdminUsers({ onBack }) {
       setShowForm(false);
       fetchOnboardedUsers();
     } catch (err) {
-      setOnboardError(err.message || 'Failed to onboard. Try again.');
+      setOnboardError(getFriendlyError(err, 'Failed to onboard. Try again.'));
     } finally {
       setOnboarding(false);
     }
@@ -435,7 +436,7 @@ export default function AdminUsers({ onBack }) {
       setDrvName(''); setDrvBus(''); setDrvRoute(''); setDrvPhone(''); setDrvLicense(''); setDrvExperience(''); setDrvEmail(''); setDrvJoinDate(new Date().toISOString().split('T')[0]);
       setShowDriverForm(false);
       fetchLogisticsStaff();
-    } catch (err) { setStaffError(err.message); }
+    } catch (err) { setStaffError(getFriendlyError(err, 'Failed to add driver')); }
     finally { setAddingStaff(false); }
   };
 
@@ -454,7 +455,7 @@ export default function AdminUsers({ onBack }) {
       setClnName(''); setClnArea(''); setClnPhone(''); setClnJoinDate(new Date().toISOString().split('T')[0]);
       setShowCleanerForm(false);
       fetchLogisticsStaff();
-    } catch (err) { setStaffError(err.message); }
+    } catch (err) { setStaffError(getFriendlyError(err, 'Failed to add cleaner')); }
     finally { setAddingStaff(false); }
   };
 

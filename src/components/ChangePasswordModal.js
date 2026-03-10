@@ -3,6 +3,8 @@ import { View, Text, TextInput, TouchableOpacity, Modal, ActivityIndicator, Anim
 import { C } from '../theme/colors';
 import Icon from './Icon';
 import { apiFetch } from '../api/client';
+import ErrorBanner from './ErrorBanner';
+import { getFriendlyError } from '../utils/errorMessages';
 
 export default function ChangePasswordModal({ visible, onClose, email, uid, onLogout, accentColor }) {
   const accent = accentColor || C.gold;
@@ -93,7 +95,7 @@ export default function ChangePasswordModal({ visible, onClose, email, uid, onLo
         if (onLogout) onLogout();
       }, 2000);
     } catch (err) {
-      setError('Network error. Please try again.');
+      setError(getFriendlyError(err, 'Network error. Please try again.'));
       setLoading(false);
     }
   };
@@ -168,12 +170,7 @@ export default function ChangePasswordModal({ visible, onClose, email, uid, onLo
                 <Text style={{ color: C.coral, fontSize: 12, marginTop: -10, marginBottom: 10 }}>Passwords do not match</Text>
               )}
 
-              {error ? (
-                <View style={{ backgroundColor: C.coral + '15', borderWidth: 1, borderColor: C.coral + '33', borderRadius: 12, padding: 12, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Text style={{ fontSize: 14 }}>{'\u26A0\uFE0F'}</Text>
-                  <Text style={{ color: C.coral, fontSize: 13, flex: 1 }}>{error}</Text>
-                </View>
-              ) : null}
+              <ErrorBanner message={error} onDismiss={() => setError('')} />
 
               <TouchableOpacity
                 onPress={handleSubmit}

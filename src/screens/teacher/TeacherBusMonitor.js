@@ -4,6 +4,7 @@ import { WebView } from 'react-native-webview';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
+import LoadingSpinner from '../../components/LoadingSpinner';
 
 const statusColor = s => {
   if (s === 'active') return C.teal;
@@ -85,7 +86,7 @@ export default function TeacherBusMonitor({ onBack }) {
         </View>
 
         {loading ? (
-          <ActivityIndicator size="large" color={C.teal} style={{ marginTop: 40 }} />
+          <LoadingSpinner message="Loading bus trips..." />
         ) : trips.length === 0 ? (
           <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 20, padding: 40, alignItems: 'center', marginTop: 20 }}>
             <Text style={{ fontSize: 40, marginBottom: 12 }}>{'🚌'}</Text>

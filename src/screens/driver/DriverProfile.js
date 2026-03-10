@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import LoadingSpinner from '../../components/LoadingSpinner';
 import ChangePasswordModal from '../../components/ChangePasswordModal';
 import { DRIVER_DEFAULT } from '../../data/driver';
 import { apiFetch } from '../../api/client';
@@ -135,10 +136,7 @@ function SalaryTab({ currentUser }) {
       </View>
 
       {salaryLoading ? (
-        <View style={{ alignItems: 'center', paddingVertical: 40 }}>
-          <ActivityIndicator size="large" color={C.teal} />
-          <Text style={{ color: C.muted, marginTop: 10, fontSize: 13 }}>Loading salary details...</Text>
-        </View>
+        <LoadingSpinner message="Loading salary details..." />
       ) : !hasSalary ? (
         <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 18, padding: 28, alignItems: 'center', marginBottom: 14 }}>
           <Text style={{ fontSize: 26, marginBottom: 10 }}>{'\uD83D\uDCCB'}</Text>
@@ -146,9 +144,7 @@ function SalaryTab({ currentUser }) {
           <Text style={{ color: C.muted, fontSize: 13, textAlign: 'center', marginTop: 6, lineHeight: 20 }}>Please contact Admin to set up your salary structure.</Text>
         </View>
       ) : payslipLoading ? (
-        <View style={{ alignItems: 'center', paddingVertical: 30 }}>
-          <ActivityIndicator size="large" color={C.teal} />
-        </View>
+        <LoadingSpinner message="" />
       ) : payslip ? (
         <>
           <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 20, padding: 18, marginBottom: 14 }}>

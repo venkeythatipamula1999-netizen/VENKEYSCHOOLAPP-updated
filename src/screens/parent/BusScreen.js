@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
+import LoadingSpinner from '../../components/LoadingSpinner';
 
 export default function BusScreen({ onBack, currentUser }) {
   const studentId = currentUser?.student_id || currentUser?.studentId || currentUser?.role_id || '';
@@ -36,11 +37,7 @@ export default function BusScreen({ onBack, currentUser }) {
   }, [studentId]);
 
   if (loading) {
-    return (
-      <View style={{ flex: 1, backgroundColor: C.navy, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color={C.teal} />
-      </View>
-    );
+    return <LoadingSpinner fullScreen message="Loading bus tracking..." />;
   }
 
   return (

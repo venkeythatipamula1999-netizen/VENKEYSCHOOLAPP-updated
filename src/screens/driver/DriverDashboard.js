@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, Platform, ActivityIndicator } from 'react
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import Toast from '../../components/Toast';
+import { getFriendlyError } from '../../utils/errorMessages';
 import { DRIVER_DEFAULT } from '../../data/driver';
 import { apiFetch } from '../../api/client';
 
@@ -15,7 +17,8 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
   const [speed, setSpeed] = useState(0);
   const [tripStartTime, setTripStartTime] = useState(null);
   const [elapsed, setElapsed] = useState(0);
-  const [tripMsg, setTripMsg] = useState('');
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
+  const showToast = (msg, type = 'success') => setToast({ visible: true, message: msg, type });
   const [routeStudents, setRouteStudents] = useState([]);
   const [stopStatus, setStopStatus] = useState({});
   const [settingStop, setSettingStop] = useState(null);
@@ -248,7 +251,6 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
 
   const handleStartTrip = async () => {
     setTripLoading(true);
-    setTripMsg('');
     try {
       let startLat = null, startLng = null;
       if (Platform.OS === 'web' && navigator.geolocation) {
@@ -282,20 +284,18 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
           setElapsed(prev => prev + 1);
         }, 60000);
         loadRouteStudents();
-        setTripMsg('Trip started! Parents have been notified.');
-        setTimeout(() => setTripMsg(''), 4000);
+        showToast('Trip started! Parents have been notified.');
       } else {
-        setTripMsg(data.error || 'Failed to start trip');
+        showToast(data.error || 'Failed to start trip', 'error');
       }
     } catch (err) {
-      setTripMsg('Error: ' + err.message);
+      showToast(getFriendlyError(err, 'Failed to start trip'), 'error');
     }
     setTripLoading(false);
   };
 
   const handleEndTrip = async () => {
     setTripLoading(true);
-    setTripMsg('');
     try {
       const totalDistanceKm = parseFloat((distanceRef.current / 1000).toFixed(2));
       const res = await apiFetch('/bus/end-trip', {
@@ -323,14 +323,13 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
         prevLngRef.current = null;
         setElapsed(0);
         setTripStartTime(null);
-        setTripMsg(`Trip completed! ${data.durationMin} min · ${totalDistanceKm} km · ${boardedCount} students. Route logged.`);
-        setTimeout(() => setTripMsg(''), 6000);
+        showToast(`Trip completed! ${data.durationMin} min · ${totalDistanceKm} km · ${boardedCount} students. Route logged.`);
         loadTodaySummary();
       } else {
-        setTripMsg(data.error || 'Failed to end trip');
+        showToast(data.error || 'Failed to end trip', 'error');
       }
     } catch (err) {
-      setTripMsg('Error: ' + err.message);
+      showToast(getFriendlyError(err, 'Failed to end trip'), 'error');
     }
     setTripLoading(false);
   };
@@ -350,8 +349,7 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
             stopLng = pos.coords.longitude;
           } catch (e) {
             setSettingStop(null);
-            setTripMsg('GPS unavailable. Move closer and try again.');
-            setTimeout(() => setTripMsg(''), 3000);
+            showToast('GPS unavailable. Move closer and try again.', 'error');
             return;
           }
         }
@@ -359,8 +357,7 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
 
       if (stopLat === null || stopLng === null) {
         setSettingStop(null);
-        setTripMsg('GPS location not available yet');
-        setTimeout(() => setTripMsg(''), 3000);
+        showToast('GPS location not available yet', 'error');
         return;
       }
 
@@ -384,12 +381,10 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
           [String(student.id)]: { lat: stopLat, lng: stopLng, locked: false, setBy: driverName },
         }));
       } else {
-        setTripMsg(data.error || 'Failed to set stop');
-        setTimeout(() => setTripMsg(''), 3000);
+        showToast(data.error || 'Failed to set stop', 'error');
       }
     } catch (err) {
-      setTripMsg('Error: ' + err.message);
-      setTimeout(() => setTripMsg(''), 3000);
+      showToast(getFriendlyError(err, 'Failed to set stop'), 'error');
     }
     setSettingStop(null);
   };
@@ -481,11 +476,6 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
             </View>
           )}
 
-          {tripMsg ? (
-            <View style={{ backgroundColor: tripMsg.includes('Error') || tripMsg.includes('Failed') || tripMsg.includes('locked') || tripMsg.includes('unavailable') ? C.coral + '22' : '#34D39922', borderRadius: 10, padding: 10, marginBottom: 12 }}>
-              <Text style={{ color: tripMsg.includes('Error') || tripMsg.includes('Failed') || tripMsg.includes('locked') || tripMsg.includes('unavailable') ? C.coral : '#34D399', fontSize: 12, fontWeight: '600' }}>{tripMsg}</Text>
-            </View>
-          ) : null}
 
           {!tripActive ? (
             <TouchableOpacity
@@ -725,6 +715,7 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
           </View>
         </View>
       </View>
+      <Toast {...toast} onHide={() => setToast(t => ({...t, visible: false}))} />
     </View>
   );
 }

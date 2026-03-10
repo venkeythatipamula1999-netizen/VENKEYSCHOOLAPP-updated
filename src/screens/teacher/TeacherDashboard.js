@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Modal, ActivityIn
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import { getFriendlyError } from '../../utils/errorMessages';
 
 const CLASS_COLORS = [C.teal, C.gold, C.purple, C.coral, '#60A5FA', '#F472B6', '#34D399', '#FB923C'];
 
@@ -251,7 +253,7 @@ export default function TeacherDashboard({ onNavigate, currentUser }) {
           setAttendanceStats(statsData.stats || {});
         }
       } catch (e) {
-        console.error('Dashboard load error:', e.message);
+        console.error('Dashboard load error:', getFriendlyError(e, 'Failed to load dashboard data'));
       } finally {
         setLoading(false);
       }
@@ -309,7 +311,7 @@ export default function TeacherDashboard({ onNavigate, currentUser }) {
         }
       }
     } catch (e) {
-      console.error('Duty toggle error:', e.message);
+      console.error('Duty toggle error:', getFriendlyError(e, 'Failed to toggle duty status'));
     }
     setDutyLoading(false);
   }, [onDuty, dutyLoading, currentUser, displayName, teacherId]);
@@ -477,10 +479,7 @@ export default function TeacherDashboard({ onNavigate, currentUser }) {
         </View>
 
         {loading && (
-          <View style={{ padding: 30, alignItems: 'center' }}>
-            <ActivityIndicator color={C.teal} />
-            <Text style={{ color: C.muted, marginTop: 8, fontSize: 13 }}>Loading your classes...</Text>
-          </View>
+          <LoadingSpinner message="Loading your classes..." />
         )}
 
         {!loading && allAssignedGrades.length === 0 && (

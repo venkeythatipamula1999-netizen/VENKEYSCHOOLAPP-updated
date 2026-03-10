@@ -2,6 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Platform, TextInput } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import Toast from '../../components/Toast';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import { getFriendlyError } from '../../utils/errorMessages';
 import { DRIVER_DEFAULT } from '../../data/driver';
 import { apiFetch } from '../../api/client';
 
@@ -12,7 +15,8 @@ export default function DriverStudentLocations({ onBack, currentUser }) {
   const [settingStop, setSettingStop] = useState(null);
   const [requestingUpdate, setRequestingUpdate] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [msg, setMsg] = useState('');
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
+  const showToast = (msg, type = 'success') => setToast({ visible: true, message: msg, type });
   const [searchText, setSearchText] = useState('');
   const [confirmStudent, setConfirmStudent] = useState(null);
 
@@ -91,19 +95,15 @@ export default function DriverStudentLocations({ onBack, currentUser }) {
             ...prev,
             [String(student.id)]: { lat, lng, locked: false, setBy: driverName },
           }));
-          setMsg('Location saved for ' + student.name);
-          setTimeout(() => setMsg(''), 3000);
+          showToast('Location saved for ' + student.name);
         } else {
-          setMsg(data.error || 'Failed to save location');
-          setTimeout(() => setMsg(''), 3000);
+          showToast(data.error || 'Failed to save location', 'error');
         }
       } else {
-        setMsg('GPS unavailable on this device');
-        setTimeout(() => setMsg(''), 3000);
+        showToast('GPS unavailable on this device', 'error');
       }
     } catch (e) {
-      setMsg('GPS error. Please try again.');
-      setTimeout(() => setMsg(''), 3000);
+      showToast(getFriendlyError(e, 'GPS error. Please try again.'), 'error');
     }
     setSettingStop(null);
   };
@@ -139,19 +139,15 @@ export default function DriverStudentLocations({ onBack, currentUser }) {
             ...prev,
             [String(student.id)]: { studentId: String(student.id), requestId: data.requestId },
           }));
-          setMsg('Update request sent to Admin for approval');
-          setTimeout(() => setMsg(''), 3000);
+          showToast('Update request sent to Admin for approval');
         } else {
-          setMsg(data.error || 'Failed to send request');
-          setTimeout(() => setMsg(''), 3000);
+          showToast(data.error || 'Failed to send request', 'error');
         }
       } else {
-        setMsg('GPS unavailable on this device');
-        setTimeout(() => setMsg(''), 3000);
+        showToast('GPS unavailable on this device', 'error');
       }
     } catch (e) {
-      setMsg('GPS error. Please try again.');
-      setTimeout(() => setMsg(''), 3000);
+      showToast(getFriendlyError(e, 'GPS error. Please try again.'), 'error');
     }
     setRequestingUpdate(null);
   };
@@ -167,12 +163,7 @@ export default function DriverStudentLocations({ onBack, currentUser }) {
   });
 
   if (loading) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 100 }}>
-        <ActivityIndicator size="large" color={C.teal} />
-        <Text style={{ color: C.muted, marginTop: 12, fontSize: 13 }}>Loading students...</Text>
-      </View>
-    );
+    return <LoadingSpinner fullScreen message="Loading students..." />;
   }
 
   return (
@@ -195,11 +186,6 @@ export default function DriverStudentLocations({ onBack, currentUser }) {
         <Text style={{ color: C.muted, fontSize: 11, flex: 1 }}>Save student home locations for automatic proximity alerts</Text>
       </View>
 
-      {msg ? (
-        <View style={{ marginHorizontal: 20, marginBottom: 10, backgroundColor: msg.includes('saved') || msg.includes('sent') ? '#34D39922' : C.coral + '22', borderRadius: 10, padding: 10 }}>
-          <Text style={{ color: msg.includes('saved') || msg.includes('sent') ? '#34D399' : C.coral, fontSize: 12, fontWeight: '600' }}>{msg}</Text>
-        </View>
-      ) : null}
 
       <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginBottom: 14 }}>
         <View style={{ flex: 1, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 14, padding: 12, alignItems: 'center' }}>
@@ -361,6 +347,7 @@ export default function DriverStudentLocations({ onBack, currentUser }) {
           })}
         </View>
       )}
+      <Toast {...toast} onHide={() => setToast(t => ({...t, visible: false}))} />
     </ScrollView>
   );
 }

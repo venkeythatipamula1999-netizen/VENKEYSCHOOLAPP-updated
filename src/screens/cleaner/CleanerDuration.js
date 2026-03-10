@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
+import LoadingSpinner from '../../components/LoadingSpinner';
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -87,7 +88,7 @@ export default function CleanerDuration({ onBack, currentUser }) {
 
       <View style={{ paddingHorizontal: 20, paddingBottom: 32 }}>
         {loading ? (
-          <ActivityIndicator size="large" color={C.gold} style={{ marginTop: 60 }} />
+          <LoadingSpinner message="Loading work hours..." />
         ) : (
           <>
             <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>

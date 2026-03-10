@@ -5,6 +5,8 @@ import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { CLEANER_DEFAULT, PHASE_INFO } from '../../data/cleaner';
 import { apiFetch } from '../../api/client';
+import { getFriendlyError } from '../../utils/errorMessages';
+import Toast from '../../components/Toast';
 
 export default function CleanerDashboard({ onNavigate, currentUser, students }) {
   const [gpsOn, setGpsOn] = useState(false);
@@ -15,6 +17,8 @@ export default function CleanerDashboard({ onNavigate, currentUser, students }) 
   const [currentStatus, setCurrentStatus] = useState('Off Duty');
   const [onboardCount, setOnboardCount] = useState(0);
   const [totalStudents, setTotalStudents] = useState(0);
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
+  const showToast = (msg, type = 'success') => setToast({ visible: true, message: msg, type });
 
   const cleanerName = currentUser?.full_name || CLEANER_DEFAULT.name;
   const cleanerId = currentUser?.role_id || CLEANER_DEFAULT.id;
@@ -47,7 +51,7 @@ export default function CleanerDashboard({ onNavigate, currentUser, students }) 
           setTotalStudents(data.totalStudents || 0);
         }
       } catch (err) {
-        console.error('Failed to fetch scan count:', err.message);
+        showToast(getFriendlyError(err, 'Failed to fetch scan count'), 'error');
       }
     };
     fetchScanCount();
@@ -90,7 +94,7 @@ export default function CleanerDashboard({ onNavigate, currentUser, students }) 
           setCurrentStatus('Off Duty');
         }
       }
-    } catch (e) { console.error('Duty toggle error:', e.message); }
+    } catch (e) { showToast(getFriendlyError(e, 'Failed to toggle duty status'), 'error'); }
     setDutyLoading(false);
   }, [onDuty, currentUser, cleanerName, cleanerId]);
 
@@ -334,6 +338,7 @@ export default function CleanerDashboard({ onNavigate, currentUser, students }) 
           ))}
         </View>
       </View>
+      <Toast {...toast} onHide={() => setToast(t => ({...t, visible: false}))} />
     </View>
   );
 }

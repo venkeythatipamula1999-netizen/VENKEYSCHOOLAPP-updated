@@ -3,6 +3,9 @@ import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Activi
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import ErrorBanner from '../../components/ErrorBanner';
+import { getFriendlyError } from '../../utils/errorMessages';
 
 const REASON_COLORS = {
   Medical: '#F59E0B',
@@ -60,7 +63,7 @@ export default function TeacherAlertsScreen({ onBack, currentUser }) {
       setNotClassTeacher(!!data.notClassTeacher);
       setRequests(data.requests || []);
     } catch (err) {
-      setLeaveError('Failed to load student leave requests. Please try again.');
+      setLeaveError(getFriendlyError(err, 'Failed to load student leave requests. Please try again.'));
     } finally {
       setLoadingLeaves(false);
     }
@@ -326,17 +329,9 @@ export default function TeacherAlertsScreen({ onBack, currentUser }) {
         {tab === 'leave' && (
           <>
             {loadingLeaves ? (
-              <View style={{ paddingVertical: 48, alignItems: 'center' }}>
-                <ActivityIndicator color={C.teal} size="large" />
-                <Text style={{ color: C.muted, marginTop: 12, fontSize: 13 }}>Loading student leave requests...</Text>
-              </View>
+              <LoadingSpinner message="Loading student leave requests..." />
             ) : leaveError ? (
-              <View style={{ backgroundColor: C.coral + '22', borderWidth: 1, borderColor: C.coral + '44', borderRadius: 14, padding: 20, alignItems: 'center' }}>
-                <Text style={{ color: C.coral, fontSize: 13, textAlign: 'center', marginBottom: 12 }}>{leaveError}</Text>
-                <TouchableOpacity onPress={fetchStudentLeaves} style={{ backgroundColor: C.coral, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 20 }}>
-                  <Text style={{ color: C.white, fontWeight: '700' }}>Retry</Text>
-                </TouchableOpacity>
-              </View>
+              <ErrorBanner message={leaveError} onRetry={fetchStudentLeaves} onDismiss={() => setLeaveError('')} />
             ) : notClassTeacher ? (
               <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 18, padding: 32, alignItems: 'center' }}>
                 <Text style={{ fontSize: 36, marginBottom: 14 }}>🏫</Text>

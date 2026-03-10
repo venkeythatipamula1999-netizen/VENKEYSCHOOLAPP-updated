@@ -6,6 +6,7 @@ import {
 import QRCode from 'react-native-qrcode-svg';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import { getFriendlyError } from '../../utils/errorMessages';
 import { apiFetch } from '../../api/client';
 
 export default function AdminStudentQR({ onBack, currentUser }) {
@@ -26,7 +27,7 @@ export default function AdminStudentQR({ onBack, currentUser }) {
         const cls = data.classes || data || [];
         setClasses(cls);
       })
-      .catch(e => console.error('Failed to load classes:', e.message))
+      .catch(e => console.error('Failed to load classes:', getFriendlyError(e, 'Could not load classes')))
       .finally(() => setLoading(false));
   }, []);
 
@@ -41,7 +42,7 @@ export default function AdminStudentQR({ onBack, currentUser }) {
       const data = await res.json();
       setStudents(data.students || data || []);
     } catch (e) {
-      console.error('Failed to load students:', e.message);
+      console.error('Failed to load students:', getFriendlyError(e, 'Could not load students'));
     } finally {
       setStudentsLoading(false);
     }

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Platform, Linking, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Platform, Linking, StyleSheet } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
+import LoadingSpinner from '../../components/LoadingSpinner';
 
 export default function DigitalFolder({ onBack, currentUser }) {
   const [files, setFiles] = useState([]);
@@ -71,10 +72,7 @@ export default function DigitalFolder({ onBack, currentUser }) {
 
       <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
         {loading ? (
-          <View style={{ alignItems: 'center', padding: 40 }}>
-            <ActivityIndicator size="large" color={C.gold} />
-            <Text style={{ color: C.muted, marginTop: 12, fontSize: 13 }}>Loading files...</Text>
-          </View>
+          <LoadingSpinner message="Loading files..." />
         ) : files.length === 0 ? (
           <View style={{ alignItems: 'center', padding: 40, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 20 }}>
             <Text style={{ fontSize: 48, marginBottom: 12 }}>{'\uD83D\uDCC2'}</Text>

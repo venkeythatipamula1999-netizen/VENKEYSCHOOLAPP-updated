@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, TextInput, Modal, ScrollView, ActivityIndicator } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import { getFriendlyError } from '../../utils/errorMessages';
 import { apiFetch } from '../../api/client';
 
 const LEAVE_TYPES = ['Casual', 'Sick', 'Earned', 'Emergency'];
@@ -71,7 +73,7 @@ export default function DriverLeave({ onBack, currentUser }) {
         setForm({ type: '', from: '', to: '', reason: '' });
       }, 1800);
     } catch (e) {
-      setErrorMsg(e.message || 'Submission failed. Please try again.');
+      setErrorMsg(getFriendlyError(e, 'Submission failed. Please try again.'));
     } finally {
       setSubmitting(false);
     }
@@ -103,7 +105,7 @@ export default function DriverLeave({ onBack, currentUser }) {
 
       <View style={{ paddingHorizontal: 20, paddingBottom: 32 }}>
         {loading ? (
-          <ActivityIndicator size="large" color={C.teal} style={{ marginTop: 60 }} />
+          <LoadingSpinner message="Loading leave data..." />
         ) : (
           <>
             <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>

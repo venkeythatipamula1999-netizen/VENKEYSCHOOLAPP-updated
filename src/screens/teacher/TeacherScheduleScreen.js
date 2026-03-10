@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import { getFriendlyError } from '../../utils/errorMessages';
 
 const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -60,7 +62,7 @@ export default function TeacherScheduleScreen({ onBack, currentUser }) {
       }
       setEvents(allEvents);
     } catch (err) {
-      console.error('Failed to fetch calendar:', err.message);
+      console.error('Failed to fetch calendar:', getFriendlyError(err, 'Failed to load schedule'));
     }
     try {
       const res = await apiFetch(`/teacher-timetable?roleId=${encodeURIComponent(roleId)}`);
@@ -157,10 +159,7 @@ export default function TeacherScheduleScreen({ onBack, currentUser }) {
         </View>
 
         {loading ? (
-          <View style={{ alignItems: 'center', paddingVertical: 40 }}>
-            <ActivityIndicator size="large" color={C.teal} />
-            <Text style={{ color: C.muted, fontSize: 12, marginTop: 12 }}>Loading schedule...</Text>
-          </View>
+          <LoadingSpinner message="Loading schedule..." />
         ) : (
           <View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>

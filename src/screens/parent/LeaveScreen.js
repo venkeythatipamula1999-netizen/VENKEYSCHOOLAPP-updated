@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, Activi
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
+import ErrorBanner from '../../components/ErrorBanner';
+import { getFriendlyError } from '../../utils/errorMessages';
 
 const REASONS = [
   { id: 'sick', icon: '🤒', label: 'Medical / Sick' },
@@ -120,8 +122,8 @@ export default function LeaveScreen({ onBack, currentUser }) {
         setToDate(todayStr());
         setTimeout(() => setSubmitSuccess(false), 5000);
       }
-    } catch {
-      setSubmitError('Network error. Please try again.');
+    } catch (e) {
+      setSubmitError(getFriendlyError(e, 'Failed to submit leave request'));
     } finally {
       setSubmitting(false);
     }
@@ -161,9 +163,7 @@ export default function LeaveScreen({ onBack, currentUser }) {
             <Text style={{ fontWeight: '700', fontSize: 15, color: C.white, marginBottom: 14 }}>New Leave Request</Text>
 
             {submitError ? (
-              <View style={{ backgroundColor: C.coral + '22', borderRadius: 10, padding: 12, marginBottom: 14, borderWidth: 1, borderColor: C.coral + '44' }}>
-                <Text style={{ color: C.coral, fontSize: 13 }}>{submitError}</Text>
-              </View>
+              <ErrorBanner message={submitError} onDismiss={() => setSubmitError('')} />
             ) : null}
 
             <Text style={st.label}>Reason for Leave</Text>

@@ -7,6 +7,9 @@ import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { LinearGradient } from 'expo-linear-gradient';
 import { apiFetch } from '../../api/client';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import ErrorBanner from '../../components/ErrorBanner';
+import { getFriendlyError } from '../../utils/errorMessages';
 
 const INR = v => '₹' + Number(v || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
 const CAL_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -198,12 +201,12 @@ function LeaveTab({ staffId, currentUser }) {
       setHistory(p => [newEntry, ...p]);
       setTimeout(() => { setSubmitDone(false); setReason(null); setDates([]); setCustom(''); setShowApplyForm(false); }, 2500);
     } catch (err) {
-      setSubmitError(err.message || 'Failed to submit. Try again.');
+      setSubmitError(getFriendlyError(err, 'Failed to submit. Try again.'));
       setTimeout(() => setSubmitError(''), 4000);
     } finally { setSubmitting(false); }
   };
 
-  if (loading) return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator color={C.purple} /></View>;
+  if (loading) return <LoadingSpinner fullScreen message="Loading leave data..." />;
 
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
@@ -282,9 +285,7 @@ function LeaveTab({ staffId, currentUser }) {
           )}
 
           {submitError ? (
-            <View style={{ backgroundColor: C.coral + '22', borderRadius: 10, padding: 10, marginBottom: 10 }}>
-              <Text style={{ color: C.coral, fontSize: 13 }}>{submitError}</Text>
-            </View>
+            <ErrorBanner message={submitError} onDismiss={() => setSubmitError('')} />
           ) : null}
 
           <TouchableOpacity onPress={submitLeave} disabled={submitting || submitDone || !reason || dates.length === 0}
@@ -398,7 +399,7 @@ function SalaryTab({ staffId, currentUser }) {
   const gross = (sal.basicSalary || 0) + (sal.hra || 0) + (sal.ta || 0) + (sal.da || 0) + (sal.specialAllowance || 0);
   const bankMasked = sal.bankAccount ? ('••••' + sal.bankAccount.slice(-4)) : '—';
 
-  if (loadingMain) return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator color={C.teal} size="large" /></View>;
+  if (loadingMain) return <LoadingSpinner fullScreen message="Loading salary data..." />;
 
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>

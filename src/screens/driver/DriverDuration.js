@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import LoadingSpinner from '../../components/LoadingSpinner';
 import { DRIVER_DEFAULT } from '../../data/driver';
 import { apiFetch } from '../../api/client';
 
@@ -75,10 +76,7 @@ export default function DriverDuration({ onBack, currentUser }) {
 
       <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
         {loading ? (
-          <View style={{ alignItems: 'center', paddingVertical: 50 }}>
-            <ActivityIndicator size="large" color={C.teal} />
-            <Text style={{ color: C.muted, marginTop: 10, fontSize: 13 }}>Loading trip data...</Text>
-          </View>
+          <LoadingSpinner message="Loading trip data..." />
         ) : (
           <>
             <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>

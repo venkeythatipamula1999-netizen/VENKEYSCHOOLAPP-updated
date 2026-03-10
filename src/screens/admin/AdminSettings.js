@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Image, Platform } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import Toast from '../../components/Toast';
+import { getFriendlyError } from '../../utils/errorMessages';
 import { apiFetch } from '../../api/client';
 
 export default function AdminSettings({ onBack, currentUser }) {
@@ -26,6 +28,8 @@ export default function AdminSettings({ onBack, currentUser }) {
   const [saved, setSaved] = useState(false);
   const [selectedBoard, setSelectedBoard] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
+  const showToast = (msg, type = 'success') => setToast({ visible: true, message: msg, type });
   const boards = ['CBSE', 'ICSE', 'State Board (Tamil Nadu)', 'IB', 'Cambridge IGCSE'];
   const fileInputRef = useRef(null);
 
@@ -54,7 +58,7 @@ export default function AdminSettings({ onBack, currentUser }) {
         setTimeout(() => setSaved(false), 2500);
       }
     } catch (err) {
-      alert('Failed to save settings: ' + err.message);
+      showToast(getFriendlyError(err, 'Failed to save settings'), 'error');
     } finally {
       setSaving(false);
     }
@@ -66,12 +70,12 @@ export default function AdminSettings({ onBack, currentUser }) {
     e.target.value = '';
 
     if (!file.type.startsWith('image/')) {
-      alert('Please select an image file');
+      showToast('Please select an image file', 'error');
       return;
     }
 
     if (file.size > 500 * 1024) {
-      alert('Image must be under 500KB. Please compress it first.');
+      showToast('Image must be under 500KB. Please compress it first.', 'error');
       return;
     }
 
@@ -91,10 +95,10 @@ export default function AdminSettings({ onBack, currentUser }) {
           galleryImages: [...(prev.galleryImages || []), { url: data.imageUrl, name: file.name }]
         }));
       } else {
-        alert(data.error || 'Upload failed');
+        showToast(data.error || 'Upload failed', 'error');
       }
     } catch (err) {
-      alert('Upload failed: ' + err.message);
+      showToast(getFriendlyError(err, 'Upload failed'), 'error');
     } finally {
       setUploading(false);
     }
@@ -251,6 +255,8 @@ export default function AdminSettings({ onBack, currentUser }) {
           ))}
         </View>
       </View>
+
+      <Toast {...toast} onHide={() => setToast(t => ({...t, visible: false}))} />
     </ScrollView>
   );
 }

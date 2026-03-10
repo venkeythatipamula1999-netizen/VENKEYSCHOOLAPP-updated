@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import LoadingSpinner from '../../components/LoadingSpinner';
 import { DRIVER_DEFAULT } from '../../data/driver';
 import { apiFetch } from '../../api/client';
 export default function DriverScans({ onBack, currentUser }) {
@@ -54,10 +55,7 @@ export default function DriverScans({ onBack, currentUser }) {
         </View>
 
         {loading ? (
-          <View style={{ paddingVertical: 30, alignItems: 'center' }}>
-            <ActivityIndicator size="small" color={C.teal} />
-            <Text style={{ color: C.muted, fontSize: 12, marginTop: 8 }}>Loading scans...</Text>
-          </View>
+          <LoadingSpinner size="small" message="Loading scans..." />
         ) : scans.length === 0 ? (
           <View style={{ paddingVertical: 30, alignItems: 'center' }}>
             <Text style={{ fontSize: 28, marginBottom: 8 }}>{'\uD83D\uDCF7'}</Text>

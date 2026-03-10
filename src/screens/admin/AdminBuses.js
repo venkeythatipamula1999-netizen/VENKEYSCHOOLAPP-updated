@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView,
-  Modal, ActivityIndicator, TextInput, Alert
+  Modal, ActivityIndicator, TextInput
 } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
+import Toast from '../../components/Toast';
+import { getFriendlyError } from '../../utils/errorMessages';
 
 export default function AdminBuses({ onBack, currentUser }) {
   const [buses, setBuses] = useState([]);
@@ -29,6 +31,8 @@ export default function AdminBuses({ onBack, currentUser }) {
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
+  const showToast = (msg, type = 'success') => setToast({ visible: true, message: msg, type });
 
   const fetchBuses = async () => {
     try {
@@ -86,7 +90,7 @@ export default function AdminBuses({ onBack, currentUser }) {
 
   const handleAddBus = async () => {
     if (!form.busId.trim() || !form.busNumber.trim()) {
-      Alert.alert('Required', 'Bus ID and Bus Number are required.');
+      showToast('Bus ID and Bus Number are required.', 'error');
       return;
     }
     setSaving(true);
@@ -101,7 +105,7 @@ export default function AdminBuses({ onBack, currentUser }) {
       setForm({ busId: '', busNumber: '', route: '', routeId: '', driverName: '', driverId: '', cleanerName: '', cleanerId: '' });
       fetchBuses();
     } catch (err) {
-      Alert.alert('Error', err.message);
+      showToast(getFriendlyError(err, 'Failed to create bus.'), 'error');
     } finally {
       setSaving(false);
     }
@@ -123,7 +127,7 @@ export default function AdminBuses({ onBack, currentUser }) {
       setShowAssignModal(false);
       fetchBuses();
     } catch (err) {
-      Alert.alert('Error', err.message);
+      showToast(getFriendlyError(err, 'Failed to assign students.'), 'error');
     } finally {
       setSaving(false);
     }
@@ -342,6 +346,8 @@ export default function AdminBuses({ onBack, currentUser }) {
           </View>
         </View>
       </Modal>
+
+      <Toast {...toast} onHide={() => setToast(t => ({...t, visible: false}))} />
 
       {/* ── ONBOARD STUDENTS MODAL ── */}
       <Modal visible={showOnboardModal} transparent animationType="slide" onRequestClose={() => setShowOnboardModal(false)}>

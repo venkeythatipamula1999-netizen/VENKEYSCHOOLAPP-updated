@@ -4,6 +4,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import ChangePasswordModal from '../../components/ChangePasswordModal';
+import Toast from '../../components/Toast';
+import { getFriendlyError } from '../../utils/errorMessages';
 import { apiFetch } from '../../api/client';
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
@@ -19,27 +21,26 @@ export default function AdminProfile({ onBack, currentUser, onLogout, onUpdateUs
   const [showBGPicker, setShowBGPicker] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [saveMsg, setSaveMsg] = useState('');
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
+  const showToast = (msg, type = 'success') => setToast({ visible: true, message: msg, type });
   const [uploading, setUploading] = useState(false);
   const [profileImage, setProfileImage] = useState(currentUser?.profileImage || null);
   const [showChangePwd, setShowChangePwd] = useState(false);
 
   const handleSave = async () => {
     setSaving(true);
-    setSaveMsg('');
     try {
       const resp = await apiFetch('/admin/update-profile', {
         method: 'POST',
         body: JSON.stringify({ uid: currentUser?.uid, mobile, bloodGroup }),
       });
       const data = await resp.json();
-      if (!resp.ok) { setSaveMsg(data.error || 'Update failed'); setSaving(false); return; }
-      setSaveMsg('Profile updated successfully!');
+      if (!resp.ok) { showToast(data.error || 'Update failed', 'error'); setSaving(false); return; }
+      showToast('Profile updated successfully!');
       setEditing(false);
       if (onUpdateUser) onUpdateUser({ ...currentUser, mobile, blood_group: bloodGroup });
-      setTimeout(() => setSaveMsg(''), 3000);
     } catch (err) {
-      setSaveMsg('Network error. Please try again.');
+      showToast(getFriendlyError(err, 'Network error. Please try again.'), 'error');
     }
     setSaving(false);
   };
@@ -52,22 +53,20 @@ export default function AdminProfile({ onBack, currentUser, onLogout, onUpdateUs
       input.onchange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        if (file.size > 5 * 1024 * 1024) { setSaveMsg('Photo must be under 5MB'); return; }
+        if (file.size > 5 * 1024 * 1024) { showToast('Photo must be under 5MB', 'error'); return; }
         setUploading(true);
-        setSaveMsg('');
         const formData = new FormData();
         formData.append('photo', file);
         formData.append('uid', currentUser?.uid);
         try {
           const resp = await apiFetch('/admin/upload-photo', { method: 'POST', body: formData });
           const data = await resp.json();
-          if (!resp.ok) { setSaveMsg(data.error || 'Upload failed'); setUploading(false); return; }
+          if (!resp.ok) { showToast(data.error || 'Upload failed', 'error'); setUploading(false); return; }
           setProfileImage(data.profileImage);
           if (onUpdateUser) onUpdateUser({ ...currentUser, profileImage: data.profileImage });
-          setSaveMsg('Photo uploaded successfully!');
-          setTimeout(() => setSaveMsg(''), 3000);
+          showToast('Photo uploaded successfully!');
         } catch (err) {
-          setSaveMsg('Upload failed. Please try again.');
+          showToast(getFriendlyError(err, 'Upload failed. Please try again.'), 'error');
         }
         setUploading(false);
       };
@@ -198,12 +197,7 @@ export default function AdminProfile({ onBack, currentUser, onLogout, onUpdateUs
           )}
         </View>
 
-        {saveMsg ? (
-          <View style={{ backgroundColor: saveMsg.includes('success') ? '#34D399' + '15' : C.coral + '15', borderWidth: 1, borderColor: saveMsg.includes('success') ? '#34D399' + '33' : C.coral + '33', borderRadius: 12, padding: 12, marginBottom: 14, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Text style={{ fontSize: 14 }}>{saveMsg.includes('success') ? '\u2705' : '\u26A0\uFE0F'}</Text>
-            <Text style={{ color: saveMsg.includes('success') ? '#34D399' : C.coral, fontSize: 13, flex: 1 }}>{saveMsg}</Text>
-          </View>
-        ) : null}
+        <Toast {...toast} onHide={() => setToast(t => ({...t, visible: false}))} />
 
         <View style={{ gap: 10, marginTop: 6 }}>
           <TouchableOpacity

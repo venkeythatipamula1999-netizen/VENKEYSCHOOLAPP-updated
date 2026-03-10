@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import DonutRing from '../../components/DonutRing';
 import { apiFetch } from '../../api/client';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import ErrorBanner from '../../components/ErrorBanner';
+import { getFriendlyError } from '../../utils/errorMessages';
 
 function prevMonth(m) {
   const [y, mo] = m.split('-').map(Number);
@@ -54,7 +57,7 @@ export default function AttendanceScreen({ onBack, currentUser }) {
         if (d.success) setData(d);
         else setError(d.error || 'Failed to load attendance');
       })
-      .catch(() => setError('Network error. Please try again.'))
+      .catch(e => setError(getFriendlyError(e, 'Failed to load attendance')))
       .finally(() => setLoading(false));
   }, [studentId, month]);
 
@@ -90,17 +93,9 @@ export default function AttendanceScreen({ onBack, currentUser }) {
             <Text style={{ color: C.muted, fontSize: 14, textAlign: 'center' }}>Student profile not linked.{'\n'}Please contact the school admin.</Text>
           </View>
         ) : loading ? (
-          <View style={{ alignItems: 'center', paddingVertical: 60 }}>
-            <ActivityIndicator size="large" color={C.teal} />
-            <Text style={{ color: C.muted, marginTop: 12 }}>Loading attendance...</Text>
-          </View>
+          <LoadingSpinner message="Loading attendance..." />
         ) : error ? (
-          <View style={{ backgroundColor: C.coral + '22', borderRadius: 14, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: C.coral + '44' }}>
-            <Text style={{ color: C.coral, textAlign: 'center', marginBottom: 12 }}>{error}</Text>
-            <TouchableOpacity onPress={() => { const cur = month; setMonth(''); setTimeout(() => setMonth(cur), 10); }} style={{ backgroundColor: C.coral, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 20 }}>
-              <Text style={{ color: C.white, fontWeight: '700' }}>Retry</Text>
-            </TouchableOpacity>
-          </View>
+          <ErrorBanner message={error} onRetry={() => { const cur = month; setMonth(''); setTimeout(() => setMonth(cur), 10); }} onDismiss={() => setError('')} />
         ) : (
           <>
             <View style={[st.heroCard, { borderColor: pctColor + '44' }]}>

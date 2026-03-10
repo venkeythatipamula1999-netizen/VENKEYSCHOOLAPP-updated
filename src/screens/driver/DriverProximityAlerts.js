@@ -6,6 +6,9 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from '../../components/Icon';
 import { C } from '../../theme/colors';
+import Toast from '../../components/Toast';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import { getFriendlyError } from '../../utils/errorMessages';
 import { DRIVER_DEFAULT } from '../../data/driver';
 import { apiFetch } from '../../api/client';
 
@@ -42,8 +45,8 @@ export default function DriverProximityAlerts({ onBack, currentUser }) {
   const [todayAlerts, setTodayAlerts] = useState([]);
   const [pendingRequests, setPendingRequests] = useState({});
   const [loading, setLoading] = useState(true);
-  const [msg, setMsg] = useState('');
-  const [msgColor, setMsgColor] = useState(C.teal);
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
+  const showToast = (msg, type = 'success') => setToast({ visible: true, message: msg, type });
 
   const [capturedCoords, setCapturedCoords] = useState({});
   const [capturingFor, setCapturingFor] = useState(null);
@@ -54,12 +57,6 @@ export default function DriverProximityAlerts({ onBack, currentUser }) {
   const [changeCapturing, setChangeCapturing] = useState(false);
   const [changeReason, setChangeReason] = useState('');
   const [submittingChange, setSubmittingChange] = useState(false);
-
-  const showMsg = (text, color = C.teal) => {
-    setMsg(text);
-    setMsgColor(color);
-    setTimeout(() => setMsg(''), 4000);
-  };
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -107,10 +104,10 @@ export default function DriverProximityAlerts({ onBack, currentUser }) {
           [String(studentId)]: { lat: pos.coords.latitude, lng: pos.coords.longitude },
         }));
       } else {
-        showMsg('GPS not available on this device', C.coral);
+        showToast('GPS not available on this device', 'error');
       }
     } catch (e) {
-      showMsg('GPS capture failed: ' + e.message, C.coral);
+      showToast(getFriendlyError(e, 'GPS capture failed'), 'error');
     }
     setCapturingFor(null);
   };
@@ -118,7 +115,7 @@ export default function DriverProximityAlerts({ onBack, currentUser }) {
   const handleSetStop = async (student) => {
     const sid = String(student.id);
     const coords = capturedCoords[sid];
-    if (!coords) { showMsg('Please capture GPS location first', C.coral); return; }
+    if (!coords) { showToast('Please capture GPS location first', 'error'); return; }
     setSettingFor(sid);
     try {
       const res = await apiFetch('/bus/set-stop', {
@@ -142,12 +139,12 @@ export default function DriverProximityAlerts({ onBack, currentUser }) {
           [sid]: { lat: coords.lat, lng: coords.lng, setBy: driverName, locked: false, parentPhone: student.phone, parentName: student.parent },
         }));
         setCapturedCoords(prev => { const n = { ...prev }; delete n[sid]; return n; });
-        showMsg(`Stop set for ${student.name}!`);
+        showToast(`Stop set for ${student.name}!`);
       } else {
-        showMsg(data.error || 'Failed to set stop', C.coral);
+        showToast(data.error || 'Failed to set stop', 'error');
       }
     } catch (e) {
-      showMsg('Error: ' + e.message, C.coral);
+      showToast(getFriendlyError(e, 'Failed to set stop'), 'error');
     }
     setSettingFor(null);
   };
@@ -161,17 +158,17 @@ export default function DriverProximityAlerts({ onBack, currentUser }) {
         );
         setChangeCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
       } else {
-        showMsg('GPS not available', C.coral);
+        showToast('GPS not available', 'error');
       }
     } catch (e) {
-      showMsg('GPS capture failed: ' + e.message, C.coral);
+      showToast(getFriendlyError(e, 'GPS capture failed'), 'error');
     }
     setChangeCapturing(false);
   };
 
   const handleChangeRequest = async () => {
-    if (!changeCoords) { showMsg('Please capture new GPS location first', C.coral); return; }
-    if (!changeReason.trim()) { showMsg('Please provide a reason for the change', C.coral); return; }
+    if (!changeCoords) { showToast('Please capture new GPS location first', 'error'); return; }
+    if (!changeReason.trim()) { showToast('Please provide a reason for the change', 'error'); return; }
     const student = changeModal;
     setSubmittingChange(true);
     try {
@@ -197,7 +194,7 @@ export default function DriverProximityAlerts({ onBack, currentUser }) {
       });
       const data = await res.json();
       if (data.success) {
-        showMsg('Change request submitted! Waiting for admin approval.');
+        showToast('Change request submitted! Waiting for admin approval.');
         setPendingRequests(prev => ({
           ...prev,
           [sid]: { studentId: sid, studentName: student.name, newLat: changeCoords.lat, newLng: changeCoords.lng, reason: changeReason.trim(), status: 'pending' },
@@ -206,10 +203,10 @@ export default function DriverProximityAlerts({ onBack, currentUser }) {
         setChangeReason('');
         setChangeCoords(null);
       } else {
-        showMsg(data.error || 'Failed to submit request', C.coral);
+        showToast(data.error || 'Failed to submit request', 'error');
       }
     } catch (e) {
-      showMsg('Error: ' + e.message, C.coral);
+      showToast(getFriendlyError(e, 'Failed to submit change request'), 'error');
     }
     setSubmittingChange(false);
   };
@@ -319,11 +316,6 @@ export default function DriverProximityAlerts({ onBack, currentUser }) {
           </TouchableOpacity>
         </View>
 
-        {msg ? (
-          <View style={{ marginHorizontal: 20, marginBottom: 8, backgroundColor: msgColor + '22', borderWidth: 1, borderColor: msgColor + '55', borderRadius: 12, padding: 12 }}>
-            <Text style={{ color: msgColor, fontSize: 13, fontWeight: '600' }}>{msg}</Text>
-          </View>
-        ) : null}
 
         <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginBottom: 16 }}>
           <View style={{ flex: 1, backgroundColor: C.teal + '15', borderWidth: 1, borderColor: C.teal + '44', borderRadius: 14, padding: 12, alignItems: 'center' }}>
@@ -356,10 +348,7 @@ export default function DriverProximityAlerts({ onBack, currentUser }) {
           </View>
 
           {loading ? (
-            <View style={{ alignItems: 'center', paddingVertical: 40 }}>
-              <ActivityIndicator size="large" color={C.teal} />
-              <Text style={{ color: C.muted, fontSize: 13, marginTop: 12 }}>Loading students...</Text>
-            </View>
+            <LoadingSpinner message="Loading students..." />
           ) : routeStudents.length === 0 ? (
             <View style={{ backgroundColor: C.navyMid, borderWidth: 1, borderColor: C.border, borderRadius: 18, padding: 24, alignItems: 'center' }}>
               <Text style={{ fontSize: 32, marginBottom: 12 }}>🚌</Text>
@@ -489,6 +478,7 @@ export default function DriverProximityAlerts({ onBack, currentUser }) {
           </View>
         </View>
       </Modal>
+      <Toast {...toast} onHide={() => setToast(t => ({...t, visible: false}))} />
     </LinearGradient>
   );
 }

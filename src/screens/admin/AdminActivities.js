@@ -4,6 +4,9 @@ import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { LinearGradient } from 'expo-linear-gradient';
 import { apiFetch } from '../../api/client';
+import Toast from '../../components/Toast';
+import { getFriendlyError } from '../../utils/errorMessages';
+import LoadingSpinner from '../../components/LoadingSpinner';
 
 const typeColors = {
   Academic: '#60A5FA', Cultural: '#A78BFA', Holiday: '#34D399',
@@ -41,14 +44,15 @@ export default function AdminActivities({ onBack, currentUser }) {
   const [typePickerOpen, setTypePickerOpen] = useState(false);
   const [classPickerOpen, setClassPickerOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [saveMsg, setSaveMsg] = useState('');
-  const [saveMsgType, setSaveMsgType] = useState('success');
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
   const [deleting, setDeleting] = useState(false);
   const [renotifying, setRenotifying] = useState(false);
 
   const adminName = currentUser?.full_name || 'Admin';
 
   const CLASS_LIST_NAMES = Object.keys(CLASS_ACTIVITIES);
+
+  const showToast = (msg, type = 'success') => setToast({ visible: true, message: msg, type });
 
   const loadEvents = useCallback(async () => {
     setEventsLoading(true);
@@ -63,12 +67,6 @@ export default function AdminActivities({ onBack, currentUser }) {
   }, []);
 
   useEffect(() => { loadEvents(); }, [loadEvents]);
-
-  const showMsg = (msg, type = 'success') => {
-    setSaveMsg(msg);
-    setSaveMsgType(type);
-    setTimeout(() => setSaveMsg(''), 5000);
-  };
 
   const openNewForm = () => {
     setForm(EMPTY_FORM);
@@ -96,8 +94,8 @@ export default function AdminActivities({ onBack, currentUser }) {
   };
 
   const handleSave = async () => {
-    if (!form.title.trim()) { showMsg('Event title is required.', 'error'); return; }
-    if (!form.date.trim()) { showMsg('Event date is required.', 'error'); return; }
+    if (!form.title.trim()) { showToast('Event title is required.', 'error'); return; }
+    if (!form.date.trim()) { showToast('Event date is required.', 'error'); return; }
     setSaving(true);
     try {
       const url = editingId ? `/events/${editingId}` : '/events/create';
@@ -111,13 +109,13 @@ export default function AdminActivities({ onBack, currentUser }) {
       const notified = data.notified || {};
       const teacherCount = notified.teacherCount || 0;
       const parentMsg = notified.parentCount === -1 ? 'all parents' : `${notified.parentCount || 0} parents`;
-      showMsg(`Event ${editingId ? 'updated' : 'saved'}! Notifications sent to ${teacherCount} teachers & ${parentMsg}.`);
+      showToast(`Event ${editingId ? 'updated' : 'saved'}! Notifications sent to ${teacherCount} teachers & ${parentMsg}.`);
       setShowForm(false);
       setEditingId(null);
       setForm(EMPTY_FORM);
       loadEvents();
     } catch (e) {
-      showMsg(e.message || 'Failed to save event.', 'error');
+      showToast(getFriendlyError(e, 'Failed to save event.'), 'error');
     }
     setSaving(false);
   };
@@ -129,11 +127,11 @@ export default function AdminActivities({ onBack, currentUser }) {
       const res = await apiFetch(`/events/${ev.id}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Delete failed');
-      showMsg(`Event "${ev.title}" deleted. Cancellation notifications sent.`);
+      showToast(`Event "${ev.title}" deleted. Cancellation notifications sent.`);
       setSelectedEvent(null);
       loadEvents();
     } catch (e) {
-      showMsg(e.message || 'Failed to delete event.', 'error');
+      showToast(getFriendlyError(e, 'Failed to delete event.'), 'error');
     }
     setDeleting(false);
   };
@@ -144,9 +142,9 @@ export default function AdminActivities({ onBack, currentUser }) {
       const res = await apiFetch(`/events/${ev.id}/renotify`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Renotify failed');
-      showMsg(`Reminder notifications sent for "${ev.title}".`);
+      showToast(`Reminder notifications sent for "${ev.title}".`);
     } catch (e) {
-      showMsg(e.message || 'Failed to renotify.', 'error');
+      showToast(getFriendlyError(e, 'Failed to renotify.'), 'error');
     }
     setRenotifying(false);
   };
@@ -168,11 +166,7 @@ export default function AdminActivities({ onBack, currentUser }) {
             <Text style={{ color: C.muted, fontSize: 12 }}>{e.status}</Text>
           </View>
         </View>
-        {saveMsg ? (
-          <View style={{ marginHorizontal: 20, marginBottom: 10, backgroundColor: saveMsgType === 'error' ? C.coral + '22' : '#34D39922', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: saveMsgType === 'error' ? C.coral + '44' : '#34D39944' }}>
-            <Text style={{ color: saveMsgType === 'error' ? C.coral : '#34D399', fontSize: 13, fontWeight: '600' }}>{saveMsg}</Text>
-          </View>
-        ) : null}
+        <Toast {...toast} onHide={() => setToast(t => ({...t, visible: false}))} />
         <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
           <LinearGradient colors={[col + '22', C.navyMid]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderWidth: 1, borderColor: col + '44', borderRadius: 24, padding: 24, marginBottom: 18, alignItems: 'center' }}>
             <Text style={{ fontSize: 52, marginBottom: 12 }}>{icon}</Text>
@@ -313,11 +307,7 @@ export default function AdminActivities({ onBack, currentUser }) {
         </View>
       </View>
 
-      {saveMsg ? (
-        <View style={{ marginHorizontal: 20, marginBottom: 10, backgroundColor: saveMsgType === 'error' ? C.coral + '22' : '#34D39922', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: saveMsgType === 'error' ? C.coral + '44' : '#34D39944' }}>
-          <Text style={{ color: saveMsgType === 'error' ? C.coral : '#34D399', fontSize: 13, fontWeight: '600' }}>{saveMsg}</Text>
-        </View>
-      ) : null}
+      <Toast {...toast} onHide={() => setToast(t => ({...t, visible: false}))} />
 
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 20, marginBottom: 16 }}>
         {[['events', '\uD83D\uDCC5 Events'], ['classwise', '\uD83C\uDFEB Class-wise'], ['achievements', '\uD83C\uDFC6 Awards'], ['ads', '\uD83D\uDCE2 Notices']].map(([id, lbl]) => (
@@ -332,10 +322,7 @@ export default function AdminActivities({ onBack, currentUser }) {
         {tab === 'events' && (
           <View>
             {eventsLoading ? (
-              <View style={{ alignItems: 'center', paddingVertical: 30 }}>
-                <ActivityIndicator size="large" color={C.teal} />
-                <Text style={{ color: C.muted, marginTop: 10 }}>Loading events...</Text>
-              </View>
+              <LoadingSpinner message="Loading events..." />
             ) : (
               <>
                 <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
