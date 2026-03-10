@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Image } from 'react-native';
 import { C } from '../theme/colors';
 import Icon from '../components/Icon';
+import { apiFetch } from '../api/client';
 
 export default function ExploreScreen({ onBack }) {
   const [loading, setLoading] = useState(true);
@@ -17,7 +18,7 @@ export default function ExploreScreen({ onBack }) {
   });
 
   useEffect(() => {
-    fetch('/api/school-info')
+    apiFetch('/school-info')
       .then(r => r.json())
       .then(data => {
         if (data.success && data.info) {

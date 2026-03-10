@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Modal, ActivityIndicator, Animated } from 'react-native';
 import { C } from '../theme/colors';
 import Icon from './Icon';
+import { apiFetch } from '../api/client';
 
 export default function ChangePasswordModal({ visible, onClose, email, uid, onLogout, accentColor }) {
   const accent = accentColor || C.gold;
@@ -74,9 +75,8 @@ export default function ChangePasswordModal({ visible, onClose, email, uid, onLo
 
     setLoading(true);
     try {
-      const resp = await fetch('/api/change-password', {
+      const resp = await apiFetch('/change-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, uid, currentPassword: currentPwd, newPassword: newPwd }),
       });
       const data = await resp.json();

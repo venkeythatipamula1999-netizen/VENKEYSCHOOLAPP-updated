@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { C } from '../theme/colors';
 import Icon from '../components/Icon';
+import { apiFetch } from '../api/client';
 
 export default function ContactScreen({ onBack }) {
   const [name, setName] = useState('');
@@ -15,7 +16,7 @@ export default function ContactScreen({ onBack }) {
   ]);
 
   useEffect(() => {
-    fetch('/api/school-info')
+    apiFetch('/school-info')
       .then(r => r.json())
       .then(data => {
         if (data.success && data.info) {
