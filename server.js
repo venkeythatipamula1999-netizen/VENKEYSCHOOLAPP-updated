@@ -5,6 +5,7 @@ const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
 const PDFDocument = require('pdfkit');
+const { runDailyBackup } = require('./src/services/firestoreBackup');
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error('[FATAL] JWT_SECRET environment variable is not set');
 
@@ -8021,12 +8022,78 @@ app.get('/audit-report', (req, res) => {
   res.sendFile(path.join(__dirname, 'audit-report.html'));
 });
 
+function scheduleDailyBackup() {
+  function getMsUntilNext2AMIST() {
+    const now = new Date();
+    const istOffsetMs = 5.5 * 60 * 60 * 1000;
+    const nowIST = new Date(now.getTime() + istOffsetMs);
+    const next2AM = new Date(nowIST);
+    next2AM.setHours(2, 0, 0, 0);
+    if (nowIST >= next2AM) {
+      next2AM.setDate(next2AM.getDate() + 1);
+    }
+    return next2AM.getTime() - nowIST.getTime();
+  }
+
+  const delay = getMsUntilNext2AMIST();
+  setTimeout(() => {
+    runDailyBackup().catch(e => console.error('[Backup] Scheduled backup error:', e.message));
+    setInterval(() => {
+      runDailyBackup().catch(e => console.error('[Backup] Scheduled backup error:', e.message));
+    }, 24 * 60 * 60 * 1000);
+  }, delay);
+}
+
+app.post('/api/admin/backup/trigger', verifyAuth, async (req, res) => {
+  if (req.userRole !== 'principal' && req.userRole !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  runDailyBackup().catch(e => console.error('[Backup] Manual trigger error:', e.message));
+  res.json({ success: true, message: 'Backup started' });
+});
+
+app.get('/api/admin/backup/status', verifyAuth, async (req, res) => {
+  if (req.userRole !== 'principal' && req.userRole !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  try {
+    const adminDb = admin.firestore();
+
+    const failureSnap = await adminDb.collection('admin_notifications')
+      .where('type', '==', 'backup_failed')
+      .orderBy('createdAt', 'desc')
+      .limit(5)
+      .get();
+    const failures = failureSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    const successSnap = await adminDb.collection('backup_logs')
+      .orderBy('timestamp', 'desc')
+      .limit(5)
+      .get();
+    const successes = successSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    const recentLogs = [...successes, ...failures].sort((a, b) =>
+      (b.timestamp || b.createdAt || '').localeCompare(a.timestamp || a.createdAt || '')
+    ).slice(0, 10);
+
+    res.json({
+      lastSuccess: successes[0] || null,
+      lastFailure: failures[0] || null,
+      recentLogs,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.listen(PORT, '0.0.0.0', async () => {
   console.log(`Venkeys School App server running on port ${PORT}`);
   console.log('Database: Firebase Firestore (project: ' + firebaseConfig.projectId + ')');
   console.log('Auth: Firebase Authentication (Email/Password) — NO FALLBACK');
   scheduleAutoClockout();
   console.log('Auto clock-out scheduled: 7:00 PM daily');
+  scheduleDailyBackup();
+  console.log('[Backup] Scheduler started — next backup at 2 AM IST');
 
   try {
     const principalEmail = 'thatipamulavenkatesh1999@gmail.com';
