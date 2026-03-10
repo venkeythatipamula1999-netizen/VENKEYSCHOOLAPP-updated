@@ -62,6 +62,16 @@ dist/                          — Built Expo web app (static files)
 - **Frontend**: MarksScreen.js has "Download Report Card" button + modal with exam dropdown and academic year; web uses blob URL download, native uses expo-file-system + expo-sharing
 - **Dependencies**: pdfkit (backend), expo-file-system + expo-sharing (native only)
 
+## Year-End Class Promotion
+- **Backend**: `GET /api/admin/promotion/preview` returns student list with pass/fail status, attendance %, average marks for a given class
+- **Backend**: `POST /api/admin/promotion/execute` processes promote/retain/graduate actions using Firestore writeBatch for atomicity
+- **Pass criteria**: Student must score >= 35% in every subject (best score per subject across all exams)
+- **Actions**: promote (Class N → Class N+1), retain (same class + note), graduate (status → alumni)
+- **History**: All actions logged to `promotionHistory` collection with studentId, fromClass, toClass, action, performedBy, timestamp
+- **Frontend**: `AdminPromotion.js` — 4-step wizard (select class → preview with segmented controls → confirm with CONFIRM typing → result with CSV export)
+- **Security**: verifyAuth + role check (principal/admin only), schoolId tenant isolation
+- **Navigation**: Accessible from AdminOverview quickNav grid as "Promotion"
+
 ## Error Tracking System
 
 ### Overview

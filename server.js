@@ -2312,6 +2312,214 @@ app.post('/api/reports/report-card/:studentId', verifyAuth, async (req, res) => 
   }
 });
 
+app.get('/api/admin/promotion/preview', verifyAuth, async (req, res) => {
+  if (req.userRole !== 'principal' && req.userRole !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  try {
+    const { fromClass, academicYear } = req.query;
+    if (!fromClass || !academicYear) return res.status(400).json({ error: 'fromClass and academicYear are required' });
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+
+    const studentsSnap = await getDocs(query(
+      collection(db, 'students'),
+      where('schoolId', '==', schoolId),
+      where('className', '==', fromClass)
+    ));
+
+    if (studentsSnap.empty) {
+      const studentsById = await getDocs(query(
+        collection(db, 'students'),
+        where('schoolId', '==', schoolId),
+        where('classId', '==', fromClass)
+      ));
+      if (studentsById.empty) return res.json({ success: true, students: [] });
+      var studentDocs = studentsById.docs;
+    } else {
+      var studentDocs = studentsSnap.docs;
+    }
+
+    const students = [];
+    for (const sDoc of studentDocs) {
+      const s = sDoc.data();
+      const sid = s.studentId || sDoc.id;
+
+      let attendancePercent = 0;
+      try {
+        const attSnap = await getDocs(collection(db, 'student_attendance', sid, 'dates'));
+        if (!attSnap.empty) {
+          const present = attSnap.docs.filter(d => d.data().status === 'Present').length;
+          attendancePercent = Math.round((present / attSnap.size) * 100);
+        }
+      } catch (e) {}
+
+      const marksSnap = await getDocs(query(
+        collection(db, 'student_marks'),
+        where('studentId', '==', sid),
+        where('schoolId', '==', schoolId)
+      ));
+
+      let averageMarks = 0;
+      let passStatus = 'pass';
+      if (!marksSnap.empty) {
+        const subjectBest = {};
+        marksSnap.docs.forEach(d => {
+          const m = d.data();
+          const subj = normalizeSubjectName(m.subject);
+          const pct = (Number(m.maxMarks) || 20) > 0 ? Math.round((Number(m.marksObtained) || 0) / (Number(m.maxMarks) || 20) * 100) : 0;
+          if (!subjectBest[subj] || pct > subjectBest[subj]) subjectBest[subj] = pct;
+        });
+        const pcts = Object.values(subjectBest);
+        averageMarks = pcts.length > 0 ? Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length) : 0;
+        if (pcts.some(p => p < 35)) passStatus = 'fail';
+      } else {
+        passStatus = 'fail';
+      }
+
+      students.push({
+        studentId: sid,
+        docId: sDoc.id,
+        name: s.full_name || s.name || 'Unknown',
+        rollNumber: s.rollNumber || s.roll_number || '',
+        className: s.className || fromClass,
+        attendancePercent,
+        averageMarks,
+        passStatus,
+      });
+    }
+
+    students.sort((a, b) => {
+      const ra = Number(a.rollNumber) || 999;
+      const rb = Number(b.rollNumber) || 999;
+      return ra - rb;
+    });
+
+    console.log(`[promotion/preview] class=${fromClass} year=${academicYear} — ${students.length} students, ${students.filter(s => s.passStatus === 'pass').length} passing`);
+    res.json({ success: true, students });
+  } catch (err) {
+    console.error('[promotion/preview] Error:', err.message);
+    res.status(500).json({ error: 'Failed to load promotion preview' });
+  }
+});
+
+function getNextClass(className) {
+  const match = className.match(/(\d+)/);
+  if (!match) return null;
+  const num = parseInt(match[1], 10);
+  return className.replace(/\d+/, String(num + 1));
+}
+
+app.post('/api/admin/promotion/execute', verifyAuth, async (req, res) => {
+  if (req.userRole !== 'principal' && req.userRole !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  try {
+    const { promotions, academicYear } = req.body;
+    if (!promotions || !Array.isArray(promotions) || promotions.length === 0) {
+      return res.status(400).json({ error: 'promotions array is required' });
+    }
+    if (!academicYear) return res.status(400).json({ error: 'academicYear is required' });
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    const performedBy = req.userId || req.user?.email || 'admin';
+
+    const results = { promoted: 0, retained: 0, graduated: 0, errors: [] };
+    const batchSize = 400;
+    let batch = writeBatch(db);
+    let opCount = 0;
+
+    const flushBatch = async () => {
+      if (opCount > 0) {
+        await batch.commit();
+        batch = writeBatch(db);
+        opCount = 0;
+      }
+    };
+
+    for (const p of promotions) {
+      try {
+        const { studentId, action } = p;
+        if (!studentId || !['promote', 'retain', 'graduate'].includes(action)) {
+          results.errors.push({ studentId, error: 'Invalid action' });
+          continue;
+        }
+
+        let studentDocRef;
+        let studentData;
+        const byFieldSnap = await getDocs(query(
+          collection(db, 'students'),
+          where('studentId', '==', studentId),
+          where('schoolId', '==', schoolId)
+        ));
+        if (!byFieldSnap.empty) {
+          studentDocRef = byFieldSnap.docs[0].ref;
+          studentData = byFieldSnap.docs[0].data();
+        } else {
+          const directDoc = await getDocFS(doc(db, 'students', studentId));
+          if (!directDoc.exists()) {
+            results.errors.push({ studentId, error: 'Student not found' });
+            continue;
+          }
+          studentDocRef = doc(db, 'students', studentId);
+          studentData = directDoc.data();
+        }
+
+        const fromClass = studentData.className || studentData.classId || '';
+        let toClass = fromClass;
+        const updates = {};
+
+        if (action === 'promote') {
+          toClass = getNextClass(fromClass);
+          if (!toClass) {
+            results.errors.push({ studentId, error: 'Cannot determine next class' });
+            continue;
+          }
+          updates.className = toClass;
+          updates.classId = toClass;
+          results.promoted++;
+        } else if (action === 'retain') {
+          updates.notes = `Retained - ${academicYear}`;
+          results.retained++;
+        } else if (action === 'graduate') {
+          updates.status = 'alumni';
+          updates.className = '';
+          updates.classId = '';
+          toClass = 'Alumni';
+          results.graduated++;
+        }
+
+        batch.update(studentDocRef, updates);
+        opCount++;
+
+        const historyRef = doc(collection(db, 'promotionHistory'));
+        batch.set(historyRef, {
+          studentId,
+          studentName: studentData.full_name || studentData.name || '',
+          fromClass,
+          toClass: action === 'retain' ? fromClass : toClass,
+          action,
+          academicYear,
+          schoolId,
+          performedBy,
+          timestamp: serverTimestamp(),
+        });
+        opCount++;
+
+        if (opCount >= batchSize) await flushBatch();
+      } catch (pErr) {
+        results.errors.push({ studentId: p.studentId, error: pErr.message });
+      }
+    }
+
+    await flushBatch();
+
+    console.log(`[promotion/execute] year=${academicYear} by=${performedBy} — promoted:${results.promoted} retained:${results.retained} graduated:${results.graduated} errors:${results.errors.length}`);
+    res.json({ success: true, results });
+  } catch (err) {
+    console.error('[promotion/execute] Error:', err.message);
+    res.status(500).json({ error: 'Failed to execute promotions' });
+  }
+});
+
 app.get('/api/onboarded-users', async (req, res) => {
   try {
     const usersRef = collection(db, 'users');
