@@ -45,6 +45,32 @@ const verifyAdmin = async (req, res, next) => {
   }
 };
 
+const verifySuperAdmin = (req, res, next) => {
+  const key = req.headers['x-super-admin-key'];
+  if (!key) return res.status(401).json({ error: 'Super admin key required' });
+  if (key !== process.env.SUPER_ADMIN_KEY) return res.status(403).json({ error: 'Invalid super admin key' });
+  next();
+};
+
+const admin = require('firebase-admin');
+
+let adminAuth = null;
+try {
+  if (!admin.apps.length) {
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n')
+      })
+    });
+  }
+  adminAuth = admin.auth();
+  console.log('[Firebase Admin] Initialized');
+} catch (e) {
+  console.warn('[Firebase Admin] Skipped:', e.message);
+}
+
 const { initializeApp } = require('firebase/app');
 const { getFirestore, collection, query, where, getDocs, addDoc, doc, writeBatch, serverTimestamp, updateDoc, getDoc: getDocFS, deleteDoc, setDoc, orderBy } = require('firebase/firestore');
 const { getStorage, ref, uploadBytes, getDownloadURL } = require('firebase/storage');
