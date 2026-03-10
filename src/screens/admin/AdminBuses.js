@@ -17,11 +17,13 @@ export default function AdminBuses({ onBack, currentUser }) {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Add Bus form state
   const [form, setForm] = useState({
     busId: '', busNumber: '', route: '', routeId: '',
     driverName: '', driverId: '', cleanerName: '', cleanerId: ''
   });
 
+  // Assign Students state
   const [allStudents, setAllStudents] = useState([]);
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
   const [studentsLoading, setStudentsLoading] = useState(false);
@@ -62,6 +64,7 @@ export default function AdminBuses({ onBack, currentUser }) {
     setShowAssignModal(true);
     setStudentsLoading(true);
     try {
+      // Fetch all classes then all students
       const classRes = await fetch('/api/classes');
       const classData = await classRes.json();
       const classes = classData.classes || classData || [];
@@ -159,6 +162,7 @@ export default function AdminBuses({ onBack, currentUser }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.navy }}>
+      {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, paddingTop: 24 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <TouchableOpacity onPress={onBack} style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border }}>
@@ -177,6 +181,7 @@ export default function AdminBuses({ onBack, currentUser }) {
         </TouchableOpacity>
       </View>
 
+      {/* Bus List */}
       {loading ? (
         <ActivityIndicator size="large" color={C.teal} style={{ marginTop: 40 }} />
       ) : buses.length === 0 ? (
@@ -206,6 +211,7 @@ export default function AdminBuses({ onBack, currentUser }) {
                 </View>
               </View>
 
+              {/* Action buttons */}
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
                 <TouchableOpacity
                   onPress={() => openOnboardModal(bus)}
@@ -226,6 +232,7 @@ export default function AdminBuses({ onBack, currentUser }) {
         </ScrollView>
       )}
 
+      {/* ── ADD BUS MODAL ── */}
       <Modal visible={showAddModal} transparent animationType="slide" onRequestClose={() => setShowAddModal(false)}>
         <View style={{ flex: 1, backgroundColor: '#000000aa', justifyContent: 'flex-end' }}>
           <View style={{ backgroundColor: C.navy, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '90%' }}>
@@ -272,6 +279,7 @@ export default function AdminBuses({ onBack, currentUser }) {
         </View>
       </Modal>
 
+      {/* ── ASSIGN STUDENTS MODAL ── */}
       <Modal visible={showAssignModal} transparent animationType="slide" onRequestClose={() => setShowAssignModal(false)}>
         <View style={{ flex: 1, backgroundColor: '#000000aa', justifyContent: 'flex-end' }}>
           <View style={{ backgroundColor: C.navy, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '90%' }}>
@@ -342,6 +350,7 @@ export default function AdminBuses({ onBack, currentUser }) {
         </View>
       </Modal>
 
+      {/* ── ONBOARD STUDENTS MODAL ── */}
       <Modal visible={showOnboardModal} transparent animationType="slide" onRequestClose={() => setShowOnboardModal(false)}>
         <View style={{ flex: 1, backgroundColor: '#000000aa', justifyContent: 'flex-end' }}>
           <View style={{ backgroundColor: C.navy, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '80%' }}>
@@ -378,7 +387,7 @@ export default function AdminBuses({ onBack, currentUser }) {
                         <Text style={{ color: student.status === 'Onboard' ? C.teal : C.gold, fontSize: 11, fontWeight: '600' }}>{student.status}</Text>
                       </View>
                       <Text style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>
-                        {student.lastScan ? new Date(student.lastScan).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                        {new Date(student.lastScan).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                       </Text>
                     </View>
                   </View>
