@@ -16,7 +16,6 @@ import LoginScreen from './src/screens/auth/LoginScreen';
 import ParentLoginScreen from './src/screens/auth/ParentLoginScreen';
 import ParentPortalScreen from './src/screens/auth/ParentPortalScreen';
 import ParentRegisterScreen from './src/screens/auth/ParentRegisterScreen';
-import ParentPinScreen from './src/screens/auth/ParentPinScreen';
 import SignupScreen from './src/screens/auth/SignupScreen';
 import ParentDashboard from './src/screens/parent/ParentDashboard';
 import AttendanceScreen from './src/screens/parent/AttendanceScreen';
@@ -74,7 +73,6 @@ export default function App() {
   const [screen, setScreen] = useState('splash-intro');
   const [role, setRole] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
-  const [pendingPINUser, setPendingPINUser] = useState(null);
   const [leaveRequests, setLeaveRequests] = useState(INITIAL_LEAVE_REQS);
   const [cleanerStudents, setCleanerStudents] = useState(STUDENTS_INIT_CLEANER);
   const [cleanerNotifs, setCleanerNotifs] = useState(NOTIFS_INIT_CLEANER);
@@ -91,7 +89,6 @@ export default function App() {
   useEffect(() => {
     global.__onAuthExpired = () => {
       setCurrentUser(null);
-      setPendingPINUser(null);
       setRole(null);
       navigate('splash');
       setTimeout(() => {
@@ -145,35 +142,14 @@ export default function App() {
     else navigate('parent-home');
   };
 
-  const [pendingToken, setPendingToken] = useState(null);
-
-  const handleLoginSuccess = (userData, requiresPIN, token) => {
+  const handleLoginSuccess = (userData, _requiresPIN, _token) => {
     const userRole = userData.role;
     setRole(userRole);
-    if (requiresPIN && userRole === 'parent') {
-      setPendingPINUser(userData);
-      setPendingToken(token || null);
-      navigate('parent-pin');
+    setCurrentUser(userData);
+    if (!userData.profileCompleted) {
+      navigate('complete-profile');
     } else {
-      setCurrentUser(userData);
-      if (!userData.profileCompleted) {
-        navigate('complete-profile');
-      } else {
-        navigateToDashboard(userRole);
-      }
-    }
-  };
-
-  const handlePINSuccess = async () => {
-    if (pendingPINUser) {
-      if (pendingToken) {
-        await AsyncStorage.setItem('authToken', pendingToken);
-        await AsyncStorage.setItem('schoolId', pendingPINUser.schoolId || 'SP-GOPA');
-      }
-      setCurrentUser(pendingPINUser);
-      setPendingPINUser(null);
-      setPendingToken(null);
-      navigate('parent-home');
+      navigateToDashboard(userRole);
     }
   };
 
@@ -193,8 +169,6 @@ export default function App() {
     await AsyncStorage.removeItem('authToken');
     await AsyncStorage.removeItem('schoolId');
     setCurrentUser(null);
-    setPendingPINUser(null);
-    setPendingToken(null);
     setRole(null);
     navigate('splash');
   };
@@ -319,8 +293,6 @@ export default function App() {
       case 'parent-register':
         navigate('parent-portal');
         return null;
-      case 'parent-pin':
-        return <ParentPinScreen currentUser={pendingPINUser} onSuccess={handlePINSuccess} onLogout={handleLogout} />;
       case 'teacher-login':
         return <LoginScreen role="teacher" onLoginSuccess={handleLoginSuccess} onBack={() => navigate('splash')} onNavigate={navigate} />;
       case 'driver-login':

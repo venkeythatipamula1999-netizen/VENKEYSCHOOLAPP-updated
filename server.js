@@ -266,7 +266,6 @@ const PUBLIC_ROUTES = [
   { method: 'POST', path: '/api/parent/register' },
   { method: 'POST', path: '/api/parent/email-login' },
   { method: 'POST', path: '/api/parent/forgot-password' },
-  { method: 'POST', path: '/api/parent/verify-pin' },
   { method: 'GET',  path: '/api/parent/check-student' },
   { method: 'GET',  path: '/api/school-info' },
   { method: 'GET',  path: '/api/report' },
@@ -5866,7 +5865,7 @@ app.post('/api/parent/email-login', loginLimiter, async (req, res) => {
       phone: parentAccount.phone
     });
 
-    res.json({ token: jwtToken, success: true, user: sessionUser, requiresPIN: !!parentAccount.pinHash, emailVerified: userCredential.user.emailVerified });
+    res.json({ token: jwtToken, success: true, user: sessionUser, emailVerified: userCredential.user.emailVerified });
   } catch (err) {
     console.error('Parent email-login error:', err.message);
     res.status(500).json({ error: 'Login failed. Please try again.' });
@@ -5884,54 +5883,6 @@ app.post('/api/parent/forgot-password', loginLimiter, async (req, res) => {
     console.error('Forgot password error:', err.message);
     if (err.code === 'auth/user-not-found') return res.status(404).json({ error: 'No account found with this email.' });
     res.status(500).json({ error: 'Failed to send reset email. Please try again.' });
-  }
-});
-
-app.post('/api/parent/verify-pin', loginLimiter, async (req, res) => {
-  try {
-    const { uid, pin } = req.body;
-    if (!uid || !pin) return res.status(400).json({ error: 'uid and pin required' });
-    const parentAccount = await getParentAccount(uid);
-    if (!parentAccount) return res.status(404).json({ error: 'Account not found' });
-    if (!parentAccount.pinHash) return res.json({ success: true });
-    const match = await bcrypt.compare(String(pin).trim(), parentAccount.pinHash);
-    if (!match) return res.status(401).json({ error: 'Incorrect PIN. Please try again.' });
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Verify PIN error:', err.message);
-    res.status(500).json({ error: 'PIN verification failed' });
-  }
-});
-
-app.post('/api/parent/set-pin', async (req, res) => {
-  try {
-    const { uid, pin } = req.body;
-    if (!uid) return res.status(400).json({ error: 'uid required' });
-    if (!pin || !/^\d{4}$/.test(String(pin).trim())) return res.status(400).json({ error: 'PIN must be exactly 4 digits' });
-    const pinHash = await bcrypt.hash(String(pin).trim(), 10);
-    await updateDoc(doc(db, 'parent_accounts', uid), { pinHash });
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Set PIN error:', err.message);
-    res.status(500).json({ error: 'Failed to set PIN' });
-  }
-});
-
-app.post('/api/parent/remove-pin', async (req, res) => {
-  try {
-    const { uid, currentPin } = req.body;
-    if (!uid) return res.status(400).json({ error: 'uid required' });
-    const parentAccount = await getParentAccount(uid);
-    if (!parentAccount) return res.status(404).json({ error: 'Account not found' });
-    if (parentAccount.pinHash) {
-      const match = await bcrypt.compare(String(currentPin || '').trim(), parentAccount.pinHash);
-      if (!match) return res.status(401).json({ error: 'Current PIN is incorrect' });
-    }
-    await updateDoc(doc(db, 'parent_accounts', uid), { pinHash: null });
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Remove PIN error:', err.message);
-    res.status(500).json({ error: 'Failed to remove PIN' });
   }
 });
 
@@ -6476,7 +6427,7 @@ app.get('/api/report/master-audit', verifyAuth, (req, res) => {
     sectionTitle('API ENDPOINTS SUMMARY (149 Routes)', '\u{1F310}');
 
     const apiGroups = [
-      ['Authentication', 'POST /api/login, /register, /forgot-password, /parent/email-login, /parent/verify-pin, /parent/register'],
+      ['Authentication', 'POST /api/login, /register, /forgot-password, /parent/email-login, /parent/register'],
       ['Students', 'GET/POST /api/students, /student/qr/:id, CSV bulk import, class students, marks'],
       ['Attendance', 'GET/POST attendance records, submissions, edits, overrides, bulk marking'],
       ['Marks & Grades', 'GET/POST marks entry, subject-wise, unit-wise, grade calculation'],

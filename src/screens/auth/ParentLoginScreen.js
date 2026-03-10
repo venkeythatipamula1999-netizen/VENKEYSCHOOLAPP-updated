@@ -35,11 +35,11 @@ export default function ParentLoginScreen({ onLoginSuccess, onBack, onNavigate }
       });
       const data = await res.json();
       if (!res.ok) { setErrorMsg(data.error || 'Login failed. Please try again.'); return; }
-      if (data.token && !data.requiresPIN) {
+      if (data.token) {
         await AsyncStorage.setItem('authToken', data.token);
         await AsyncStorage.setItem('schoolId', data.user?.schoolId || 'SP-GOPA');
       }
-      onLoginSuccess(data.user, data.requiresPIN, data.token);
+      onLoginSuccess(data.user, false, data.token);
     } catch {
       setErrorMsg('Network error. Please check your connection.');
     } finally {
