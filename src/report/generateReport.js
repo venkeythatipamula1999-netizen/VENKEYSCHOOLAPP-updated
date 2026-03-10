@@ -208,6 +208,7 @@ function generateReport() {
     ['parent_accounts', 'Parent auth accounts. Fields: uid, phone, email, pin, childStudentIds, status'],
     ['student_files', 'Digital folder files for students. Fields: studentId, fileName, fileUrl, uploadedBy, uploadedAt'],
     ['sync_errors', 'Google Sheets sync error logs. Fields: type, error, timestamp'],
+    ['settings', 'School configuration. Fields: schoolName, tagline, principalName, phone, email, address, board, gallery[]'],
   ];
 
   const screens = [
@@ -313,6 +314,7 @@ function generateReport() {
       ['AdminSalaryScreen.js', 'src/screens/admin/AdminSalaryScreen.js'],
       ['AdminFeeScreen.js', 'src/screens/admin/AdminFeeScreen.js'],
       ['AdminBuses.js', 'src/screens/admin/AdminBuses.js'],
+      ['AdminStudentQR.js', 'src/screens/admin/AdminStudentQR.js'],
       ['AdminAlerts.js', 'src/screens/admin/AdminAlerts.js'],
       ['AdminSettings.js', 'src/screens/admin/AdminSettings.js'],
       ['AdminProfile.js', 'src/screens/admin/AdminProfile.js'],
@@ -467,7 +469,7 @@ function generateReport() {
   <div class="cover-stats">
     <div class="stat"><div class="val">5</div><div class="lbl">User Roles</div></div>
     <div class="stat"><div class="val">68+</div><div class="lbl">Source Files</div></div>
-    <div class="stat"><div class="val">~6.2k</div><div class="lbl">Server Lines</div></div>
+    <div class="stat"><div class="val">~6,500</div><div class="lbl">Lines of Code</div></div>
     <div class="stat"><div class="val">${collections.length}</div><div class="lbl">Firestore Collections</div></div>
     <div class="stat"><div class="val">${apiRoutes.length}</div><div class="lbl">API Routes</div></div>
     <div class="stat"><div class="val">Firebase</div><div class="lbl">Database &amp; Auth</div></div>
@@ -584,15 +586,21 @@ function generateReport() {
     <span class="tag tag-ok">Parent bus tracking with live location</span>
     <span class="tag tag-ok">Event management (CRUD + re-notify)</span>
     <span class="tag tag-ok">Fee reminders with acknowledgment</span>
+    <span class="tag tag-ok">DriverDashboard → real-time scan count polling every 5s</span>
+    <span class="tag tag-ok">CleanerDashboard → real onboard count from Firestore</span>
+    <span class="tag tag-ok">Student QR codes → generated and displayed via AdminStudentQR screen</span>
+    <span class="tag tag-ok">Wrong bus alert → admin high-priority notification + parent notification</span>
+    <span class="tag tag-ok">Duplicate scan prevention → 5 minute cooldown per student</span>
+    <span class="tag tag-ok">Admin school info + gallery upload</span>
+    <span class="tag tag-ok">ExploreScreen + ContactScreen → real Firestore data</span>
+    <span class="tag tag-ok">AdminStudents → routed and accessible from AdminClasses</span>
+    <span class="tag tag-ok">CompleteProfileScreen → triggers after login if profile incomplete</span>
   </div>
   <div class="analysis-card">
-    <h4>⚠️ Known Incomplete / Hardcoded Features</h4>
-    <span class="tag tag-warn">CleanerDuration — static display</span>
-    <span class="tag tag-warn">CompleteProfileScreen — imported but unreachable in nav</span>
-    <span class="tag tag-warn">AdminStudents — imported but unrouted in nav</span>
-    <span class="tag tag-warn">Camera QR scanning requires device with camera (web preview may prompt for permission)</span>
-    <span class="tag tag-warn">Firebase API key hardcoded as fallback in config.js</span>
-    <span class="tag tag-warn">In-memory scan dedup (recentScans) resets on server restart</span>
+    <h4>⚠️ Known Incomplete Features</h4>
+    <span class="tag tag-warn">FCM Push Notifications — deferred to native deployment via Expo EAS</span>
+    <span class="tag tag-warn">Fee payment gateway — basic recording only, no payment processor integrated</span>
+    <span class="tag tag-warn">DigitalFolder — screen exists but no real document upload/download yet</span>
   </div>
   <div class="analysis-card">
     <h4>📌 Important Notes for Developers</h4>
@@ -602,6 +610,10 @@ function generateReport() {
       <li>Subject names are normalized by <code>normalizeSubjectName()</code> in server.js — covers math/maths/Mathematics etc.</li>
       <li>Trip timestamps use IST: <code>new Date(Date.now() + 330 * 60000)</code></li>
       <li>Firestore security rules are deployed and enforced. The rules file is at <code>firestore.rules</code></li>
+      <li>QR code format: <code>SREE_PRAGATHI|school_001|{studentId}</code> — must match exactly for scan validation</li>
+      <li>Admin must create buses via Bus Management screen before assigning students</li>
+      <li>Student busId must be set via Assign Students before wrong-bus detection works correctly</li>
+      <li>Firestore rules file (<code>firestore.rules</code>) is deployed — do not revert to <code>allow read, write: if true</code></li>
     </ul>
   </div>
 </div>
