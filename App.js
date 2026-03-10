@@ -36,7 +36,9 @@ import TeacherBusMonitor from './src/screens/teacher/TeacherBusMonitor';
 import TeacherAlertsScreen from './src/screens/teacher/TeacherAlertsScreen';
 import TeacherPersonalScreen from './src/screens/teacher/TeacherPersonalScreen';
 import TeacherProfile from './src/screens/teacher/TeacherProfile';
+import TeacherSendDocument from './src/screens/teacher/TeacherSendDocument';
 import AdminOverview from './src/screens/admin/AdminOverview';
+import AdminSendDocument from './src/screens/admin/AdminSendDocument';
 import AdminStudents from './src/screens/admin/AdminStudents';
 import AdminUsers from './src/screens/admin/AdminUsers';
 import AdminClasses from './src/screens/admin/AdminClasses';
@@ -132,7 +134,7 @@ export default function App() {
     }
   };
 
-  const adminScreens = ['admin-home', 'admin-users', 'admin-classes', 'admin-buses', 'admin-reports', 'admin-alerts', 'admin-settings', 'admin-activities', 'admin-leaves', 'admin-fees', 'admin-salary', 'admin-profile', 'admin-promotion', 'admin-fee-status'];
+  const adminScreens = ['admin-home', 'admin-users', 'admin-classes', 'admin-buses', 'admin-reports', 'admin-alerts', 'admin-settings', 'admin-activities', 'admin-leaves', 'admin-fees', 'admin-salary', 'admin-profile', 'admin-promotion', 'admin-fee-status', 'admin-send-document'];
 
   const navigateToDashboard = (userRole) => {
     if (userRole === 'principal') navigate('admin-home');
@@ -176,7 +178,7 @@ export default function App() {
   const driverScreens = ['driver-home', 'driver-scans', 'driver-locations', 'driver-duration', 'driver-profile', 'driver-leave', 'driver-proximity'];
   const cleanerScreens = ['cleaner-home', 'cleaner-scanner', 'cleaner-duration', 'cleaner-alerts', 'cleaner-profile', 'cleaner-leave'];
   const isParentHome = ['parent-home', 'attendance', 'marks', 'bus', 'notifications', 'activities', 'fee', 'leave', 'digital-folder'].includes(screen);
-  const isTeacherHome = ['teacher-home', 'teacher-attendance', 'teacher-marks', 'teacher-schedule', 'teacher-bus', 'teacher-alerts', 'teacher-personal', 'teacher-profile'].includes(screen);
+  const isTeacherHome = ['teacher-home', 'teacher-attendance', 'teacher-marks', 'teacher-schedule', 'teacher-bus', 'teacher-alerts', 'teacher-personal', 'teacher-profile', 'teacher-send-document'].includes(screen);
   const isDriverHome = driverScreens.includes(screen);
   const isCleanerHome = cleanerScreens.includes(screen);
   const isAdminHome = adminScreens.includes(screen);
@@ -310,7 +312,7 @@ export default function App() {
       case 'fee': return <FeeScreen onBack={() => navigate('parent-home')} currentUser={currentUser} />;
       case 'leave': return <LeaveScreen onBack={() => navigate('parent-home')} currentUser={currentUser} />;
       case 'digital-folder': return <DigitalFolder onBack={() => navigate('parent-home')} currentUser={currentUser} />;
-      case 'teacher-home': return <TeacherDashboard onNavigate={navigate} currentUser={currentUser} />;
+      case 'teacher-home': return <TeacherDashboard onNavigate={navigate} currentUser={currentUser} onLogout={handleLogout} currentScreen={screen} />;
       case 'teacher-attendance': return <TeacherAttendance onBack={() => navigate('teacher-home')} currentUser={currentUser} />;
       case 'teacher-marks': return <TeacherMarksScreen onBack={() => navigate('teacher-home')} currentUser={currentUser} />;
       case 'teacher-schedule': return <TeacherScheduleScreen onBack={() => navigate('teacher-home')} currentUser={currentUser} />;
@@ -318,6 +320,7 @@ export default function App() {
       case 'teacher-alerts': return <TeacherAlertsScreen onBack={() => navigate('teacher-home')} requests={leaveRequests} setRequests={setLeaveRequests} currentUser={currentUser} />;
       case 'teacher-personal': return <TeacherPersonalScreen onBack={() => navigate('teacher-home')} currentUser={currentUser} />;
       case 'teacher-profile': return <TeacherProfile onBack={() => navigate('teacher-home')} currentUser={currentUser} onLogout={handleLogout} />;
+      case 'teacher-send-document': return <TeacherSendDocument onBack={() => navigate('teacher-home')} currentUser={currentUser} isAdmin={false} />;
       case 'explore': return <ExploreScreen onBack={() => navigate('splash')} />;
       case 'contact': return <ContactScreen onBack={() => navigate('splash')} />;
       case 'driver-home': return <DriverDashboard onNavigate={navigate} currentUser={currentUser} />;
@@ -333,7 +336,7 @@ export default function App() {
       case 'cleaner-alerts': return <CleanerAlerts onBack={() => navigate('cleaner-home')} notifs={cleanerNotifs} setNotifs={setCleanerNotifs} />;
       case 'cleaner-profile': return <CleanerProfile onBack={() => navigate('cleaner-home')} currentUser={currentUser} onLogout={handleLogout} />;
       case 'cleaner-leave': return <CleanerLeave onBack={() => navigate('cleaner-home')} currentUser={currentUser} />;
-      case 'admin-home': return <AdminOverview onNavigate={navigate} currentUser={currentUser} />;
+      case 'admin-home': return <AdminOverview onNavigate={navigate} currentUser={currentUser} onLogout={handleLogout} currentScreen={screen} />;
       case 'admin-users': return <AdminUsers onBack={() => navigate('admin-home')} />;
       case 'admin-classes': return <AdminClasses onBack={() => navigate('admin-home')} currentUser={currentUser} onNavigate={navigate} />;
       case 'admin-student-qr': return <AdminStudentQR onBack={() => navigate('admin-classes')} currentUser={currentUser} />;
@@ -349,6 +352,7 @@ export default function App() {
     case 'admin-fee-status': return <AdminFeeStatus onBack={() => navigate('admin-home')} />;
     case 'admin-students': return <AdminStudents onBack={() => navigate('admin-classes')} classItem={currentUser?.selectedClass} />;
     case 'admin-profile': return <AdminProfile onBack={() => navigate('admin-home')} currentUser={currentUser} onLogout={handleLogout} onUpdateUser={(u) => setCurrentUser(u)} />;
+    case 'admin-send-document': return <AdminSendDocument onBack={() => navigate('admin-home')} currentUser={currentUser} />;
       default: return null;
     }
   };

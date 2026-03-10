@@ -5545,6 +5545,112 @@ app.get('/api/student-files', async (req, res) => {
   }
 });
 
+app.get('/api/teacher/sendable-students', verifyAuth, async (req, res) => {
+  try {
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    const role = req.userRole;
+    const studentsSnap = await getDocs(query(collection(db, 'students'), where('schoolId', '==', schoolId)));
+    const allStudents = studentsSnap.docs.map(d => ({
+      id: d.id,
+      name: d.data().name || d.data().studentName || '',
+      rollNumber: d.data().rollNumber || '',
+      className: d.data().className || d.data().classId || 'Unknown',
+    }));
+    if (role === 'teacher') {
+      const userDoc = await getDocFS(doc(db, 'users', req.userId));
+      const userData = userDoc.exists() ? userDoc.data() : {};
+      const assignedClasses = userData.assignedClasses || [];
+      const filtered = allStudents.filter(s => assignedClasses.includes(s.className));
+      const grouped = {};
+      for (const s of filtered) {
+        if (!grouped[s.className]) grouped[s.className] = [];
+        grouped[s.className].push({ id: s.id, name: s.name, rollNumber: s.rollNumber });
+      }
+      const classes = Object.entries(grouped)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([className, students]) => ({ className, students }));
+      return res.json({ classes });
+    } else {
+      const grouped = {};
+      for (const s of allStudents) {
+        if (!grouped[s.className]) grouped[s.className] = [];
+        grouped[s.className].push({ id: s.id, name: s.name, rollNumber: s.rollNumber });
+      }
+      const classes = Object.entries(grouped)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([className, students]) => ({ className, students }));
+      classes.unshift({
+        className: `All Classes (${allStudents.length} students)`,
+        isAll: true,
+        students: allStudents.map(s => ({ id: s.id, name: s.name })),
+        studentCount: allStudents.length,
+      });
+      return res.json({ classes });
+    }
+  } catch (err) {
+    console.error('Sendable students error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch students' });
+  }
+});
+
+app.post('/api/student-files/send', verifyAuth, async (req, res) => {
+  try {
+    const { studentIds, fileUrl, fileName, fileType, fileSize, message, senderName, senderRole } = req.body;
+    if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
+      return res.status(400).json({ error: 'studentIds array required' });
+    }
+    if (!fileUrl || !fileName) return res.status(400).json({ error: 'fileUrl and fileName required' });
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    if (req.userRole === 'teacher') {
+      const userDoc = await getDocFS(doc(db, 'users', req.userId));
+      const userData = userDoc.exists() ? userDoc.data() : {};
+      const assignedClasses = userData.assignedClasses || [];
+      const studentsSnap = await getDocs(query(collection(db, 'students'), where('schoolId', '==', schoolId)));
+      const allowedIds = new Set(
+        studentsSnap.docs
+          .filter(d => assignedClasses.includes(d.data().className || d.data().classId))
+          .map(d => d.id)
+      );
+      const unauthorized = studentIds.filter(id => !allowedIds.has(id));
+      if (unauthorized.length > 0) {
+        return res.status(403).json({ error: 'You do not have permission to send files to some of these students' });
+      }
+    }
+    const now = new Date().toISOString();
+    const CHUNK = 200;
+    let count = 0;
+    for (let i = 0; i < studentIds.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      const chunk = studentIds.slice(i, i + CHUNK);
+      for (const studentId of chunk) {
+        batch.set(doc(collection(db, 'student_files')), {
+          studentId, fileUrl, fileName,
+          fileType: fileType || 'application/octet-stream',
+          fileSize: fileSize || 0,
+          message: message || '',
+          senderName: senderName || 'Teacher',
+          senderRole: senderRole || 'teacher',
+          schoolId, uploadedAt: now,
+        });
+        batch.set(doc(collection(db, 'parent_notifications')), {
+          studentId,
+          type: 'new_document',
+          title: `New document from ${senderName || 'Teacher'}`,
+          message: `${senderName || 'Teacher'} sent ${fileName} to your child`,
+          fileUrl, fileName, schoolId,
+          read: false, createdAt: now,
+        });
+        count++;
+      }
+      await batch.commit();
+    }
+    res.json({ success: true, sent: count });
+  } catch (err) {
+    console.error('Student files send error:', err.message);
+    res.status(500).json({ error: 'Failed to send files' });
+  }
+});
+
 async function lookupStudentById(studentId) {
   const studentsQ = query(collection(db, 'students'), where('studentId', '==', studentId));
   const snap = await getDocs(studentsQ);

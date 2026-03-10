@@ -5,6 +5,7 @@ import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { getFriendlyError } from '../../utils/errorMessages';
+import SideDrawer from '../../components/SideDrawer';
 
 const CLASS_COLORS = [C.teal, C.gold, C.purple, C.coral, '#60A5FA', '#F472B6', '#34D399', '#FB923C'];
 
@@ -185,7 +186,8 @@ function normalizeGrade(s) {
   return (s || '').trim().replace(/^Grade\s+/i, '');
 }
 
-export default function TeacherDashboard({ onNavigate, currentUser }) {
+export default function TeacherDashboard({ onNavigate, currentUser, onLogout, currentScreen }) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [showTodaySheet, setShowTodaySheet] = useState(false);
   const [onDuty, setOnDuty] = useState(false);
   const [dutyLoading, setDutyLoading] = useState(false);
@@ -327,7 +329,8 @@ export default function TeacherDashboard({ onNavigate, currentUser }) {
   }, 0);
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: C.navy }}>
+    <>
+      <ScrollView style={{ flex: 1, backgroundColor: C.navy }}>
       {showTodaySheet && (
         <TodayClassesSheet
           onClose={() => setShowTodaySheet(false)}
@@ -340,6 +343,13 @@ export default function TeacherDashboard({ onNavigate, currentUser }) {
 
       <View style={{ padding: 20, paddingTop: 8, paddingBottom: 16 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <TouchableOpacity
+            onPress={() => setDrawerOpen(true)}
+            style={{ width: 38, height: 38, alignItems: 'center', justifyContent: 'center', backgroundColor: C.card, borderRadius: 11, borderWidth: 1, borderColor: C.border, marginRight: 10, flexShrink: 0 }}
+            activeOpacity={0.7}
+          >
+            <Text style={{ fontSize: 17, color: C.white }}>☰</Text>
+          </TouchableOpacity>
           <View style={{ flex: 1, marginRight: 12 }}>
             <Text style={{ color: C.muted, fontSize: 13, marginBottom: 2 }}>Welcome,</Text>
             <Text style={{ fontSize: 22, fontWeight: '700', color: C.white }} numberOfLines={1}>{displayName}!</Text>
@@ -558,6 +568,16 @@ export default function TeacherDashboard({ onNavigate, currentUser }) {
         })}
       </View>
     </ScrollView>
+    <SideDrawer
+      visible={drawerOpen}
+      onClose={() => setDrawerOpen(false)}
+      currentUser={currentUser}
+      onNavigate={(scr) => { setDrawerOpen(false); onNavigate(scr); }}
+      onLogout={onLogout}
+      role="teacher"
+      currentScreen={currentScreen}
+    />
+    </>
   );
 }
 

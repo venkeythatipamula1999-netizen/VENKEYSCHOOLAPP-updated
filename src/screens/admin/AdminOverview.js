@@ -6,6 +6,7 @@ import { apiFetch } from '../../api/client';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import Toast from '../../components/Toast';
 import { getFriendlyError } from '../../utils/errorMessages';
+import SideDrawer from '../../components/SideDrawer';
 const ROLE_COLORS = { teacher: C.gold, driver: C.teal, cleaner: C.coral };
 const STATUS_COLORS = {
   'Class in Progress': C.purple,
@@ -17,7 +18,8 @@ const STATUS_COLORS = {
   'Auto Clock-Out': C.coral,
 };
 
-export default function AdminOverview({ onNavigate, currentUser }) {
+export default function AdminOverview({ onNavigate, currentUser, onLogout, currentScreen }) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [realStats, setRealStats] = useState({ teachers: 0, drivers: 0, cleaners: 0, classes: 0 });
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [syncStatus, setSyncStatus] = useState(null);
@@ -194,6 +196,7 @@ export default function AdminOverview({ onNavigate, currentUser }) {
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   return (
+    <>
     <ScrollView style={styles.container}>
       {syncStatus !== null && (
         <View style={{ marginHorizontal: 20, marginTop: 16, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: syncStatus.synced ? 'rgba(52,211,153,0.12)' : 'rgba(251,146,60,0.12)', borderWidth: 1, borderColor: syncStatus.synced ? '#34D399' : '#FB923C' }}>
@@ -205,9 +208,18 @@ export default function AdminOverview({ onNavigate, currentUser }) {
       )}
       <View style={{ padding: 20, paddingBottom: 0 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
-          <View>
-            <Text style={{ color: C.muted, fontSize: 12, marginBottom: 4 }}>Master Admin · {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
-            <Text style={{ fontSize: 22, fontWeight: '700', color: C.white }}>School Overview</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+            <TouchableOpacity
+              onPress={() => setDrawerOpen(true)}
+              style={{ width: 38, height: 38, alignItems: 'center', justifyContent: 'center', backgroundColor: C.card, borderRadius: 11, borderWidth: 1, borderColor: C.border, flexShrink: 0, marginTop: 2 }}
+              activeOpacity={0.7}
+            >
+              <Text style={{ fontSize: 17, color: C.white }}>☰</Text>
+            </TouchableOpacity>
+            <View>
+              <Text style={{ color: C.muted, fontSize: 12, marginBottom: 4 }}>Master Admin · {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
+              <Text style={{ fontSize: 22, fontWeight: '700', color: C.white }}>School Overview</Text>
+            </View>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <TouchableOpacity onPress={() => onNavigate('admin-alerts')} style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' }}>
@@ -383,6 +395,16 @@ export default function AdminOverview({ onNavigate, currentUser }) {
         </TouchableOpacity>
       </View>
     </ScrollView>
+    <SideDrawer
+      visible={drawerOpen}
+      onClose={() => setDrawerOpen(false)}
+      currentUser={currentUser}
+      onNavigate={(scr) => { setDrawerOpen(false); onNavigate(scr); }}
+      onLogout={onLogout}
+      role="principal"
+      currentScreen={currentScreen}
+    />
+    </>
   );
 }
 
