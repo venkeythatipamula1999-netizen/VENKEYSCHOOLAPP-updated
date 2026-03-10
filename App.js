@@ -8,6 +8,7 @@ import { INITIAL_LEAVE_REQS } from './src/data/teacher';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { useGlobalErrorListener } from './src/hooks/useGlobalErrorListener';
 import { setErrorReporterUser, clearErrorReporterUser } from './src/services/errorReporter';
+import OfflineBanner from './src/components/OfflineBanner';
 
 import SplashScreen from './src/screens/auth/SplashScreen';
 import SplashIntroScreen from './src/screens/auth/SplashIntroScreen';
@@ -431,11 +432,13 @@ export default function App() {
 
   const appContent = isWeb ? (
     <View style={{ flex: 1, backgroundColor: '#050F1E', alignItems: 'center', justifyContent: 'center', paddingVertical: 20 }}>
+      <OfflineBanner />
       {content}
     </View>
   ) : (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }}>
       <StatusBar barStyle="light-content" backgroundColor={C.navy} />
+      <OfflineBanner />
       {content}
     </SafeAreaView>
   );
