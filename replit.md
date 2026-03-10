@@ -195,6 +195,7 @@ FIREBASE_APP_ID=1:774655999002:android:6ccc7fd89c5c57598565a3
 - **Collections with schoolId**: students, classes, users, student_marks, attendance_records, attendance_submissions, attendance_edits, attendance_overrides, leave_requests, leaveRequests, events, buses, bus_trips, live_bus_locations, trip_scans, trip_summaries, tripLogs, proximity_alert_logs, location_change_requests, parent_notifications, admin_notifications, teacher_notifications, driver_notifications, fee_reminders, student_files, salary_payments, marks_edit_logs, student_stops, parent_accounts, onboarded_users, staff_duty, salary_settings
 - **System-level collections** (NO schoolId): sync_errors, scan_rejection_logs, alerts
 - **Super Admin routes**: `/api/super/*` — use `adminDb` (firebase-admin) to bypass Firestore rules, protected by `verifySuperAdmin` middleware (`x-super-admin-key` header)
+- **Super Admin endpoints**: stats, list schools, create school, school detail, school summary, school activity, security logs, status toggle, subscription update, hard delete school (see `SUPER_ADMIN_API.md`)
 - **Firestore `schools` collection**: One doc per school (e.g. `schools/SP-GOPA`) with name, location, status, plan, createdAt
 - **`sendEventNotifications()`** accepts `schoolId` as last parameter for user/student scoping
 

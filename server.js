@@ -5746,24 +5746,106 @@ app.get('/api/super/stats', superAdminLimiter, verifySuperAdmin, async (req, res
   }
 });
 
-app.post('/api/super/migrate/wipe-school-001', superAdminLimiter, verifySuperAdmin, async (req, res) => {
+app.get('/api/super/schools/:schoolId/activity', superAdminLimiter, verifySuperAdmin, async (req, res) => {
   try {
-    const cols = ['students','classes','users','student_marks','student_attendance',
-      'attendance_records','leaveRequests','leave_requests','buses','bus_trips',
-      'trip_scans','events','activities','salary_settings','salary_payments',
-      'staff_duty','fee_reminders'];
-    let totalDeleted = 0;
-    for (const colName of cols) {
-      try {
-        const snap = await adminDb.collection(colName).where('schoolId', '==', 'school_001').get();
-        for (const d of snap.docs) {
-          await adminDb.collection(colName).doc(d.id).delete();
-          totalDeleted++;
+    const { schoolId } = req.params;
+    const { limit: limitCount = 20 } = req.query;
+
+    const [studentsSnap, staffSnap, tripsSnap, scansSnap] = await Promise.all([
+      adminDb.collection('students').where('schoolId', '==', schoolId)
+        .orderBy('createdAt', 'desc').limit(5).get(),
+      adminDb.collection('users').where('schoolId', '==', schoolId)
+        .orderBy('created_at', 'desc').limit(5).get(),
+      adminDb.collection('bus_trips').where('schoolId', '==', schoolId)
+        .orderBy('startTime', 'desc').limit(5).get(),
+      adminDb.collection('trip_scans').where('schoolId', '==', schoolId)
+        .orderBy('timestamp', 'desc').limit(5).get()
+    ]);
+
+    const activity = [
+      ...studentsSnap.docs.map(d => ({ type: 'student_added', name: d.data().name, time: d.data().createdAt })),
+      ...staffSnap.docs.map(d => ({ type: 'staff_added', name: d.data().full_name, role: d.data().role, time: d.data().created_at })),
+      ...tripsSnap.docs.map(d => ({ type: 'trip', tripType: d.data().tripType, status: d.data().status, time: d.data().startTime })),
+      ...scansSnap.docs.map(d => ({ type: 'scan', studentName: d.data().studentName, scanType: d.data().type, time: d.data().timestamp }))
+    ].sort((a, b) => (b.time || '').localeCompare(a.time || '')).slice(0, parseInt(limitCount));
+
+    res.json({ success: true, schoolId, activity });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/super/schools/:schoolId/summary', superAdminLimiter, verifySuperAdmin, async (req, res) => {
+  try {
+    const { schoolId } = req.params;
+
+    const schoolSnap = await adminDb.collection('schools').doc(schoolId).get();
+    if (!schoolSnap.exists) return res.status(404).json({ error: 'School not found' });
+
+    const [
+      studentsSnap, usersSnap, classesSnap,
+      tripsSnap, scansSnap, leavesSnap
+    ] = await Promise.all([
+      adminDb.collection('students').where('schoolId', '==', schoolId).get(),
+      adminDb.collection('users').where('schoolId', '==', schoolId).get(),
+      adminDb.collection('classes').where('schoolId', '==', schoolId).get(),
+      adminDb.collection('bus_trips').where('schoolId', '==', schoolId).get(),
+      adminDb.collection('trip_scans').where('schoolId', '==', schoolId).get(),
+      adminDb.collection('leaveRequests').where('schoolId', '==', schoolId).get()
+    ]);
+
+    const staff = usersSnap.docs.map(d => d.data());
+
+    res.json({
+      success: true,
+      school: { id: schoolSnap.id, ...schoolSnap.data() },
+      stats: {
+        totalStudents: studentsSnap.size,
+        totalStaff: usersSnap.size,
+        totalClasses: classesSnap.size,
+        totalTrips: tripsSnap.size,
+        totalScans: scansSnap.size,
+        pendingLeaves: leavesSnap.docs.filter(d => d.data().status === 'Pending').length,
+        byRole: {
+          teachers: staff.filter(u => u.role === 'teacher').length,
+          drivers: staff.filter(u => u.role === 'driver').length,
+          cleaners: staff.filter(u => u.role === 'cleaner').length,
+          principal: staff.filter(u => u.role === 'principal').length
         }
-      } catch(e) { console.warn(`Skipped ${colName}:`, e.message); }
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/super/schools/:schoolId', superAdminLimiter, verifySuperAdmin, async (req, res) => {
+  try {
+    const { schoolId } = req.params;
+    const { confirm } = req.body;
+    if (confirm !== `DELETE_${schoolId}`) {
+      return res.status(400).json({ error: `Send confirm: DELETE_${schoolId} to proceed` });
     }
-    try { await adminDb.collection('settings').doc('school_001').delete(); totalDeleted++; } catch(e) {}
-    res.json({ success: true, totalDeleted, message: 'school_001 wiped' });
+
+    await adminDb.collection('schools').doc(schoolId).delete();
+    await adminDb.collection('settings').doc(schoolId).delete().catch(() => {});
+
+    res.json({ success: true, message: `School ${schoolId} deleted. Data remains in collections with schoolId tag.` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/super/schools/:schoolId/security-logs', superAdminLimiter, verifySuperAdmin, async (req, res) => {
+  try {
+    const { schoolId } = req.params;
+    const snap = await adminDb.collection('scan_rejection_logs')
+      .where('schoolId', '==', schoolId)
+      .orderBy('timestamp', 'desc')
+      .limit(50)
+      .get();
+    const logs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    res.json({ success: true, logs, total: logs.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
