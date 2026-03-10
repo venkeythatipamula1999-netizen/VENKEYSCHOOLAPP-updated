@@ -41,7 +41,8 @@ async function runDailyBackup() {
   }
 
   const today = new Date().toISOString().slice(0, 10);
-  const outputUriPrefix = `gs://${bucketName}/backups/${today}/sree-pragathi-backup`;
+  const bucketUri = bucketName.startsWith('gs://') ? bucketName : `gs://${bucketName}`;
+  const outputUriPrefix = `${bucketUri}/backups/${today}/sree-pragathi-backup`;
 
   const client = new v1.FirestoreAdminClient();
   const databaseName = client.databasePath(projectId, '(default)');
