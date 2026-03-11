@@ -6,6 +6,7 @@ import {
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
+import { getFriendlyError } from '../../utils/errorMessages';
 
 export default function AdminStudents({ onBack, classItem }) {
   const [students, setStudents] = useState([]);
@@ -34,8 +35,9 @@ export default function AdminStudents({ onBack, classItem }) {
       const res = await apiFetch(`/students/${classItem.id}?t=` + Date.now(), { cache: 'no-store' });
       const data = await res.json();
       setStudents(data.success ? (data.students || []) : []);
-    } catch {
+    } catch (e) {
       setStudents([]);
+      setErrorMsg(getFriendlyError(e, 'Failed to load students'));
     } finally {
       setLoading(false);
     }
@@ -78,8 +80,8 @@ export default function AdminStudents({ onBack, classItem }) {
       setShowForm(false);
       showSuccess(`${name.trim()} added successfully!`);
       fetchStudents();
-    } catch {
-      setErrorMsg('Network error. Please try again.');
+    } catch (e) {
+      setErrorMsg(getFriendlyError(e, 'Network error. Please try again.'));
     } finally {
       setSaving(false);
     }
@@ -94,8 +96,9 @@ export default function AdminStudents({ onBack, classItem }) {
         setStudents(prev => prev.filter(s => s.id !== student.id));
         showSuccess(`${student.name} removed.`);
       }
-    } catch {}
-    finally { setDeleting(null); }
+    } catch (e) {
+      setErrorMsg(getFriendlyError(e, 'Failed to delete student'));
+    } finally { setDeleting(null); }
   };
 
   const handleFileChange = async (e) => {
@@ -132,8 +135,8 @@ export default function AdminStudents({ onBack, classItem }) {
       if (data.marksCreated > 0) parts.push(`${data.marksCreated} Marks Records Created`);
       showSuccess(parts.join(', '));
       fetchStudents();
-    } catch {
-      setErrorMsg('Network error during upload. Please try again.');
+    } catch (e) {
+      setErrorMsg(getFriendlyError(e, 'Network error during upload. Please try again.'));
     } finally {
       setUploading(false);
     }

@@ -53,7 +53,7 @@ export default function ParentDashboard({ onNavigate, currentUser, onLogout, onU
       if (att.success) setAttSummary(att.summary);
       if (marks.success) setMarksSummary(marks);
       setLiveNotifs((notifs.notifications || []).slice(0, 3));
-    }).catch(() => {}).finally(() => setLoading(false));
+    }).catch((e) => console.error('Dashboard load:', getFriendlyError(e, 'Failed to load dashboard'))).finally(() => setLoading(false));
   }, [studentId]);
 
   const handleSwitchChild = async (targetStudentId) => {
@@ -69,7 +69,7 @@ export default function ParentDashboard({ onNavigate, currentUser, onLogout, onU
         onUpdateUser(data.user);
         setShowChildSwitcher(false);
       }
-    } catch {}
+    } catch (e) { console.error('Dashboard error:', getFriendlyError(e, 'Failed to load data')); }
     finally { setSwitchLoading(false); }
   };
 

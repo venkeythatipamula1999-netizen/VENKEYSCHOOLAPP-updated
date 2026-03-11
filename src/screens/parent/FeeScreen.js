@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
+import { getFriendlyError } from '../../utils/errorMessages';
 import Toast from '../../components/Toast';
 
 export default function FeeScreen({ onBack, currentUser }) {
@@ -10,6 +11,7 @@ export default function FeeScreen({ onBack, currentUser }) {
   const [remindersLoading, setRemindersLoading] = useState(false);
   const [ackLoading, setAckLoading] = useState(null);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
+  const [error, setError] = useState(null);
 
   const studentId = currentUser?.studentId || 'student-101';
 
@@ -33,7 +35,7 @@ export default function FeeScreen({ onBack, currentUser }) {
         setReminders(prev => prev.map(r => r.id === reminderId ? { ...r, parentAcknowledged: true } : r));
         setToast({ visible: true, message: 'Acknowledgement sent to school', type: 'success' });
       }
-    } catch (e) {}
+    } catch (e) { setError(getFriendlyError(e, 'Failed to load fee details')); }
     setAckLoading(null);
   };
 
@@ -59,6 +61,7 @@ export default function FeeScreen({ onBack, currentUser }) {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.navy }}>
+      {error ? <Text style={{ color: 'red', padding: 12, textAlign: 'center' }}>{error}</Text> : null}
       <View style={st.header}>
         <TouchableOpacity style={st.backBtn} onPress={onBack}><Icon name="back" size={18} color={C.white} /></TouchableOpacity>
         <View>

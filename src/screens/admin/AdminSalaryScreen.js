@@ -252,7 +252,7 @@ function EmployeeDetail({ employee, month, currentUser, onBack }) {
       const r = await apiFetch(`/duty/status?roleId=${encodeURIComponent(employee.roleId)}`);
       const data = await r.json();
       setTodayDuty(data);
-    } catch (e) {}
+    } catch (e) { console.error('Salary error:', getFriendlyError(e, 'Failed to process salary')); }
   }, [employee.roleId]);
 
   useEffect(() => {

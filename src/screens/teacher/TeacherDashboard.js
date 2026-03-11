@@ -274,7 +274,7 @@ export default function TeacherDashboard({ onNavigate, currentUser, onLogout, cu
           setCurrentStatus(data.currentStatus || 'Available');
         }
       })
-      .catch(() => {});
+      .catch((e) => console.error('Teacher load:', getFriendlyError(e, 'Failed to load data')));
   }, [teacherId]);
 
   useEffect(() => {
@@ -284,7 +284,7 @@ export default function TeacherDashboard({ onNavigate, currentUser, onLogout, cu
     apiFetch('/duty/update-status', {
       method: 'POST',
       body: JSON.stringify({ roleId: teacherId, currentStatus: newStatus }),
-    }).catch(() => {});
+    }).catch((e) => console.error('Teacher load:', getFriendlyError(e, 'Failed to load data')));
   }, [onDuty, teacherId, currentClass]);
 
   const handleDutyToggle = useCallback(async () => {
