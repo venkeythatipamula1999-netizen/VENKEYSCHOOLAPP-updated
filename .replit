@@ -49,6 +49,9 @@ bF3HzcvtiNByT5H40oinKpX5vrPHlliB7jF05sN5LrhIBN4r1eSd0ONEslPYuA5j
 APP_URL = "https://venkeyschoolapp-updated.replit.app"
 JWT_SECRET = "0e18dd7aab24b2754ce215104d9b61a1ec2ba066f1cbfaaedcb5dd68a20529ba"
 BACKUP_BUCKET_NAME = "gs://school-app-87900.appspot.com"
+PRINCIPAL_EMAIL = "thatipamulavenkatesh1999@gmail.com"
+ACADEMIC_START = "2025-06-02"
+ACADEMIC_END = "2026-04-30"
 
 [workflows]
 runButton = "Project"
