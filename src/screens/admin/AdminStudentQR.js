@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView,
-  ActivityIndicator, TextInput
+  ActivityIndicator, TextInput, BackHandler,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { C } from '../../theme/colors';
@@ -18,6 +18,11 @@ export default function AdminStudentQR({ onBack, currentUser }) {
   const [loading, setLoading] = useState(true);
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]);
 
   // Fetch all classes on mount
   useEffect(() => {

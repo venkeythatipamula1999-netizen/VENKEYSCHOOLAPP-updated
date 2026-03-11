@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView,
-  Modal, ActivityIndicator, TextInput
+  Modal, ActivityIndicator, TextInput, BackHandler,
 } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
@@ -32,6 +32,12 @@ export default function AdminBuses({ onBack, currentUser }) {
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]);
+
   const showToast = (msg, type = 'success') => setToast({ visible: true, message: msg, type });
 
   const fetchBuses = async () => {

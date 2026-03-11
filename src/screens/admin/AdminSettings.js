@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Image, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Image, Platform, BackHandler } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import Toast from '../../components/Toast';
@@ -29,6 +29,12 @@ export default function AdminSettings({ onBack, currentUser }) {
   const [selectedBoard, setSelectedBoard] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]);
+
   const showToast = (msg, type = 'success') => setToast({ visible: true, message: msg, type });
   const boards = ['CBSE', 'ICSE', 'State Board (Tamil Nadu)', 'IB', 'Cambridge IGCSE'];
   const fileInputRef = useRef(null);

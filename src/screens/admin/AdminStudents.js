@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  ScrollView, StyleSheet, ActivityIndicator, Platform,
+  ScrollView, StyleSheet, ActivityIndicator, Platform, BackHandler,
 } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
@@ -22,6 +22,11 @@ export default function AdminStudents({ onBack, classItem }) {
   const [name, setName] = useState('');
   const [rollNumber, setRollNumber] = useState('');
   const [parentPhone, setParentPhone] = useState('');
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]);
 
   const fileInputRef = useRef(null);
 

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Image, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Image, Platform, BackHandler } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
@@ -26,6 +26,11 @@ export default function AdminProfile({ onBack, currentUser, onLogout, onUpdateUs
   const [uploading, setUploading] = useState(false);
   const [profileImage, setProfileImage] = useState(currentUser?.profileImage || null);
   const [showChangePwd, setShowChangePwd] = useState(false);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]);
 
   const handleSave = async () => {
     setSaving(true);

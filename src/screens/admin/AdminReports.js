@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, BackHandler } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
@@ -34,6 +34,11 @@ export default function AdminReports({ onBack }) {
   const [marksLoading, setMarksLoading] = useState(false);
   const [classAttData, setClassAttData] = useState([]);
   const [attLoading, setAttLoading] = useState(true);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]);
 
   useEffect(() => {
     apiFetch('/classes?t=' + Date.now(), { cache: 'no-store' })

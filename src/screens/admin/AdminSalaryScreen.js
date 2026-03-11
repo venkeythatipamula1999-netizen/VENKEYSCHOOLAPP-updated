@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, TextInput, ScrollView,
-  Modal, ActivityIndicator, Switch, StyleSheet,
+  Modal, ActivityIndicator, Switch, StyleSheet, BackHandler,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../../theme/colors';
@@ -52,6 +52,11 @@ export default function AdminSalaryScreen({ onBack, currentUser }) {
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState('All');
   const [detail, setDetail] = useState(null);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]);
 
   const fetchEmployees = useCallback(async (m) => {
     setLoading(true);
