@@ -7286,8 +7286,9 @@ app.get(/^(?!\/api\/).*$/, (req, res) => {
 function scheduleAutoClockout() {
   const check = () => {
     const now = new Date();
-    const h = now.getHours();
-    const m = now.getMinutes();
+    const istNow = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+    const h = istNow.getUTCHours();
+    const m = istNow.getUTCMinutes();
     if (h === 19 && m === 0) {
       console.log('7:00 PM — triggering auto clock-out for all staff...');
       performAutoClockout()
