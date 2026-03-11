@@ -342,7 +342,7 @@ app.post('/api/register', registerLimiter, async (req, res) => {
       } : {}),
     };
 
-    const PRINCIPAL_EMAIL = 'thatipamulavenkatesh1999@gmail.com';
+    const PRINCIPAL_EMAIL = process.env.PRINCIPAL_EMAIL || 'thatipamulavenkatesh1999@gmail.com';
     if (email === PRINCIPAL_EMAIL) {
       userData.role = 'principal';
       console.log(`Auto-promoted ${email} to principal during registration`);
@@ -481,7 +481,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
       user = userDoc.data();
     }
 
-    const PRINCIPAL_EMAIL = 'thatipamulavenkatesh1999@gmail.com';
+    const PRINCIPAL_EMAIL = process.env.PRINCIPAL_EMAIL || 'thatipamulavenkatesh1999@gmail.com';
     if (email === PRINCIPAL_EMAIL && user.role !== 'principal') {
       await updateDoc(doc(db, 'users', userDoc.id), { role: 'principal' });
       user.role = 'principal';
@@ -1504,8 +1504,8 @@ app.post('/api/save-timetable', async (req, res) => {
       console.log(`Deleted ${deleteCount} future calendar entries for removed classes`);
     }
 
-    const ACADEMIC_START = new Date('2025-06-02');
-    const ACADEMIC_END = new Date('2026-04-30');
+    const ACADEMIC_START = new Date(process.env.ACADEMIC_START || '2025-06-02');
+    const ACADEMIC_END = new Date(process.env.ACADEMIC_END || '2026-04-30');
     const DAY_MAP = { 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6 };
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -8115,7 +8115,7 @@ app.listen(PORT, '0.0.0.0', async () => {
   console.log('[Backup] Scheduler started — next backup at 2 AM IST');
 
   try {
-    const principalEmail = 'thatipamulavenkatesh1999@gmail.com';
+    const principalEmail = process.env.PRINCIPAL_EMAIL || 'thatipamulavenkatesh1999@gmail.com';
     const usersRef = collection(db, 'users');
     const q = query(usersRef, where('email', '==', principalEmail));
     const snapshot = await getDocs(q);
