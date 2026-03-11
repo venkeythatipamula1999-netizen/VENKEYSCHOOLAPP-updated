@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "774655999002",
+    "project_id": "school-app-87900",
+    "storage_bucket": "school-app-87900.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:774655999002:android:6ccc7fd89c5c57598565a3",
+        "android_client_info": {
+          "package_name": "com.venkey.admin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-daJ4E8CEVh89BGEU9wRLGOZAT7T3-vM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:774655999002:android:7dcc388a279864078565a3",
+        "android_client_info": {
+          "package_name": "com.vidyalayam.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-daJ4E8CEVh89BGEU9wRLGOZAT7T3-vM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
