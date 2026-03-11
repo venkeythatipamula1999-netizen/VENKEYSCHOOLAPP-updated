@@ -7331,6 +7331,10 @@ app.get('/api/super/schools/:schoolId/security-logs', superAdminLimiter, verifyS
 });
 
 
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/public', express.static(path.join(__dirname, 'public')));
 
@@ -8276,6 +8280,20 @@ app.post('/api/notifications/register-token', verifyAuth, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+const https = require('https');
+
+function keepAlive() {
+  setInterval(() => {
+    https.get('https://venkeyschoolapp-updated.replit.app/health', (res) => {
+      console.log(`Keep-alive ping: ${res.statusCode}`);
+    }).on('error', (err) => {
+      console.log(`Keep-alive error: ${err.message}`);
+    });
+  }, 4 * 60 * 1000);
+}
+
+keepAlive();
 
 app.listen(PORT, '0.0.0.0', async () => {
   console.log(`Vidyalayam server running on port ${PORT}`);
