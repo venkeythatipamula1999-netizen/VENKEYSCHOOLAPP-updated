@@ -1,0 +1,224 @@
+src/screens/ChangePasswordModal.js:import { apiFetch } from '../api/client';
+src/screens/ChangePasswordModal.js:      const resp = await apiFetch('/change-password', {
+src/screens/ContactScreen.js:import { apiFetch } from '../api/client';
+src/screens/ContactScreen.js:    apiFetch('/school-info')
+src/screens/ExploreScreen.js:import { apiFetch } from '../api/client';
+src/screens/ExploreScreen.js:    apiFetch('/school-info')
+src/screens/admin/AdminActivities.js:import { apiFetch } from '../../api/client';
+src/screens/admin/AdminActivities.js:      const res = await apiFetch('/events');
+src/screens/admin/AdminActivities.js:      const res = await apiFetch(url, {
+src/screens/admin/AdminActivities.js:      const res = await apiFetch(`/events/${ev.id}`, { method: 'DELETE' });
+src/screens/admin/AdminActivities.js:      const res = await apiFetch(`/events/${ev.id}/renotify`, { method: 'POST' });
+src/screens/admin/AdminAlerts.js:import { apiFetch } from '../../api/client';
+src/screens/admin/AdminAlerts.js:      const res = await apiFetch('/admin/notifications?t=' + Date.now(), { cache: 'no-store' });
+src/screens/admin/AdminAlerts.js:      await apiFetch('/admin/notifications/mark-read', {
+src/screens/admin/AdminAlerts.js:      await apiFetch('/admin/notifications/mark-read', {
+src/screens/admin/AdminBuses.js:import { apiFetch } from '../../api/client';
+src/screens/admin/AdminBuses.js:      const res = await apiFetch('/admin/buses');
+src/screens/admin/AdminBuses.js:      const res = await apiFetch(`/bus/onboard-students?busId=${encodeURIComponent(bus.busId || bus.id)}`);
+src/screens/admin/AdminBuses.js:      const classRes = await apiFetch('/classes');
+src/screens/admin/AdminBuses.js:        const sRes = await apiFetch(`/students/${encodeURIComponent(cls.id || cls.name)}`);
+src/screens/admin/AdminBuses.js:      const res = await apiFetch('/admin/buses/add', {
+src/screens/admin/AdminBuses.js:      const res = await apiFetch('/admin/buses/assign-students', {
+src/screens/admin/AdminClasses.js:import { apiFetch } from '../../api/client';
+src/screens/admin/AdminClasses.js:      const res = await apiFetch('/classes?t=' + Date.now(), { cache: 'no-store' });
+src/screens/admin/AdminClasses.js:      const res = await apiFetch('/classes/add', {
+src/screens/admin/AdminClasses.js:      const res = await apiFetch(`/classes/${id}`, { method: 'DELETE' });
+src/screens/admin/AdminFeeScreen.js:import { apiFetch } from '../../api/client';
+src/screens/admin/AdminFeeScreen.js:        const res = await apiFetch('/fee-students', {});
+src/screens/admin/AdminFeeScreen.js:      const res = await apiFetch('/fee-reminder', {
+src/screens/admin/AdminFeeStatus.js:import { apiFetch } from '../../api/client';
+src/screens/admin/AdminFeeStatus.js:    apiFetch('/classes')
+src/screens/admin/AdminFeeStatus.js:      const resp = await apiFetch(url);
+src/screens/admin/AdminFeeStatus.js:      const resp = await apiFetch('/admin/fees/send-reminder', {
+src/screens/admin/AdminFeeStatus.js:        const resp = await apiFetch(`/fee-students`);
+src/screens/admin/AdminLeaveScreen.js:import { apiFetch } from '../../api/client';
+src/screens/admin/AdminLeaveScreen.js:        apiFetch('/leave-requests?t=' + Date.now(), { cache: 'no-store' }),
+src/screens/admin/AdminLeaveScreen.js:        apiFetch('/leave-requests/students?t=' + Date.now(), { cache: 'no-store' }),
+src/screens/admin/AdminLeaveScreen.js:      const res = await apiFetch('/leave-request/update-status', {
+src/screens/admin/AdminProfile.js:import { apiFetch } from '../../api/client';
+src/screens/admin/AdminProfile.js:      const resp = await apiFetch('/admin/update-profile', {
+src/screens/admin/AdminProfile.js:          const resp = await apiFetch('/admin/upload-photo', { method: 'POST', body: formData });
+src/screens/admin/AdminPromotion.js:import { apiFetch } from '../../api/client';
+src/screens/admin/AdminPromotion.js:    apiFetch('/classes')
+src/screens/admin/AdminPromotion.js:      const resp = await apiFetch(`/admin/promotion/preview?fromClass=${encodeURIComponent(selectedClass)}&academicYear=${encodeURIComponent(academicYear.trim())}`);
+src/screens/admin/AdminPromotion.js:      const resp = await apiFetch('/admin/promotion/execute', {
+src/screens/admin/AdminReports.js:import { apiFetch } from '../../api/client';
+src/screens/admin/AdminReports.js:    apiFetch('/classes?t=' + Date.now(), { cache: 'no-store' })
+src/screens/admin/AdminReports.js:    apiFetch('/attendance/class-summary')
+src/screens/admin/AdminReports.js:    apiFetch('/marks/summary')
+src/screens/admin/AdminReports.js:    apiFetch(`/marks/class/${selectedClass.id}`)
+src/screens/admin/AdminReports.js:    apiFetch(`/marks/student/${selectedStudent.studentId}`)
+src/screens/admin/AdminSalaryScreen.js:import { apiFetch } from '../../api/client';
+src/screens/admin/AdminSalaryScreen.js:      const r = await apiFetch(`/payroll/employees?month=${m}`);
+src/screens/admin/AdminSalaryScreen.js:      const r = await apiFetch(`/payroll/attendance?roleId=${encodeURIComponent(employee.roleId)}&month=${month}`);
+src/screens/admin/AdminSalaryScreen.js:      const r = await apiFetch(`/duty/status?roleId=${encodeURIComponent(employee.roleId)}`);
+src/screens/admin/AdminSalaryScreen.js:      await apiFetch(`/payroll/salary`, { method: 'POST', body: JSON.stringify(body) });
+src/screens/admin/AdminSalaryScreen.js:      await apiFetch(`/payroll/attendance/override`, {
+src/screens/admin/AdminSalaryScreen.js:      const r = await apiFetch(`/payroll/toggle`, {
+src/screens/admin/AdminSalaryScreen.js:      const r = await apiFetch(`/payroll/mark-credited`, {
+src/screens/admin/AdminSettings.js:import { apiFetch } from '../../api/client';
+src/screens/admin/AdminSettings.js:    apiFetch('/school-info')
+src/screens/admin/AdminSettings.js:      const res = await apiFetch('/school-info', {
+src/screens/admin/AdminSettings.js:      const res = await apiFetch('/school-info/upload-image', {
+src/screens/admin/AdminStudentQR.js:import { apiFetch } from '../../api/client';
+src/screens/admin/AdminStudentQR.js:    apiFetch('/classes')
+src/screens/admin/AdminStudentQR.js:      const res = await apiFetch(`/students/${encodeURIComponent(cls.id || cls.name)}`);
+src/screens/admin/AdminStudentQR.js:      const res = await apiFetch(`/student/qr/${encodeURIComponent(student.studentId)}`, {});
+src/screens/admin/AdminStudents.js:import { apiFetch } from '../../api/client';
+src/screens/admin/AdminStudents.js:      const res = await apiFetch(`/students/${classItem.id}?t=` + Date.now(), { cache: 'no-store' });
+src/screens/admin/AdminStudents.js:      const res = await apiFetch('/students', {
+src/screens/admin/AdminStudents.js:      const res = await apiFetch(`/students/${student.id}`, { method: 'DELETE' });
+src/screens/admin/AdminStudents.js:      const res = await apiFetch(`/students/bulk-upload/${classItem.id}`, {
+src/screens/admin/AdminUsers.js:import { apiFetch } from '../../api/client';
+src/screens/admin/AdminUsers.js:      const res = await apiFetch('/available-classes?t=' + Date.now(), { cache: 'no-store' });
+src/screens/admin/AdminUsers.js:      const res = await apiFetch('/duty/all-staff?t=' + Date.now(), { cache: 'no-store' });
+src/screens/admin/AdminUsers.js:      const res = await apiFetch('/onboarded-users?t=' + Date.now(), { cache: 'no-store' });
+src/screens/admin/AdminUsers.js:      const res = await apiFetch('/logistics-staff?t=' + Date.now(), { cache: 'no-store' });
+src/screens/admin/AdminUsers.js:      const res = await apiFetch('/admin/parent-accounts?t=' + Date.now(), { cache: 'no-store' });
+src/screens/admin/AdminUsers.js:      const res = await apiFetch(`/admin/parent-accounts/${uid}/status`, {
+src/screens/admin/AdminUsers.js:      const resp = await apiFetch('/delete-user', {
+src/screens/admin/AdminUsers.js:      const res = await apiFetch(`/teacher-timetable?roleId=${encodeURIComponent(roleId)}`);
+src/screens/admin/AdminUsers.js:      const res = await apiFetch('/set-class-teacher', {
+src/screens/admin/AdminUsers.js:      const res = await apiFetch('/check-timetable-conflict', {
+src/screens/admin/AdminUsers.js:      const resp = await apiFetch('/save-timetable', {
+src/screens/admin/AdminUsers.js:      const resp = await apiFetch('/onboard-teacher', {
+src/screens/admin/AdminUsers.js:      const resp = await apiFetch('/add-logistics-staff', {
+src/screens/admin/AdminUsers.js:      const resp = await apiFetch('/add-logistics-staff', {
+src/screens/admin/AdminOverview.js:import { apiFetch } from '../../api/client';
+src/screens/admin/AdminOverview.js:      apiFetch('/admin/sync-status?t=' + Date.now(), { cache: 'no-store' })
+src/screens/admin/AdminOverview.js:      apiFetch('/admin/notifications?unreadOnly=true&t=' + Date.now(), { cache: 'no-store' })
+src/screens/admin/AdminOverview.js:    apiFetch('/onboarded-users?t=' + Date.now(), { cache: 'no-store' })
+src/screens/admin/AdminOverview.js:    apiFetch('/classes?t=' + Date.now(), { cache: 'no-store' })
+src/screens/admin/AdminOverview.js:      apiFetch('/duty/all-staff?t=' + Date.now(), { cache: 'no-store' })
+src/screens/admin/AdminOverview.js:      apiFetch('/bus/location-change-requests?t=' + Date.now(), { cache: 'no-store' })
+src/screens/admin/AdminOverview.js:    apiFetch('/bus/approve-location-change', {
+src/screens/admin/AdminOverview.js:    apiFetch('/bus/reject-location-change', {
+src/screens/admin/AdminOverview.js:      const resp = await apiFetch('/report/master-audit');
+src/screens/auth/CompleteProfileScreen.js:import { apiFetch } from '../../api/client';
+src/screens/auth/CompleteProfileScreen.js:      const res = await apiFetch('/complete-profile', {
+src/screens/cleaner/CleanerDashboard.js:import { apiFetch } from '../../api/client';
+src/screens/cleaner/CleanerDashboard.js:    apiFetch(`/duty/status?roleId=${cleanerId}`)
+src/screens/cleaner/CleanerDashboard.js:        const res = await apiFetch(`/trip/onboard-count?busId=${encodeURIComponent(busId)}&date=${today}`, {
+src/screens/cleaner/CleanerDashboard.js:      apiFetch('/duty/update-status', {
+src/screens/cleaner/CleanerDashboard.js:        const res = await apiFetch('/duty/clock-in', {
+src/screens/cleaner/CleanerDashboard.js:        const res = await apiFetch('/duty/clock-out', {
+src/screens/cleaner/CleanerDuration.js:import { apiFetch } from '../../api/client';
+src/screens/cleaner/CleanerDuration.js:    apiFetch(`/duty/status?roleId=${encodeURIComponent(cleanerId)}`)
+src/screens/cleaner/CleanerDuration.js:        apiFetch(`/duty/week-log?roleId=${encodeURIComponent(cleanerId)}&date=${d.date}`)
+src/screens/cleaner/CleanerLeave.js:import { apiFetch } from '../../api/client';
+src/screens/cleaner/CleanerLeave.js:      apiFetch(`/leave-balance?roleId=${encodeURIComponent(staffId)}`).then(r => r.json()).catch(() => ({})),
+src/screens/cleaner/CleanerLeave.js:      apiFetch(`/leave-requests/mine?staffId=${encodeURIComponent(staffId)}`).then(r => r.json()).catch(() => ({})),
+src/screens/cleaner/CleanerLeave.js:      const res = await apiFetch('/leave-request/submit', {
+src/screens/cleaner/CleanerScanner.js:import { apiFetch } from '../../api/client';
+src/screens/cleaner/CleanerScanner.js:      const res = await apiFetch('/trip/scan', {
+src/screens/driver/DriverDashboard.js:import { apiFetch } from '../../api/client';
+src/screens/driver/DriverDashboard.js:      const res = await apiFetch(`/bus/route-students?driverId=${encodeURIComponent(did)}&route=${encodeURIComponent(routeKey || '')}`);
+src/screens/driver/DriverDashboard.js:      const res = await apiFetch(`/trip/scans?tripId=${encodeURIComponent(currentTripId)}&driverId=${encodeURIComponent(driverId)}`, {
+src/screens/driver/DriverDashboard.js:        apiFetch(`/bus/today-summary?driverId=${encodeURIComponent(driverId)}`),
+src/screens/driver/DriverDashboard.js:        apiFetch(`/bus/proximity-alerts-today?busNumber=${encodeURIComponent(busNumber)}`),
+src/screens/driver/DriverDashboard.js:    apiFetch(`/duty/status?roleId=${encodeURIComponent(driverId)}`)
+src/screens/driver/DriverDashboard.js:      apiFetch('/duty/update-status', {
+src/screens/driver/DriverDashboard.js:      apiFetch('/duty/update-status', {
+src/screens/driver/DriverDashboard.js:        const res = await apiFetch('/duty/clock-in', {
+src/screens/driver/DriverDashboard.js:        const res = await apiFetch('/duty/clock-out', {
+src/screens/driver/DriverDashboard.js:      await apiFetch('/bus/update-location', {
+src/screens/driver/DriverDashboard.js:      const res = await apiFetch('/bus/start-trip', {
+src/screens/driver/DriverDashboard.js:      const res = await apiFetch('/bus/end-trip', {
+src/screens/driver/DriverDashboard.js:      const res = await apiFetch('/bus/set-stop', {
+src/screens/driver/DriverDuration.js:import { apiFetch } from '../../api/client';
+src/screens/driver/DriverDuration.js:      const res = await apiFetch(`/bus/trip-duration-week?driverId=${encodeURIComponent(driverId)}&weekOffset=${offset}`);
+src/screens/driver/DriverLeave.js:import { apiFetch } from '../../api/client';
+src/screens/driver/DriverLeave.js:      apiFetch(`/leave-balance?roleId=${encodeURIComponent(staffId)}`).then(r => r.json()).catch(() => ({})),
+src/screens/driver/DriverLeave.js:      apiFetch(`/leave-requests/mine?staffId=${encodeURIComponent(staffId)}`).then(r => r.json()).catch(() => ({})),
+src/screens/driver/DriverLeave.js:      const res = await apiFetch('/leave-request/submit', {
+src/screens/driver/DriverProfile.js:import { apiFetch } from '../../api/client';
+src/screens/driver/DriverProfile.js:      const res = await apiFetch(`/payroll/my-salary?roleId=${encodeURIComponent(driverId)}`);
+src/screens/driver/DriverProfile.js:      const res = await apiFetch(`/payroll/my-payslip?roleId=${encodeURIComponent(driverId)}&month=${month}`);
+src/screens/driver/DriverProximityAlerts.js:import { apiFetch } from '../../api/client';
+src/screens/driver/DriverProximityAlerts.js:      const studentsRes = await apiFetch(`/bus/route-students?driverId=${encodeURIComponent(did)}&route=${encodeURIComponent(routeParam)}`);
+src/screens/driver/DriverProximityAlerts.js:        apiFetch(`/bus/proximity-alerts-today?busNumber=${encodeURIComponent(busNumber)}`),
+src/screens/driver/DriverProximityAlerts.js:        apiFetch(`/bus/pending-requests?route=${encodeURIComponent(routeParam)}`),
+src/screens/driver/DriverProximityAlerts.js:      const res = await apiFetch('/bus/set-stop', {
+src/screens/driver/DriverProximityAlerts.js:      const res = await apiFetch('/bus/request-location-change', {
+src/screens/driver/DriverScans.js:import { apiFetch } from '../../api/client';
+src/screens/driver/DriverScans.js:        const res = await apiFetch(`/trip/scans?driverId=${roleId}&busNumber=${busId}`, {});
+src/screens/driver/DriverStudentLocations.js:import { apiFetch } from '../../api/client';
+src/screens/driver/DriverStudentLocations.js:      const studentsRes = await apiFetch(`/bus/route-students?driverId=${encodeURIComponent(did)}&route=${encodeURIComponent(routeKey || '')}`);
+src/screens/driver/DriverStudentLocations.js:      const reqRes = await apiFetch(`/bus/pending-requests?route=${encodeURIComponent(routeKey || '')}`);
+src/screens/driver/DriverStudentLocations.js:        const res = await apiFetch('/bus/set-stop', {
+src/screens/driver/DriverStudentLocations.js:        const res = await apiFetch('/bus/request-location-change', {
+src/screens/parent/AttendanceScreen.js:import { apiFetch } from '../../api/client';
+src/screens/parent/AttendanceScreen.js:    apiFetch(`/attendance/student-monthly?studentId=${encodeURIComponent(studentId)}&month=${month}`)
+src/screens/parent/BusScreen.js:import { apiFetch } from '../../api/client';
+src/screens/parent/BusScreen.js:    apiFetch(`/student/bus-tracking?studentId=${encodeURIComponent(studentId)}`)
+src/screens/parent/DigitalFolder.js:import { apiFetch } from '../../api/client';
+src/screens/parent/DigitalFolder.js:      const res = await apiFetch(`/student-files?studentId=${encodeURIComponent(studentId)}`);
+src/screens/parent/DigitalFolder.js:      const res = await apiFetch(`/parent-notifications?studentId=${encodeURIComponent(studentId)}`);
+src/screens/parent/DigitalFolder.js:          apiFetch('/parent-notifications/read', {
+src/screens/parent/FeeScreen.js:import { apiFetch } from '../../api/client';
+src/screens/parent/FeeScreen.js:    apiFetch(`/fee-reminders?studentId=${studentId}`)
+src/screens/parent/FeeScreen.js:      const res = await apiFetch('/fee-reminder/acknowledge', {
+src/screens/parent/LeaveScreen.js:import { apiFetch } from '../../api/client';
+src/screens/parent/LeaveScreen.js:    apiFetch(`/leave-requests/students?studentId=${encodeURIComponent(studentId)}`)
+src/screens/parent/LeaveScreen.js:      const res = await apiFetch('/leave-request/student/submit', {
+src/screens/parent/MarksScreen.js:import { apiFetch } from '../../api/client';
+src/screens/parent/MarksScreen.js:    apiFetch(`/marks/student/${studentId}`)
+src/screens/parent/MarksScreen.js:      const resp = await apiFetch(`/reports/report-card/${studentId}`, {
+src/screens/parent/NotificationsScreen.js:import { apiFetch } from '../../api/client';
+src/screens/parent/NotificationsScreen.js:    apiFetch(`/parent-notifications?studentId=${encodeURIComponent(studentId)}`)
+src/screens/parent/ParentDashboard.js:import { apiFetch } from '../../api/client';
+src/screens/parent/ParentDashboard.js:      apiFetch(`/attendance/student-monthly?studentId=${encodeURIComponent(studentId)}&month=${currentMonth()}`).then(r => r.json()),
+src/screens/parent/ParentDashboard.js:      apiFetch(`/marks/student/${encodeURIComponent(studentId)}`).then(r => r.json()),
+src/screens/parent/ParentDashboard.js:      apiFetch(`/parent-notifications?studentId=${encodeURIComponent(studentId)}`).then(r => r.json()),
+src/screens/parent/ParentDashboard.js:      const res = await apiFetch('/parent/switch-child', {
+src/screens/parent/ParentDashboard.js:      const res = await apiFetch('/parent/add-child', {
+src/screens/teacher/TeacherAlertsScreen.js:import { apiFetch } from '../../api/client';
+src/screens/teacher/TeacherAlertsScreen.js:      const res = await apiFetch(`/leave-requests/student-class?teacherRoleId=${encodeURIComponent(roleId)}`);
+src/screens/teacher/TeacherAlertsScreen.js:      const res = await apiFetch(`/teacher-notifications?roleId=${encodeURIComponent(roleId)}`);
+src/screens/teacher/TeacherAlertsScreen.js:      await apiFetch('/teacher-notifications/mark-read', {
+src/screens/teacher/TeacherAlertsScreen.js:      const res = await apiFetch('/leave-request/update-status', {
+src/screens/teacher/TeacherAttendance.js:import { apiFetch } from '../../api/client';
+src/screens/teacher/TeacherAttendance.js:    apiFetch('/classes?t=' + Date.now(), { cache: 'no-store' })
+src/screens/teacher/TeacherAttendance.js:      apiFetch('/teacher/profile?roleId=' + encodeURIComponent(roleId) + '&t=' + Date.now(), { cache: 'no-store' })
+src/screens/teacher/TeacherAttendance.js:    const studentFetch = apiFetch('/students/' + selectedClass + '?t=' + Date.now(), { cache: 'no-store' })
+src/screens/teacher/TeacherAttendance.js:      const res = await apiFetch(`/attendance/submission-status?classId=${selectedClass}&date=${date}&t=${Date.now()}`, { cache: 'no-store' });
+src/screens/teacher/TeacherAttendance.js:        const attQ = await apiFetch(`/attendance/records?classId=${selectedClass}&date=${date}`);
+src/screens/teacher/TeacherAttendance.js:      const res = await apiFetch('/attendance/save', {
+src/screens/teacher/TeacherAttendance.js:      const res = await apiFetch('/attendance/edit', {
+src/screens/teacher/TeacherBusMonitor.js:import { apiFetch } from '../../api/client';
+src/screens/teacher/TeacherBusMonitor.js:    apiFetch('/bus/active-trips')
+src/screens/teacher/TeacherPersonalScreen.js:import { apiFetch } from '../../api/client';
+src/screens/teacher/TeacherPersonalScreen.js:      apiFetch(`/leave-requests/mine?staffId=${encodeURIComponent(staffId)}`).then(r => r.json()),
+src/screens/teacher/TeacherPersonalScreen.js:      apiFetch(`/leave-balance?roleId=${encodeURIComponent(staffId)}`).then(r => r.json()),
+src/screens/teacher/TeacherPersonalScreen.js:      const res = await apiFetch('/leave-request/submit', {
+src/screens/teacher/TeacherPersonalScreen.js:    apiFetch(`/payroll/my-salary?roleId=${encodeURIComponent(staffId)}`)
+src/screens/teacher/TeacherPersonalScreen.js:      const r = await apiFetch(`/payroll/my-payslip?roleId=${encodeURIComponent(staffId)}&month=${m}`);
+src/screens/teacher/TeacherPersonalScreen.js:      const r = await apiFetch(`/payroll/my-year?roleId=${encodeURIComponent(staffId)}&year=${year}`);
+src/screens/teacher/TeacherScheduleScreen.js:import { apiFetch } from '../../api/client';
+src/screens/teacher/TeacherScheduleScreen.js:        const res = await apiFetch(`/teacher-calendar?roleId=${encodeURIComponent(roleId)}&month=${month}&year=${year}`);
+src/screens/teacher/TeacherScheduleScreen.js:      const res = await apiFetch(`/teacher-timetable?roleId=${encodeURIComponent(roleId)}`);
+src/screens/teacher/TeacherSendDocument.js:import { apiFetch } from '../../api/client';
+src/screens/teacher/TeacherSendDocument.js:    apiFetch('/teacher/sendable-students')
+src/screens/teacher/TeacherSendDocument.js:      const uploadRes = await apiFetch('/student-files/upload', {
+src/screens/teacher/TeacherSendDocument.js:      const sendRes = await apiFetch('/student-files/send', {
+src/screens/teacher/TeacherDashboard.js:import { apiFetch } from '../../api/client';
+src/screens/teacher/TeacherDashboard.js:          apiFetch('/classes?t=' + Date.now(), { cache: 'no-store' }).then(r => r.json()),
+src/screens/teacher/TeacherDashboard.js:            apiFetch('/teacher/profile?roleId=' + encodeURIComponent(teacherId) + '&t=' + Date.now(), { cache: 'no-store' })
+src/screens/teacher/TeacherDashboard.js:          const statsRes = await apiFetch(`/attendance/class-stats?date=${today}&classIds=${uniqueIds.join(',')}`);
+src/screens/teacher/TeacherDashboard.js:    apiFetch(`/duty/status?roleId=${teacherId}`)
+src/screens/teacher/TeacherDashboard.js:    apiFetch('/duty/update-status', {
+src/screens/teacher/TeacherDashboard.js:        const res = await apiFetch('/duty/clock-in', {
+src/screens/teacher/TeacherDashboard.js:        const res = await apiFetch('/duty/clock-out', {
+src/screens/teacher/TeacherMarksScreen.js:import { apiFetch } from '../../api/client';
+src/screens/teacher/TeacherMarksScreen.js:    apiFetch('/classes?t=' + Date.now(), { cache: 'no-store' })
+src/screens/teacher/TeacherMarksScreen.js:    apiFetch(`/teacher/permissions?roleId=${encodeURIComponent(roleId)}&t=` + Date.now(), { cache: 'no-store' })
+src/screens/teacher/TeacherMarksScreen.js:        apiFetch(`/teacher/profile?roleId=${encodeURIComponent(roleId)}&t=` + Date.now(), { cache: 'no-store' })
+src/screens/teacher/TeacherMarksScreen.js:    apiFetch('/students/' + selectedClassId + '?t=' + Date.now(), { cache: 'no-store' })
+src/screens/teacher/TeacherMarksScreen.js:    apiFetch(`/marks/view?examType=${exam.id}&classId=${selectedClassId}`)
+src/screens/teacher/TeacherMarksScreen.js:    apiFetch(`/marks/submitted-exams?classId=${selectedClassId}&subject=${encodeURIComponent(entrySubject.name)}`)
+src/screens/teacher/TeacherMarksScreen.js:      const res = await apiFetch(`/marks/class/${classId}`);
+src/screens/teacher/TeacherMarksScreen.js:      const res = await apiFetch('/marks/save', {
+src/screens/teacher/TeacherMarksScreen.js:      apiFetch(`/marks/view?examType=${exam.id}&classId=${selectedClassId}`)
+src/screens/teacher/TeacherMarksScreen.js:      const res = await apiFetch('/marks/edit', {
+src/screens/teacher/TeacherMarksScreen.js:                    apiFetch(`/marks/view?examType=${exam.id}&classId=${selectedClassId}`)
