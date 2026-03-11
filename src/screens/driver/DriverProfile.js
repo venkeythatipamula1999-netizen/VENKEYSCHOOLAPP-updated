@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
@@ -224,7 +224,7 @@ function SalaryTab({ currentUser }) {
 
             <TouchableOpacity
               style={{ marginTop: 14, backgroundColor: C.teal + '22', borderWidth: 1, borderColor: C.teal + '55', borderRadius: 14, paddingVertical: 13, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
-              onPress={() => alert('PDF download coming soon.')}
+              onPress={() => Alert.alert('Coming Soon', 'PDF download coming soon.')}
             >
               <Text style={{ fontSize: 16 }}>{'\uD83D\uDCC4'}</Text>
               <Text style={{ fontWeight: '600', fontSize: 14, color: C.teal }}>Download Pay Slip PDF</Text>

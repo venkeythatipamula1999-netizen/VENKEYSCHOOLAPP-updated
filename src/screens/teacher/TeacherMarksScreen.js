@@ -181,8 +181,9 @@ export default function TeacherMarksScreen({ onBack, currentUser }) {
     if (isAdmin) return allClasses;
     if (!entrySubject) return [];
     const mapKey = Object.keys(subjectClassMap).find(k => normalizeSubject(k) === normalizeSubject(entrySubject?.name));
-    if (mapKey && subjectClassMap[mapKey]?.length > 0) {
-      const allowed = subjectClassMap[mapKey].map(g => normalizeGrade(g));
+    if (mapKey) {
+      const entries = subjectClassMap[mapKey] || [];
+      const allowed = entries.map(g => normalizeGrade(g));
       return allClasses.filter(c => allowed.includes(normalizeGrade(c.grade)));
     }
     const assignedGrades = effectiveAssignedClasses.map(normalizeGrade);

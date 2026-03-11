@@ -37,7 +37,7 @@ export async function reportError({
       appVersion: '2.0.0'
     };
 
-    const alertsRef = collection(db, 'alerts');
+    const alertsRef = collection(db, 'admin_notifications');
     await addDoc(alertsRef, errorDoc);
 
     console.log('[ErrorReporter] Alert sent:', {

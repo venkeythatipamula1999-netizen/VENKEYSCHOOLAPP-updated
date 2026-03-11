@@ -9,7 +9,7 @@ export default function DigitalFolder({ onBack, currentUser }) {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState([]);
-  const studentId = 'student-101';
+  const studentId = currentUser?.activeStudentId || currentUser?.studentId || currentUser?.studentIds?.[0];
 
   const fetchFiles = useCallback(async () => {
     setLoading(true);
