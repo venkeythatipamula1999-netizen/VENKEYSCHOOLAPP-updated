@@ -8116,19 +8116,19 @@ app.listen(PORT, '0.0.0.0', async () => {
 
   try {
     const principalEmail = process.env.PRINCIPAL_EMAIL || 'thatipamulavenkatesh1999@gmail.com';
-    const usersRef = collection(db, 'users');
-    const q = query(usersRef, where('email', '==', principalEmail));
-    const snapshot = await getDocs(q);
+    const snapshot = await adminDb.collection('users')
+      .where('email', '==', principalEmail)
+      .get();
     if (!snapshot.empty) {
       const userDoc = snapshot.docs[0];
       if (userDoc.data().role !== 'principal') {
-        await updateDoc(doc(db, 'users', userDoc.id), { role: 'principal' });
-        console.log(`Updated ${principalEmail} role to "principal"`);
+        await adminDb.collection('users').doc(userDoc.id).update({ role: 'principal' });
+        console.log(`Updated ${principalEmail} role to principal`);
       } else {
-        console.log(`${principalEmail} already has role "principal"`);
+        console.log(`${principalEmail} already has role principal`);
       }
     } else {
-      console.log(`User ${principalEmail} not found in Firestore — will be set on next login`);
+      console.log(`User ${principalEmail} not found — will be set on next login`);
     }
   } catch (err) {
     console.error('Principal role setup error:', err.message);
