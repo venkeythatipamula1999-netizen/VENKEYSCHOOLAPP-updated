@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Modal, BackHandler } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
@@ -119,6 +119,11 @@ export default function TeacherAttendance({ onBack, currentUser }) {
 
   const [editingStudent, setEditingStudent] = useState(null);
   const [savingEdit, setSavingEdit] = useState(null);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]);
 
   const classTeacherOf = freshProfile?.classTeacherOf || currentUser?.classTeacherOf || null;
   const normalizedCT = normalizeGrade(classTeacherOf);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, TextInput,
-  ActivityIndicator, Modal, Linking, StyleSheet,
+  ActivityIndicator, Modal, Linking, StyleSheet, BackHandler,
 } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
@@ -350,6 +350,11 @@ function SalaryTab({ staffId, currentUser }) {
   const [loadingPayslip, setLoadingPayslip] = useState(false);
   const [showYear, setShowYear] = useState(false);
   const [showAttList, setShowAttList] = useState(false);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]);
 
   useEffect(() => {
     if (!staffId) { setLoadingMain(false); return; }

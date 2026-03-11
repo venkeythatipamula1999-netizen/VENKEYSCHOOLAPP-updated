@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, ActivityIndicator, BackHandler } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
@@ -47,6 +47,11 @@ export default function TeacherAlertsScreen({ onBack, currentUser }) {
   const [liveNotifs, setLiveNotifs] = useState([]);
   const [loadingNotifs, setLoadingNotifs] = useState(false);
   const [expandedReason, setExpandedReason] = useState(null);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]);
 
   const roleId = currentUser?.role_id || '';
   const teacherName = currentUser?.full_name || currentUser?.name || 'Class Teacher';

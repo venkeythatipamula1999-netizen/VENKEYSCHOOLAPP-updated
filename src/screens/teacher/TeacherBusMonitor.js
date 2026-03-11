@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, BackHandler } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
@@ -26,6 +26,11 @@ export default function TeacherBusMonitor({ onBack }) {
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(null);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]);
 
   const fetchTrips = () => {
     setLoading(true);

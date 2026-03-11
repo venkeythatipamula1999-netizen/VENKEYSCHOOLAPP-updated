@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, BackHandler } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
@@ -12,6 +12,11 @@ export default function TeacherProfile({ onBack, currentUser, onLogout }) {
   const teacherId = currentUser?.role_id || 'TCH-0000';
   const initials = teacherName.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
   const [showChangePwd, setShowChangePwd] = useState(false);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]);
 
   const timetable = Array.isArray(currentUser?.timetable) ? currentUser.timetable : [];
   const assignedClasses = Array.isArray(currentUser?.assignedClasses) ? currentUser.assignedClasses : [];
