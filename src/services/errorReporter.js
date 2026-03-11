@@ -18,7 +18,7 @@ export async function reportError({
   type = 'js_crash',
   severity = 'medium',
   message = 'Unknown error',
-  screen = typeof window !== 'undefined' ? window.location.pathname : 'unknown',
+  screen = typeof window !== 'undefined' && window.location ? window.location.pathname : '/unknown',
   details = '',
   source = 'auto'
 }) {

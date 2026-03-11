@@ -15,7 +15,6 @@ import SplashIntroScreen from './src/screens/auth/SplashIntroScreen';
 import LoginScreen from './src/screens/auth/LoginScreen';
 import ParentLoginScreen from './src/screens/auth/ParentLoginScreen';
 import ParentPortalScreen from './src/screens/auth/ParentPortalScreen';
-import ParentRegisterScreen from './src/screens/auth/ParentRegisterScreen';
 import SignupScreen from './src/screens/auth/SignupScreen';
 import ParentDashboard from './src/screens/parent/ParentDashboard';
 import AttendanceScreen from './src/screens/parent/AttendanceScreen';
@@ -294,7 +293,6 @@ export default function App() {
       case 'parent-login':
         return <ParentLoginScreen onLoginSuccess={handleLoginSuccess} onBack={() => navigate('parent-portal')} onNavigate={navigate} />;
       case 'parent-register':
-        navigate('parent-portal');
         return null;
       case 'teacher-login':
         return <LoginScreen role="teacher" onLoginSuccess={handleLoginSuccess} onBack={() => navigate('splash')} onNavigate={navigate} />;

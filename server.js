@@ -296,7 +296,7 @@ app.post('/api/register', registerLimiter, async (req, res) => {
   try {
     const { fullName, email: rawEmail, password, role, roleId } = req.body;
     const email = (rawEmail || '').trim().toLowerCase();
-    console.log('Registration attempt:', { fullName, email, role, roleId });
+    console.log('Registration attempt for role:', role);
 
     if (!fullName || !email || !password || !role || !roleId) {
       return res.status(400).json({ error: 'All fields are required' });
@@ -348,7 +348,7 @@ app.post('/api/register', registerLimiter, async (req, res) => {
       console.log(`Auto-promoted ${email} to principal during registration`);
     }
 
-    console.log('Saving to Firestore:', { uid, email, role: userData.role, role_id: userData.role_id });
+    console.log('Saving to Firestore for role:', userData.role);
     const usersRef = collection(db, 'users');
 
     const isPreGenerated = /^(TCH|DRV|CLN)-\d{4}(-\d{4})?$/.test(roleId);
@@ -536,14 +536,14 @@ app.post('/api/login', loginLimiter, async (req, res) => {
             phone: ld.phone || '',
             status: ld.status || 'active',
           };
-          console.log(`Fetched logistics data for ${roleId}:`, driverData);
+          console.log('Fetched logistics data for role:', driverData.role);
         }
       } catch (drvErr) {
         console.error('Failed to fetch logistics data:', drvErr.message);
       }
     }
 
-    console.log('Login success:', email, '| UID:', uid, '| Role:', user.role);
+    console.log('Login success for role:', user.role);
 
     const responseUser = { id: userDoc.id, uid, full_name: user.full_name, email: user.email, role: user.role, role_id: user.role_id, created_at: user.created_at, profileCompleted: user.profileCompleted === true };
     if (user.mobile) responseUser.mobile = user.mobile;
