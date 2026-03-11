@@ -37,6 +37,15 @@
         }
       ]
     ],
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/91a715f3-7d72-49c3-bbe4-8984a15acb46"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "extra": {
       "eas": {
         "projectId": "91a715f3-7d72-49c3-bbe4-8984a15acb46"
