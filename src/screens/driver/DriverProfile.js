@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert, BackHandler } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Alert, BackHandler, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
@@ -288,6 +288,19 @@ export default function DriverProfile({ onBack, currentUser, onLogout }) {
   const initials = driverName.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
   const [showChangePwd, setShowChangePwd] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
+  const [crew, setCrew] = useState(null);
+  const [crewLoading, setCrewLoading] = useState(true);
+
+  const busNum = currentUser?.bus_number || '';
+
+  useEffect(() => {
+    if (!busNum) { setCrewLoading(false); return; }
+    apiFetch(`/bus/crew?busNumber=${encodeURIComponent(busNum)}`)
+      .then(r => r.json())
+      .then(data => { if (data.crew) setCrew(data.crew); })
+      .catch(() => {})
+      .finally(() => setCrewLoading(false));
+  }, [busNum]);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
@@ -368,15 +381,20 @@ export default function DriverProfile({ onBack, currentUser, onLogout }) {
             <Text style={{ fontWeight: '600', fontSize: 14, marginBottom: 14, color: C.white }}>{'\uD83E\uDDF9'} Assigned Cleaner/Attender</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: C.gold + '22', alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontWeight: '700', fontSize: 16, color: C.gold }}>{DRIVER_DEFAULT.cleaner.photo}</Text>
+                <Text style={{ fontWeight: '700', fontSize: 16, color: C.gold }}>{'\uD83E\uDDF9'}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontWeight: '700', fontSize: 15, color: C.white }}>{DRIVER_DEFAULT.cleaner.name}</Text>
-                <Text style={{ color: C.muted, fontSize: 12 }}>{DRIVER_DEFAULT.cleaner.id}</Text>
-                <Text style={{ color: C.muted, fontSize: 12 }}>{DRIVER_DEFAULT.cleaner.phone}</Text>
+                {crewLoading ? (
+                  <ActivityIndicator color={C.teal} />
+                ) : (
+                  <>
+                    <Text style={{ fontWeight: '700', fontSize: 15, color: C.white }}>{crew?.cleaner?.name || 'Not assigned'}</Text>
+                    <Text style={{ color: C.muted, fontSize: 12 }}>{crew?.cleaner?.id || ''}</Text>
+                  </>
+                )}
               </View>
               <View style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 50, backgroundColor: C.teal + '26' }}>
-                <Text style={{ fontSize: 10, fontWeight: '600', color: C.teal }}>{'\uD83D\uDE8C'} {currentUser?.bus_number || DRIVER_DEFAULT.bus.number}</Text>
+                <Text style={{ fontSize: 10, fontWeight: '600', color: C.teal }}>{'\uD83D\uDE8C'} {busNum || DRIVER_DEFAULT.bus.number}</Text>
               </View>
             </View>
           </View>
