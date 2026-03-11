@@ -202,7 +202,7 @@ export default function AdminOverview({ onNavigate, currentUser, onLogout, curre
         <View style={{ marginHorizontal: 20, marginTop: 16, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: syncStatus.synced ? 'rgba(52,211,153,0.12)' : 'rgba(251,146,60,0.12)', borderWidth: 1, borderColor: syncStatus.synced ? '#34D399' : '#FB923C' }}>
           <Text style={{ fontSize: 14 }}>{syncStatus.synced ? '✅' : '⚠️'}</Text>
           <Text style={{ fontSize: 12, fontWeight: '600', color: syncStatus.synced ? '#34D399' : '#FB923C', flex: 1 }}>
-            {syncStatus.synced ? 'Google Sheets synced' : `Sync pending — ${syncStatus.pending} record${syncStatus.pending !== 1 ? 's' : ''} waiting`}
+            {syncStatus.synced ? 'Google Sheets synced' : `Sync pending — ${syncStatus.pending ?? 0} record${(syncStatus.pending ?? 0) !== 1 ? 's' : ''} waiting`}
           </Text>
         </View>
       )}
