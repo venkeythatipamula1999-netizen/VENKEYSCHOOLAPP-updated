@@ -48,5 +48,8 @@
     "react-native-web": "^0.19.13",
     "react-native-webview": "^13.12.5",
     "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@expo/ngrok": "^4.1.0"
   }
 }
