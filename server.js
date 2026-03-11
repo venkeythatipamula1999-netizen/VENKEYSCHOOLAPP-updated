@@ -2388,6 +2388,7 @@ app.post('/api/reports/report-card/:studentId', verifyAuth, async (req, res) => 
       where('examType', '==', examName)
     ));
 
+    let marksDocs;
     if (marksSnap.empty) {
       const normalizedExam = normalizeExamType(examName);
       const allMarksSnap = await getDocs(query(
@@ -2397,9 +2398,9 @@ app.post('/api/reports/report-card/:studentId', verifyAuth, async (req, res) => 
       ));
       const filtered = allMarksSnap.docs.filter(d => normalizeExamType(d.data().examType) === normalizedExam);
       if (filtered.length === 0) return res.status(404).json({ error: 'No marks found for this exam' });
-      var marksDocs = filtered;
+      marksDocs = filtered;
     } else {
-      var marksDocs = marksSnap.docs;
+      marksDocs = marksSnap.docs;
     }
 
     const subjects = marksDocs.map(d => {
@@ -8026,22 +8027,15 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-app.get('/audit-report', (req, res) => {
+app.get('/api/admin/audit-report', verifyAuth, (req, res) => {
+  if (req.userRole !== 'principal' && req.userRole !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
   const path = require('path');
   res.setHeader('Content-Disposition', 'attachment; filename="sree-pragathi-audit-report.html"');
   res.sendFile(path.join(__dirname, 'audit-report.html'));
 });
 
-app.get('/download-source', (req, res) => {
-  const fs = require('fs');
-  const filePath = '/tmp/sree-pragathi-app.tar.gz';
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ error: 'Archive not ready. Please contact admin.' });
-  }
-  res.setHeader('Content-Disposition', 'attachment; filename="sree-pragathi-app.tar.gz"');
-  res.setHeader('Content-Type', 'application/gzip');
-  res.sendFile(filePath);
-});
 
 function scheduleDailyBackup() {
   function getMsUntilNext2AMIST() {
