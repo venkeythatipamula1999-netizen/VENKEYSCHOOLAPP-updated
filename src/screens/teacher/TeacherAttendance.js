@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Modal, BackHandler } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Modal, BackHandler, Alert } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
@@ -296,6 +296,16 @@ export default function TeacherAttendance({ onBack, currentUser }) {
         (data.sheetSync ? ' Synced to Google Sheets.' : ''),
         'success'
       );
+      const pct = students.length > 0
+        ? Math.round(((students.length - absentSet.size) / students.length) * 100)
+        : 100;
+      if (pct < 75) {
+        Alert.alert(
+          '⚠️ Low Attendance',
+          `Class attendance is ${pct}% — below the 75% threshold. ${absentSet.size} student${absentSet.size !== 1 ? 's' : ''} marked absent.`,
+          [{ text: 'OK' }]
+        );
+      }
       setTimeout(() => setSyncStatus('idle'), 5000);
       await checkSubmissionStatus();
     } catch (err) {

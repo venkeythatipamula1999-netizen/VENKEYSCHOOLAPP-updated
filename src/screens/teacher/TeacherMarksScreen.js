@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Modal, KeyboardAvoidingView, Platform, BackHandler, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Modal, KeyboardAvoidingView, Platform, BackHandler, Alert, Linking } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
@@ -298,6 +298,27 @@ export default function TeacherMarksScreen({ onBack, currentUser }) {
   };
 
   const showToast = (msg, type = 'success') => setToast({ visible: true, message: msg, type });
+
+  const generateReportCard = async (studentId, studentName) => {
+    try {
+      const res = await apiFetch(
+        `/reports/report-card/${encodeURIComponent(studentId)}`,
+        { method: 'POST', body: JSON.stringify({ examType: exam?.id || 'Term 1' }) }
+      );
+      if (!res.ok) throw new Error('Failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `report-card-${studentName}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      Alert.alert('Error', 'Could not generate report card');
+    }
+  };
 
   const handleMarksChange = (studentId, value) => {
     const cleaned = value.replace(/[^0-9]/g, '');
@@ -817,6 +838,12 @@ export default function TeacherMarksScreen({ onBack, currentUser }) {
                         <Text style={{ color: grade.c, fontSize: 11, fontWeight: '700' }}>{grade.g}</Text>
                       ) : null}
                     </View>
+                    <TouchableOpacity
+                      onPress={() => generateReportCard(s.id, s.name)}
+                      style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, backgroundColor: C.gold + '22', marginLeft: 8 }}
+                    >
+                      <Text style={{ fontSize: 11, color: C.gold, fontWeight: '700' }}>📄 RC</Text>
+                    </TouchableOpacity>
                   </View>
                 );
               })}
