@@ -263,6 +263,11 @@ export default function LeaveScreen({ onBack, currentUser }) {
                     <Text style={{ fontSize: 12, color: C.muted }}>
                       {fmtDate(l.from)}{l.days > 1 ? ' → ' + fmtDate(l.to) : ''} {'·'} {l.days}d
                     </Text>
+                    {(isApproved || isRejected) && (
+                      <Text style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
+                        Reviewed by: {l.teacherName || l.approvedBy || 'Class Teacher'}
+                      </Text>
+                    )}
                     {isRejected && l.rejectReason ? (
                       <Text style={{ fontSize: 11, color: C.coral, marginTop: 2 }}>Reason: {l.rejectReason}</Text>
                     ) : null}
