@@ -316,7 +316,10 @@ export default function AdminOverview({ onNavigate, currentUser, onLogout, curre
               </View>
             ))}
             {staffDuty.length > 8 && (
-              <TouchableOpacity style={{ alignItems: 'center', paddingVertical: 6 }}>
+              <TouchableOpacity 
+                style={{ alignItems: 'center', paddingVertical: 6 }}
+                onPress={() => onNavigate('admin-users')}
+              >
                 <Text style={{ fontSize: 12, color: C.teal }}>View All ({staffDuty.length})</Text>
               </TouchableOpacity>
             )}
