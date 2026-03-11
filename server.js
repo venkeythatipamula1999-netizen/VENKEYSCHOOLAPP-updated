@@ -7907,10 +7907,29 @@ app.get('/api/bus/proximity-alerts-today', async (req, res) => {
 
 app.get('/api/bus/today-summary', async (req, res) => {
   try {
-    const { driverId } = req.query;
-    if (!driverId) return res.status(400).json({ error: 'driverId required' });
+    const { driverId, busNumber } = req.query;
+
+    let resolvedDriverId = driverId;
+
+    if (!resolvedDriverId && busNumber) {
+      const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+      const busQ = query(
+        collection(db, 'buses'),
+        where('busNumber', '==', busNumber),
+        where('schoolId', '==', schoolId)
+      );
+      const busSnap = await getDocs(busQ);
+      if (!busSnap.empty) {
+        resolvedDriverId = busSnap.docs[0].data().driverId;
+      }
+    }
+
+    if (!resolvedDriverId) return res.status(400).json({
+      error: 'driverId or busNumber required'
+    });
+
     const today = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);
-    const summaryRef = doc(db, 'trip_summaries', `${driverId}_${today}`);
+    const summaryRef = doc(db, 'trip_summaries', `${resolvedDriverId}_${today}`);
     const summarySnap = await getDocFS(summaryRef);
     if (!summarySnap.exists()) return res.json({ summary: null });
     res.json({ summary: summarySnap.data() });
@@ -8098,6 +8117,80 @@ app.get('/api/admin/backup/status', verifyAuth, async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/parent/fee-summary', verifyAuth, async (req, res) => {
+  try {
+    const { studentId } = req.query;
+    if (!studentId) return res.status(400).json({ error: 'studentId required' });
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+
+    const feeQ = query(
+      collection(db, 'fee_records'),
+      where('studentId', '==', studentId),
+      where('schoolId', '==', schoolId)
+    );
+    const feeSnap = await getDocs(feeQ);
+    if (feeSnap.empty) return res.json({ fee: null });
+
+    const rec = feeSnap.docs[0].data();
+    const totalFee = Number(rec.totalFee) || 0;
+    const discount = Number(rec.discount) || 0;
+    const fine = Number(rec.fine) || 0;
+    const history = Array.isArray(rec.history) ? rec.history : [];
+    const paid = history.reduce((a, h) => a + (Number(h.amount) || 0), 0);
+    const pending = Math.max(totalFee - discount + fine - paid, 0);
+
+    res.json({
+      fee: {
+        total: totalFee,
+        discount,
+        fine,
+        paid,
+        pending,
+        history,
+      }
+    });
+  } catch (err) {
+    console.error('Parent fee summary error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch fee summary' });
+  }
+});
+
+app.get('/api/bus/crew', verifyAuth, async (req, res) => {
+  try {
+    const { busNumber } = req.query;
+    if (!busNumber) return res.status(400).json({ error: 'busNumber required' });
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+
+    const busQ = query(
+      collection(db, 'buses'),
+      where('busNumber', '==', busNumber),
+      where('schoolId', '==', schoolId)
+    );
+    const busSnap = await getDocs(busQ);
+    if (busSnap.empty) return res.json({ crew: null });
+
+    const bus = busSnap.docs[0].data();
+    res.json({
+      crew: {
+        driver: {
+          name: bus.driverName || '',
+          id: bus.driverId || '',
+        },
+        cleaner: {
+          name: bus.cleanerName || '',
+          id: bus.cleanerId || '',
+        },
+        busNumber: bus.busNumber || busNumber,
+        route: bus.route || '',
+        capacity: bus.capacity || 0,
+      }
+    });
+  } catch (err) {
+    console.error('Bus crew error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch bus crew' });
   }
 });
 
