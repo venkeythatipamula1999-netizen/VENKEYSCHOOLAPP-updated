@@ -53,6 +53,7 @@ import AdminFeeScreen from './src/screens/admin/AdminFeeScreen';
 import AdminSalaryScreen from './src/screens/admin/AdminSalaryScreen';
 import AdminPromotion from './src/screens/admin/AdminPromotion';
 import AdminFeeStatus from './src/screens/admin/AdminFeeStatus';
+import AdminProfile from './src/screens/admin/AdminProfile';
 import DriverDashboard from './src/screens/driver/DriverDashboard';
 import DriverScans from './src/screens/driver/DriverScans';
 import DriverDuration from './src/screens/driver/DriverDuration';
