@@ -2,23 +2,38 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, BackHandler } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
+import { apiFetch } from '../../api/client';
 
 export default function ActivitiesScreen({ onBack }) {
   const [filter, setFilter] = useState('all');
+  const [activities, setActivities] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { 
+      onBack(); 
+      return true; 
+    });
     return () => sub.remove();
   }, [onBack]);
 
-  const activities = [
-    { title: 'Annual Day Practice', type: 'event', date: 'Feb 10, 2025', time: '3:00 PM', color: C.gold, icon: '\u{1F3AD}', desc: 'Drama rehearsal for annual day celebration' },
-    { title: 'Science Exhibition', type: 'academic', date: 'Feb 15, 2025', time: '9:00 AM', color: C.teal, icon: '\u{1F52C}', desc: 'Arjun is presenting Solar System model' },
-    { title: 'Inter-School Cricket', type: 'sports', date: 'Feb 18, 2025', time: '2:00 PM', color: C.coral, icon: '\u{1F3CF}', desc: 'District-level cricket tournament' },
-    { title: 'Art Competition', type: 'event', date: 'Feb 20, 2025', time: '10:00 AM', color: C.purple, icon: '\u{1F3A8}', desc: 'Painting competition - theme: Nature' },
-    { title: 'Math Olympiad', type: 'academic', date: 'Feb 25, 2025', time: '11:00 AM', color: '#60A5FA', icon: '\u{1F9EE}', desc: 'School-level math olympiad selection' },
-    { title: 'Sports Day', type: 'sports', date: 'Mar 01, 2025', time: '8:00 AM', color: '#34D399', icon: '\u{1F3C6}', desc: 'Annual sports day - 100m, relay, long jump' },
-  ];
+  useEffect(() => {
+    apiFetch('/events')
+      .then(data => {
+        const mapped = (data.events || data || []).map(e => ({
+          title: e.title || e.name || 'Untitled',
+          type: e.type || e.category || 'event',
+          date: e.date || e.eventDate || '',
+          time: e.time || '',
+          color: e.type === 'academic' ? C.teal : e.type === 'sports' ? C.coral : C.gold,
+          icon: e.type === 'academic' ? '📚' : e.type === 'sports' ? '🏆' : '🎭',
+          desc: e.description || e.desc || '',
+        }));
+        setActivities(mapped);
+      })
+      .catch(() => setActivities([]))
+      .finally(() => setLoading(false));
+  }, []);
 
   const filters = ['all', 'event', 'academic', 'sports'];
   const filtered = filter === 'all' ? activities : activities.filter(a => a.type === filter);
@@ -34,6 +49,10 @@ export default function ActivitiesScreen({ onBack }) {
       </View>
 
       <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
+        {loading && (
+          <Text style={{ color: C.muted, textAlign: 'center', marginTop: 40 }}>Loading activities...</Text>
+        )}
+
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             {filters.map(f => (
@@ -61,6 +80,10 @@ export default function ActivitiesScreen({ onBack }) {
             </View>
           </View>
         ))}
+
+        {!loading && filtered.length === 0 && (
+          <Text style={{ color: C.muted, textAlign: 'center', marginTop: 40 }}>No activities found</Text>
+        )}
       </View>
     </ScrollView>
   );
