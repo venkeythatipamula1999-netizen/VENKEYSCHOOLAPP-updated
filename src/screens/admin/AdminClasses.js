@@ -137,7 +137,7 @@ function AdminClasses({ onBack, currentUser, onNavigate }) {
                 key={cls.id}
                 onPress={() => {
                   if (currentUser) currentUser.selectedClass = cls;
-                  navigate('admin-students');
+                  onNavigate('admin-students');
                 }}
                 style={st.classCard}
               >
