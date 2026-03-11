@@ -9,6 +9,8 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 import ErrorBanner from '../../components/ErrorBanner';
 import Toast from '../../components/Toast';
 import { getFriendlyError } from '../../utils/errorMessages';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
 const SUB_PALETTE = [C.gold, C.teal, C.purple, C.coral, '#34D399', '#60A5FA', '#F59E0B', '#EC4899'];
 const subColor = (name, idx) => {
@@ -99,8 +101,6 @@ export default function MarksScreen({ onBack, currentUser }) {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
       } else {
-        const FileSystem = require('expo-file-system');
-        const Sharing = require('expo-sharing');
         const blob = await resp.blob();
         const reader = new FileReader();
         const base64 = await new Promise((resolve, reject) => {
