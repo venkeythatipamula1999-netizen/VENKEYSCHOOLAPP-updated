@@ -90,7 +90,7 @@
 
   <!-- PUSH NOTIFICATIONS -->
   <div class="push-section">
-    <h2>🔔 Push Notification Triggers (8 active)</h2>
+    <h2>🔔 Push Notification Triggers (9 active)</h2>
     <div class="push-grid">
       <div class="push-card"><div class="push-title">📋 Attendance Alert</div><div class="push-route">POST /api/attendance/save</div><div class="push-body">Fires for each absent student → parent. Reads parentId from students collection.</div></div>
       <div class="push-card"><div class="push-title">🚌 Bus Approaching</div><div class="push-route">checkProximityAlerts()</div><div class="push-body">Fires when bus is within 500m of stop → parent. Looks up parentId via Admin SDK.</div></div>
@@ -715,7 +715,7 @@
         <div class="screen-name">💰 Fee Screen</div>
         <div class="screen-route">fee · FeeScreen.js</div>
         <ul class="feature-list">
-          <li><span class="feat-dot api"></span>GET /api/fee/student/:studentId</li>
+          <li><span class="feat-dot api"></span>GET /api/parent/fee-summary?studentId=…</li>
           <li><span class="feat-dot action"></span>View fee breakdown, payment history, balance</li>
           <li><span class="feat-dot action"></span>Download fee receipt</li>
         </ul>
