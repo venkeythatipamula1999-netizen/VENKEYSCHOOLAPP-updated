@@ -11,7 +11,7 @@ export default function ContactScreen({ onBack }) {
   const [loading, setLoading] = useState(true);
   const [schoolContacts, setSchoolContacts] = useState([
     { icon: 'phone', label: 'Phone', value: '+91 98765 43210', color: C.teal },
-    { icon: 'mail', label: 'Email', value: 'info@venkeys.edu.in', color: C.gold },
+    { icon: 'mail', label: 'Email', value: 'info@vidyalayam.edu.in', color: C.gold },
     { icon: 'location', label: 'Address', value: '123 School Road, Chennai - 600001', color: C.coral },
   ]);
 
@@ -27,7 +27,7 @@ export default function ContactScreen({ onBack }) {
         if (data.success && data.info) {
           const contacts = [
             { icon: 'phone', label: 'Phone', value: data.info.phone || '+91 98765 43210', color: C.teal },
-            { icon: 'mail', label: 'Email', value: data.info.email || 'info@venkeys.edu.in', color: C.gold },
+            { icon: 'mail', label: 'Email', value: data.info.email || 'info@vidyalayam.edu.in', color: C.gold },
             { icon: 'location', label: 'Address', value: data.info.address || '123 School Road, Chennai - 600001', color: C.coral },
           ];
           if (data.info.website) {

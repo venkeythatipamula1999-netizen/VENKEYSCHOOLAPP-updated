@@ -7,7 +7,7 @@ import { apiFetch } from '../api/client';
 export default function ExploreScreen({ onBack }) {
   const [loading, setLoading] = useState(true);
   const [schoolInfo, setSchoolInfo] = useState({
-    name: 'Venkeys International School',
+    name: 'Vidyalayam',
     tagline: 'Excellence in Education Since 2003',
     description: '',
     principalName: '',
@@ -28,7 +28,7 @@ export default function ExploreScreen({ onBack }) {
       .then(data => {
         if (data.success && data.info) {
           setSchoolInfo({
-            name: data.info.name || 'Venkeys International School',
+            name: data.info.name || 'Vidyalayam',
             tagline: data.info.tagline || 'Excellence in Education Since 2003',
             description: data.info.description || '',
             principalName: data.info.principalName || '',

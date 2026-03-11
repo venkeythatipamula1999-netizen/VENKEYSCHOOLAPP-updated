@@ -7538,7 +7538,7 @@ app.get('/api/payroll/payslip-html', async (req, res) => {
       @media print{body{padding:16px}button{display:none}}
     </style></head><body>
     <div class="header">
-      <div class="school-name">Venkeys International School</div>
+      <div class="school-name">Vidyalayam</div>
       <div class="slip-title">SALARY PAY SLIP — ${monthLabel.toUpperCase()}</div>
       <div style="font-size:12px;color:#666;margin-top:6px">Ref: ${refNo} · Status: <span class="status-badge ${payment?.status === 'Credited' ? 'credited' : 'pending'}">${payment?.status || 'Pending'}</span></div>
     </div>
@@ -7568,7 +7568,7 @@ app.get('/api/payroll/payslip-html', async (req, res) => {
       <div class="net-amount">${inr(net)}</div>
       ${payment?.creditedAt ? `<div style="font-size:11px;color:#666;margin-top:6px">Credited on ${new Date(payment.creditedAt).toLocaleDateString('en-IN')}</div>` : ''}
     </div>
-    <div class="footer">This is a computer-generated payslip and does not require a signature.<br>Venkeys International School — For queries, contact HR/Admin</div>
+    <div class="footer">This is a computer-generated payslip and does not require a signature.<br>Vidyalayam — For queries, contact HR/Admin</div>
     <button onclick="window.print()" style="position:fixed;bottom:24px;right:24px;background:#7C5CBF;color:#fff;border:none;padding:12px 24px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:700">🖨️ Print / Download PDF</button>
     </body></html>`;
     res.setHeader('Content-Type', 'text/html');
@@ -8195,7 +8195,7 @@ app.get('/api/bus/crew', verifyAuth, async (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', async () => {
-  console.log(`Venkeys School App server running on port ${PORT}`);
+  console.log(`Vidyalayam server running on port ${PORT}`);
   console.log('Database: Firebase Firestore (project: ' + firebaseConfig.projectId + ')');
   console.log('Auth: Firebase Authentication (Email/Password) — NO FALLBACK');
   scheduleAutoClockout();

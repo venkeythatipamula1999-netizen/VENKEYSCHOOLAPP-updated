@@ -8,10 +8,10 @@ import { apiFetch } from '../../api/client';
 
 export default function AdminSettings({ onBack, currentUser }) {
   const [school, setSchool] = useState({
-    name: 'Venkeys International School',
+    name: 'Vidyalayam',
     tagline: 'Excellence in Education Since 1995',
     phone: '+91 44 2345 6789',
-    email: 'info@venkeys.edu',
+    email: 'info@vidyalayam.edu',
     board: 'CBSE',
     address: '123 School Road, Chennai - 600001',
     studentCount: '1200+',
