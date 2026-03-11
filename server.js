@@ -1005,6 +1005,11 @@ app.post('/api/admin/fees/send-reminder', verifyAuth, async (req, res) => {
           createdAt: new Date().toISOString(),
         });
         sentCount++;
+        try {
+          const stuQ = await getDocs(query(collection(db, 'students'), where('studentId', '==', sid), where('schoolId', '==', schoolId)));
+          const parentId = !stuQ.empty ? (stuQ.docs[0].data().parentId || stuQ.docs[0].data().parent_uid || '') : '';
+          if (parentId) sendPushNotification(parentId, '🔔 Fee Reminder', `Fee payment reminder for ${studentName || sid}`, { type: 'fee_reminder', studentId: sid });
+        } catch (pushErr) { console.error('[fee] Push error:', pushErr.message); }
       } catch (e) {
         console.warn(`[fees/send-reminder] Failed for ${sid}:`, e.message);
       }
@@ -1932,6 +1937,8 @@ app.post('/api/marks/save', async (req, res) => {
             read: false,
             createdAt: new Date().toISOString(),
           });
+          const parentId = !studentSnap.empty ? (studentSnap.docs[0].data().parentId || studentSnap.docs[0].data().parent_uid || '') : '';
+          if (parentId) sendPushNotification(parentId, '📝 Marks Updated', `${record.studentName}'s marks have been updated`, { type: 'marks', studentId: record.studentId });
         } catch (e) {
           console.error('[marks] Parent notif error for', record.studentId, e.message);
         }
@@ -3205,6 +3212,8 @@ app.post('/api/attendance/save', async (req, res) => {
               read: false,
               createdAt: submittedAt,
             });
+            const parentId = studentDoc.exists() ? (studentDoc.data().parentId || studentDoc.data().parent_uid || '') : '';
+            if (parentId) sendPushNotification(parentId, '📋 Attendance Alert', `${r.studentName} was marked absent today`, { type: 'attendance', studentId: r.studentId });
           } catch (e) {
             console.error('Parent notif error for', r.studentId, e.message);
           }
@@ -3723,6 +3732,7 @@ app.post('/api/leave-request/update-status', async (req, res) => {
             read: false,
             createdAt: approvedAt,
           });
+          if (leaveData.parentId) sendPushNotification(leaveData.parentId, status === 'Approved' ? '✅ Leave Approved' : '❌ Leave Rejected', status === 'Approved' ? `${leaveData.studentName || 'Your child'}'s leave request has been approved` : `${leaveData.studentName || 'Your child'}'s leave request was not approved`, { type: 'leave_status', status });
         } catch (notifErr) {
           console.error('Parent leave notification error:', notifErr.message);
         }
@@ -3767,6 +3777,7 @@ app.post('/api/leave-request/update-status', async (req, res) => {
             read: false,
             createdAt: approvedAt,
           });
+          sendPushNotification(leaveData.staffId, status === 'Approved' ? '✅ Leave Approved' : '❌ Leave Rejected', `Your leave request has been ${status} by ${resolvedAdmin}`, { type: 'leave_status', status });
           console.log(`Teacher notification sent to ${leaveData.staffId}: Leave ${status}`);
         } catch (notifErr) {
           console.error('Teacher leave notification error:', notifErr.message);
@@ -4340,6 +4351,13 @@ async function checkProximityAlerts(busNumber, route, lat, lng) {
           tripDate: now.toISOString().slice(0, 10),
         });
         console.log(`Proximity alert: Bus ${busNumber} is ${Math.round(dist)}m from ${stop.studentName}'s stop`);
+        try {
+          const stuSnap = await adminDb.collection('students').where('studentId', '==', String(stop.studentId)).limit(1).get();
+          if (!stuSnap.empty) {
+            const parentId = stuSnap.docs[0].data().parentId || stuSnap.docs[0].data().parent_uid || '';
+            if (parentId) sendPushNotification(parentId, '🚌 Bus Approaching!', `Bus is approaching your stop — get ready!`, { type: 'proximity_alert', busNumber });
+          }
+        } catch (pushErr) { console.error('Proximity push error:', pushErr.message); }
       }
     }
   } catch (err) {
@@ -4854,6 +4872,14 @@ app.post('/api/trip/scan', scanLimiter, async (req, res) => {
     };
 
     const scanRef = await addDoc(collection(db, 'trip_scans'), scanDoc);
+    const _pushParentId = studentData.parentId || studentData.parent_uid || '';
+    if (_pushParentId) {
+      if (isBoarding) {
+        sendPushNotification(_pushParentId, '✅ Boarded Bus', `${studentData.name} has boarded the bus`, { type: 'bus_board', studentId });
+      } else {
+        sendPushNotification(_pushParentId, '🏠 Safely Home', `${studentData.name} has deboarded the bus safely`, { type: 'bus_deboard', studentId });
+      }
+    }
     console.log(`[QR Scan] ${studentData.name} ${scanType} Bus ${busData?.busNumber || busId} (scan #${scanCount + 1})`);
 
     if (!isWrongBus) {
@@ -5612,6 +5638,11 @@ app.post('/api/student-files/upload', upload.single('file'), async (req, res) =>
       read: false,
       createdAt: new Date().toISOString(),
     });
+    try {
+      const stuQ = await getDocs(query(collection(db, 'students'), where('studentId', '==', studentId)));
+      const parentId = !stuQ.empty ? (stuQ.docs[0].data().parentId || stuQ.docs[0].data().parent_uid || '') : '';
+      if (parentId) sendPushNotification(parentId, '📁 New Document', `A new document has been shared with you`, { type: 'document', studentId });
+    } catch (pushErr) { console.error('Doc push error:', pushErr.message); }
 
     syncStudentFile({
       studentId, studentName, className: className || '', fileName: file.originalname,
