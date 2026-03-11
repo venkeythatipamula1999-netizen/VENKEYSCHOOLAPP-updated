@@ -46,7 +46,7 @@ bF3HzcvtiNByT5H40oinKpX5vrPHlliB7jF05sN5LrhIBN4r1eSd0ONEslPYuA5j
 9OXSdjd+8f3IMjbT2ciU61g=
 -----END PRIVATE KEY-----
 """
-APP_URL = "https://0aef3a1a-91c2-459e-b2e1-1a737f7e6855-00-qub2w262x06f.picard.replit.dev"
+APP_URL = "https://workspace.venkateshthati3.replit.app"
 JWT_SECRET = "0e18dd7aab24b2754ce215104d9b61a1ec2ba066f1cbfaaedcb5dd68a20529ba"
 BACKUP_BUCKET_NAME = "gs://school-app-87900.appspot.com"
 
