@@ -29,6 +29,7 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
   const [alertCount, setAlertCount] = useState(0);
   const [todaySummary, setTodaySummary] = useState(null);
   const [boardedCount, setBoardedCount] = useState(0);
+  const [unreadNotifs, setUnreadNotifs] = useState(0);
   const [recentScans, setRecentScans] = useState([]);
   const watchRef = useRef(null);
   const intervalRef = useRef(null);
@@ -101,6 +102,15 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
     } catch (e) {
       console.error('Load today summary error:', e.message);
     }
+    try {
+      const notifRes = await apiFetch(
+        `/bus/driver-notifications?driverId=${encodeURIComponent(driverId)}&unreadOnly=true`
+      );
+      const notifData = await notifRes.json();
+      setUnreadNotifs(
+        notifData.notifications?.filter(n => !n.read)?.length || 0
+      );
+    } catch {}
   }, [driverId, busNumber]);
 
   useEffect(() => {
@@ -427,7 +437,7 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
   return (
     <View style={{ paddingBottom: 16 }}>
       <View style={{ padding: 20, paddingBottom: 0 }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View style={{ flex: 1, marginRight: 12 }}>
             <Text style={{ color: C.muted, fontSize: 13, marginBottom: 2 }}>{'\uD83D\uDC4B'} Good Morning</Text>
             <Text style={{ fontSize: 24, fontWeight: '900', color: C.white, lineHeight: 30 }}>Welcome, {driverName}!</Text>
@@ -443,7 +453,31 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
               <Text style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>Clocked in at {clockInTime}</Text>
             )}
           </View>
-          <View style={{ alignItems: 'center', gap: 4 }}>
+          <View style={{ alignItems: 'center', gap: 8 }}>
+            <TouchableOpacity
+              onPress={() => onNavigate('driver-proximity')}
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: 13,
+                backgroundColor: 'rgba(255,255,255,0.1)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Text style={{ fontSize: 20 }}>🔔</Text>
+              {unreadNotifs > 0 && (
+                <View style={{
+                  position: 'absolute',
+                  top: 6,
+                  right: 6,
+                  width: 8,
+                  height: 8,
+                  borderRadius: 4,
+                  backgroundColor: C.coral,
+                }} />
+              )}
+            </TouchableOpacity>
             <TouchableOpacity
               onPress={handleDutyToggle}
               disabled={dutyLoading}
