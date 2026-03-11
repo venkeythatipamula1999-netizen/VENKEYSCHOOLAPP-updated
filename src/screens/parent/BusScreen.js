@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, BackHandler } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
@@ -15,6 +15,11 @@ export default function BusScreen({ onBack, currentUser }) {
   const [vehicleNo, setVehicleNo] = useState('—');
   const [speed, setSpeed] = useState('—');
   const [liveStatus, setLiveStatus] = useState(false);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]);
 
   useEffect(() => {
     if (!studentId) { setLoading(false); return; }

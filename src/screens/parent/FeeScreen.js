@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, BackHandler } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
@@ -12,6 +12,11 @@ export default function FeeScreen({ onBack, currentUser }) {
   const [ackLoading, setAckLoading] = useState(null);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]);
 
   const studentId = currentUser?.studentId || 'student-101';
 

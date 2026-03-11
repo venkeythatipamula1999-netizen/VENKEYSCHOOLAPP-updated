@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Modal, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Modal, ActivityIndicator, Platform, BackHandler } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import DonutRing from '../../components/DonutRing';
@@ -37,6 +37,11 @@ export default function MarksScreen({ onBack, currentUser }) {
   const [rcLoading, setRcLoading] = useState(false);
   const [rcDropdown, setRcDropdown] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'error' });
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]);
 
   const showToast = (message, type = 'error') => setToast({ visible: true, message, type });
 

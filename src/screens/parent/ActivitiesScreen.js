@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, BackHandler } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 
 export default function ActivitiesScreen({ onBack }) {
   const [filter, setFilter] = useState('all');
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]);
 
   const activities = [
     { title: 'Annual Day Practice', type: 'event', date: 'Feb 10, 2025', time: '3:00 PM', color: C.gold, icon: '\u{1F3AD}', desc: 'Drama rehearsal for annual day celebration' },

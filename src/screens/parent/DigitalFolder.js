@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Platform, Linking, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Platform, Linking, StyleSheet, BackHandler } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
@@ -9,6 +9,12 @@ export default function DigitalFolder({ onBack, currentUser }) {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState([]);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]);
+
   const studentId = currentUser?.activeStudentId || currentUser?.studentId || currentUser?.studentIds?.[0];
 
   const fetchFiles = useCallback(async () => {

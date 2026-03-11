@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, ActivityIndicator, BackHandler } from 'react-native';
 import { C } from '../theme/colors';
 import Icon from '../components/Icon';
 import { apiFetch } from '../api/client';
@@ -14,6 +14,11 @@ export default function ContactScreen({ onBack }) {
     { icon: 'mail', label: 'Email', value: 'info@venkeys.edu.in', color: C.gold },
     { icon: 'location', label: 'Address', value: '123 School Road, Chennai - 600001', color: C.coral },
   ]);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]);
 
   useEffect(() => {
     apiFetch('/school-info')
