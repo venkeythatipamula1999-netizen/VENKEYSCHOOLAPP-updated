@@ -86,8 +86,6 @@ export default function LeaveScreen({ onBack, currentUser }) {
       cur.setDate(cur.getDate() + 1);
     }
 
-    console.log('STEP 1 - Student data:', { studentId, studentClass, studentName });
-
     const payload = {
       studentId,
       studentName,
@@ -106,19 +104,15 @@ export default function LeaveScreen({ onBack, currentUser }) {
       schoolId: currentUser?.schoolId || 'school_001',
     };
 
-    console.log('STEP 2 - Querying teacher where classTeacherOf =', studentClass);
-
     try {
       const res = await apiFetch('/leave-request/student/submit', {
         method: 'POST',
         body: JSON.stringify(payload),
       });
       const data = await res.json();
-      console.log('STEP 5 - Save result:', data);
       if (!res.ok) {
         setSubmitError(data.error || 'Submission failed. Please try again.');
       } else {
-        console.log('STEP 3 - Teacher found:', { teacherId: data.assignedTeacherId, teacherName: data.assignedTeacherName });
         setSubmitSuccess(data);
         setRefreshKey(k => k + 1);
         setReason('');
