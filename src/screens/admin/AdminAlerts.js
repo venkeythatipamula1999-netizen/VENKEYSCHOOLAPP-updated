@@ -133,6 +133,9 @@ export default function AdminAlerts({ onBack }) {
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('all');
   const [markingAll, setMarkingAll] = useState(false);
+  const [activeTab, setActiveTab] = useState('notifications');
+  const [busAlerts, setBusAlerts] = useState({ logs: [], requests: [], summaries: [] });
+  const [busLoading, setBusLoading] = useState(false);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
@@ -155,7 +158,25 @@ export default function AdminAlerts({ onBack }) {
     }
   }, []);
 
-  useEffect(() => { fetchNotifications(); }, []);
+  const fetchBusAlerts = useCallback(async () => {
+    setBusLoading(true);
+    try {
+      const res = await apiFetch('/admin/bus-alerts');
+      if (!res.ok) throw new Error('Server error');
+      const data = await res.json();
+      setBusAlerts({
+        logs: data.logs || [],
+        requests: data.requests || [],
+        summaries: data.summaries || [],
+      });
+    } catch (e) {
+      console.error('Bus alerts error:', e.message);
+    } finally {
+      setBusLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchNotifications(); fetchBusAlerts(); }, []);
 
   const handleMarkRead = async (id) => {
     try {
@@ -216,71 +237,128 @@ export default function AdminAlerts({ onBack }) {
         )}
       </View>
 
-      <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginBottom: 12 }}>
-        {[
-          { key: 'all', label: 'All', count: notifications.length },
-          { key: 'unread', label: 'Unread', count: unreadCount },
-          { key: 'marks_edited', label: 'Marks Edited', count: marksEditedCount },
-          { key: 'edited', label: 'Att. Edited', count: notifications.filter(n => n.type === 'attendance_edited').length },
-          { key: 'submitted', label: 'Submitted', count: notifications.filter(n => n.type === 'attendance_submitted').length },
-        ].map(f => (
-          <TouchableOpacity key={f.key} onPress={() => setFilter(f.key)} style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, backgroundColor: filter === f.key ? C.teal : C.card, borderWidth: 1, borderColor: filter === f.key ? C.teal : C.border }}>
-            <Text style={{ fontSize: 12, fontWeight: '600', color: filter === f.key ? C.navy : C.muted }}>
-              {f.label}{f.count > 0 ? ` (${f.count})` : ''}
+      <View style={{ flexDirection: 'row', paddingHorizontal: 20, marginBottom: 12, gap: 8 }}>
+        {['notifications', 'bus'].map(tab => (
+          <TouchableOpacity
+            key={tab}
+            onPress={() => setActiveTab(tab)}
+            style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, backgroundColor: activeTab === tab ? C.gold : C.navyMid }}
+          >
+            <Text style={{ fontSize: 12, fontWeight: '600', color: activeTab === tab ? C.navy : C.muted }}>
+              {tab === 'notifications'
+                ? `Notifications (${notifications.length})`
+                : `Bus Alerts (${busAlerts.logs.length + busAlerts.requests.length})`}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {editedCount > 0 && (
-        <View style={{ marginHorizontal: 20, marginBottom: 12, backgroundColor: '#FB923C15', borderWidth: 1, borderColor: '#FB923C44', borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <Text style={{ fontSize: 20 }}>{'⚠️'}</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: '#FB923C', fontWeight: '700', fontSize: 13 }}>
-              {editedCount} Attendance Edit{editedCount > 1 ? 's' : ''} Require Review
-            </Text>
-            <Text style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>Teacher-edited attendance records are flagged for review.</Text>
+      {activeTab === 'notifications' && (
+        <>
+          <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginBottom: 12 }}>
+            {[
+              { key: 'all', label: 'All', count: notifications.length },
+              { key: 'unread', label: 'Unread', count: unreadCount },
+              { key: 'marks_edited', label: 'Marks Edited', count: marksEditedCount },
+              { key: 'edited', label: 'Att. Edited', count: notifications.filter(n => n.type === 'attendance_edited').length },
+              { key: 'submitted', label: 'Submitted', count: notifications.filter(n => n.type === 'attendance_submitted').length },
+            ].map(f => (
+              <TouchableOpacity key={f.key} onPress={() => setFilter(f.key)} style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, backgroundColor: filter === f.key ? C.teal : C.card, borderWidth: 1, borderColor: filter === f.key ? C.teal : C.border }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: filter === f.key ? C.navy : C.muted }}>
+                  {f.label}{f.count > 0 ? ` (${f.count})` : ''}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
-        </View>
+
+          {editedCount > 0 && (
+            <View style={{ marginHorizontal: 20, marginBottom: 12, backgroundColor: '#FB923C15', borderWidth: 1, borderColor: '#FB923C44', borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Text style={{ fontSize: 20 }}>{'⚠️'}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: '#FB923C', fontWeight: '700', fontSize: 13 }}>
+                  {editedCount} Attendance Edit{editedCount > 1 ? 's' : ''} Require Review
+                </Text>
+                <Text style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>Teacher-edited attendance records are flagged for review.</Text>
+              </View>
+            </View>
+          )}
+
+          {marksEditedCount > 0 && (
+            <View style={{ marginHorizontal: 20, marginBottom: 12, backgroundColor: C.gold + '15', borderWidth: 1, borderColor: C.gold + '44', borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Text style={{ fontSize: 20 }}>{'✏️'}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: C.gold, fontWeight: '700', fontSize: 13 }}>
+                  {marksEditedCount} Marks Edit{marksEditedCount > 1 ? 's' : ''} Logged
+                </Text>
+                <Text style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>Teacher-edited marks with reasons are tracked for audit.</Text>
+              </View>
+            </View>
+          )}
+
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ padding: 20, paddingTop: 0 }}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchNotifications(false); }} tintColor={C.teal} />}
+          >
+            {loading ? (
+              <LoadingSpinner message="Loading notifications..." />
+            ) : error ? (
+              <ErrorBanner message={error} onRetry={() => fetchNotifications()} onDismiss={() => setError('')} />
+            ) : filtered.length === 0 ? (
+              <View style={{ alignItems: 'center', paddingVertical: 60 }}>
+                <Text style={{ fontSize: 48, marginBottom: 16 }}>{'🔔'}</Text>
+                <Text style={{ fontSize: 18, fontWeight: '700', color: C.white, textAlign: 'center', marginBottom: 8 }}>
+                  {filter === 'all' ? 'No Notifications Yet' : 'Nothing here'}
+                </Text>
+                <Text style={{ fontSize: 13, color: C.muted, textAlign: 'center', lineHeight: 20 }}>
+                  {filter === 'all' ? 'Notifications will appear here when teachers submit or edit attendance.' : 'Try a different filter.'}
+                </Text>
+              </View>
+            ) : (
+              filtered.map(n => (
+                <NotifCard key={n.id} notif={n} onMarkRead={handleMarkRead} />
+              ))
+            )}
+          </ScrollView>
+        </>
       )}
 
-      {marksEditedCount > 0 && (
-        <View style={{ marginHorizontal: 20, marginBottom: 12, backgroundColor: C.gold + '15', borderWidth: 1, borderColor: C.gold + '44', borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <Text style={{ fontSize: 20 }}>{'✏️'}</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: C.gold, fontWeight: '700', fontSize: 13 }}>
-              {marksEditedCount} Marks Edit{marksEditedCount > 1 ? 's' : ''} Logged
-            </Text>
-            <Text style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>Teacher-edited marks with reasons are tracked for audit.</Text>
-          </View>
-        </View>
+      {activeTab === 'bus' && (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingTop: 0 }}>
+          {busLoading && (
+            <ActivityIndicator color={C.teal} style={{ marginTop: 40 }} />
+          )}
+          {!busLoading && busAlerts.logs.length === 0 && busAlerts.requests.length === 0 && (
+            <View style={{ alignItems: 'center', paddingVertical: 60 }}>
+              <Text style={{ fontSize: 48, marginBottom: 16 }}>{'🚌'}</Text>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: C.white, textAlign: 'center', marginBottom: 8 }}>No Bus Alerts</Text>
+              <Text style={{ fontSize: 13, color: C.muted, textAlign: 'center' }}>No proximity alerts or location change requests on record.</Text>
+            </View>
+          )}
+          {busAlerts.logs.map((log, i) => (
+            <View key={i} style={{ backgroundColor: C.card, borderRadius: 12, padding: 14, marginBottom: 10, borderLeftWidth: 4, borderLeftColor: C.teal }}>
+              <Text style={{ color: C.white, fontWeight: '700' }}>{'🚌 Proximity Alert'}</Text>
+              <Text style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>
+                Bus {log.busNumber || '—'} — Stop: {log.stopName || 'Unknown'}
+              </Text>
+              <Text style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>
+                {log.sentAt ? new Date(log.sentAt).toLocaleString('en-IN') : ''}
+              </Text>
+            </View>
+          ))}
+          {busAlerts.requests.map((req, i) => (
+            <View key={i} style={{ backgroundColor: C.card, borderRadius: 12, padding: 14, marginBottom: 10, borderLeftWidth: 4, borderLeftColor: C.coral }}>
+              <Text style={{ color: C.white, fontWeight: '700' }}>{'📍 Location Change Request'}</Text>
+              <Text style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>
+                {req.studentName || 'Student'} — {req.requestedBy || ''}
+              </Text>
+              <Text style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>
+                {req.createdAt ? new Date(req.createdAt).toLocaleString('en-IN') : ''}
+              </Text>
+            </View>
+          ))}
+        </ScrollView>
       )}
-
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 20, paddingTop: 0 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchNotifications(false); }} tintColor={C.teal} />}
-      >
-        {loading ? (
-          <LoadingSpinner message="Loading notifications..." />
-        ) : error ? (
-          <ErrorBanner message={error} onRetry={() => fetchNotifications()} onDismiss={() => setError('')} />
-        ) : filtered.length === 0 ? (
-          <View style={{ alignItems: 'center', paddingVertical: 60 }}>
-            <Text style={{ fontSize: 48, marginBottom: 16 }}>{'🔔'}</Text>
-            <Text style={{ fontSize: 18, fontWeight: '700', color: C.white, textAlign: 'center', marginBottom: 8 }}>
-              {filter === 'all' ? 'No Notifications Yet' : 'Nothing here'}
-            </Text>
-            <Text style={{ fontSize: 13, color: C.muted, textAlign: 'center', lineHeight: 20 }}>
-              {filter === 'all' ? 'Notifications will appear here when teachers submit or edit attendance.' : 'Try a different filter.'}
-            </Text>
-          </View>
-        ) : (
-          filtered.map(n => (
-            <NotifCard key={n.id} notif={n} onMarkRead={handleMarkRead} />
-          ))
-        )}
-      </ScrollView>
     </View>
   );
 }
