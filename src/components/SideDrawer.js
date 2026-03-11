@@ -136,6 +136,8 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     flexDirection: 'row',
+    width: '100%',
+    height: '100%',
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
