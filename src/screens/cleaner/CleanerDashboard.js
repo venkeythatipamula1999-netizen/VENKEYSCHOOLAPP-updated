@@ -20,11 +20,14 @@ export default function CleanerDashboard({ onNavigate, currentUser, students }) 
   const [onboardCount, setOnboardCount] = useState(0);
   const [totalStudents, setTotalStudents] = useState(0);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
+  const [crew, setCrew] = useState(null);
+  const [morningRun, setMorningRun] = useState(null);
   const showToast = (msg, type = 'success') => setToast({ visible: true, message: msg, type });
 
   const cleanerName = currentUser?.full_name || CLEANER_DEFAULT.name;
   const cleanerId = currentUser?.role_id || CLEANER_DEFAULT.id;
   const busNumber = currentUser?.bus_number || CLEANER_DEFAULT.bus.number;
+  const busNum = busNumber;
   const initials = cleanerName.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
 
   useEffect(() => {
@@ -39,6 +42,23 @@ export default function CleanerDashboard({ onNavigate, currentUser, students }) 
       })
       .catch(() => {});
   }, [cleanerId]);
+
+  useEffect(() => {
+    if (!busNum) return;
+    apiFetch(`/bus/crew?busNumber=${encodeURIComponent(busNum)}`)
+      .then(r => r.json())
+      .then(data => { if (data.crew) setCrew(data.crew); })
+      .catch(() => {});
+    apiFetch(`/bus/today-summary?busNumber=${encodeURIComponent(busNum)}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.summary?.totalDuration) {
+          const mins = Math.round(data.summary.totalDuration / 60);
+          setMorningRun(mins + ' min');
+        }
+      })
+      .catch(() => {});
+  }, [busNum]);
 
   useEffect(() => {
     const fetchScanCount = async () => {
@@ -297,7 +317,7 @@ export default function CleanerDashboard({ onNavigate, currentUser, students }) 
           {[
             { label: 'Boarded', val: String(onboardCount), icon: '\uD83D\uDCF2', color: C.gold },
             { label: 'Absent', val: String(absent.length), icon: '\u274C', color: C.coral },
-            { label: 'Morning Run', val: '45 min', icon: '\uD83C\uDF05', color: C.teal },
+            { label: 'Morning Run', val: morningRun || '--', icon: '\uD83C\uDF05', color: C.teal },
           ].map(m => (
             <View key={m.label} style={{ flex: 1, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 16, padding: 14, alignItems: 'center' }}>
               <Text style={{ fontSize: 18, marginBottom: 6 }}>{m.icon}</Text>
@@ -348,7 +368,7 @@ export default function CleanerDashboard({ onNavigate, currentUser, students }) 
         </View>
         <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 20, padding: 16 }}>
           {[
-            { label: 'Driver', person: CLEANER_DEFAULT.driver, color: C.teal },
+            { label: 'Driver', person: { name: crew?.driver?.name || 'Not assigned', photo: '\uD83D\uDE8C', id: crew?.driver?.id || '' }, color: C.teal },
             { label: 'Cleaner/Attender', person: { name: cleanerName, photo: initials, id: cleanerId }, color: C.gold },
           ].map(({ label, person, color }, i) => (
             <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: i === 0 ? 1 : 0, borderBottomColor: C.border }}>
