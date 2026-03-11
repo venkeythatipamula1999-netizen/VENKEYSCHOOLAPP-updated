@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Platform, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Platform, TextInput, BackHandler } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import Toast from '../../components/Toast';
@@ -19,6 +19,11 @@ export default function DriverStudentLocations({ onBack, currentUser }) {
   const showToast = (msg, type = 'success') => setToast({ visible: true, message: msg, type });
   const [searchText, setSearchText] = useState('');
   const [confirmStudent, setConfirmStudent] = useState(null);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]);
 
   const driverName = currentUser?.full_name || DRIVER_DEFAULT.name;
   const driverId = currentUser?.role_id || DRIVER_DEFAULT.id;

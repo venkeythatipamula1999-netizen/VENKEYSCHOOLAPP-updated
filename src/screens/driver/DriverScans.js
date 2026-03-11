@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, BackHandler } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import LoadingSpinner from '../../components/LoadingSpinner';
@@ -9,6 +9,11 @@ export default function DriverScans({ onBack, currentUser }) {
   const [scans, setScans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]);
 
   useEffect(() => {
     (async () => {

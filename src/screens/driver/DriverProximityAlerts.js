@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  ActivityIndicator, Platform, Modal,
+  ActivityIndicator, Platform, Modal, BackHandler,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from '../../components/Icon';
@@ -57,6 +57,11 @@ export default function DriverProximityAlerts({ onBack, currentUser }) {
   const [changeCapturing, setChangeCapturing] = useState(false);
   const [changeReason, setChangeReason] = useState('');
   const [submittingChange, setSubmittingChange] = useState(false);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]);
 
   const loadData = useCallback(async () => {
     setLoading(true);

@@ -1,10 +1,15 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, TouchableOpacity, BackHandler } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 
 export default function CleanerAlerts({ onBack, notifs, setNotifs }) {
   const unread = notifs.filter(n => !n.read).length;
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]);
 
   return (
     <View>

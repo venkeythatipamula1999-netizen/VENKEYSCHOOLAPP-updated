@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Alert, BackHandler } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
@@ -288,6 +288,11 @@ export default function DriverProfile({ onBack, currentUser, onLogout }) {
   const initials = driverName.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
   const [showChangePwd, setShowChangePwd] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]);
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.navy }}>

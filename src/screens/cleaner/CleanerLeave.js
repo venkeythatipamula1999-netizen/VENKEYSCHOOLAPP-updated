@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, Modal, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, Modal, ScrollView, ActivityIndicator, BackHandler } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
@@ -26,6 +26,11 @@ export default function CleanerLeave({ onBack, currentUser }) {
   const [showTypePicker, setShowTypePicker] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [form, setForm] = useState({ type: '', from: '', to: '', reason: '' });
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]);
 
   useEffect(() => {
     if (!staffId) { setLoading(false); return; }

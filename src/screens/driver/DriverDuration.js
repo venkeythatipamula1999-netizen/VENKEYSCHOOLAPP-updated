@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, BackHandler } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import LoadingSpinner from '../../components/LoadingSpinner';
@@ -15,6 +15,11 @@ export default function DriverDuration({ onBack, currentUser }) {
   const [summary, setSummary] = useState({ avgMorning: 0, avgEvening: 0, totalToday: 0 });
   const [loading, setLoading] = useState(true);
   const [weekLabel, setWeekLabel] = useState('This week');
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]);
 
   const loadWeekData = useCallback(async (offset) => {
     setLoading(true);

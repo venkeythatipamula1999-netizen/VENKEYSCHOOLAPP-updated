@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Vibration, ScrollView
+  ActivityIndicator, Vibration, ScrollView, BackHandler
 } from 'react-native';
 import { Camera, CameraView } from 'expo-camera';
 import { C } from '../../theme/colors';
@@ -15,6 +15,12 @@ export default function CleanerScanner({ currentUser, onBack }) {
   const [scanResult, setScanResult] = useState(null);
   const [scanHistory, setScanHistory] = useState([]);
   const [torchOn, setTorchOn] = useState(false);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]);
+
   const lastScanned = useRef('');
   const cooldown = useRef(false);
 
