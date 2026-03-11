@@ -6248,6 +6248,37 @@ app.post('/api/parent-notifications/read', async (req, res) => {
   }
 });
 
+async function sendPushNotification(userId, title, body, data = {}) {
+  try {
+    const tokenDoc = await adminDb
+      .collection('fcm_tokens')
+      .doc(userId)
+      .get();
+    if (!tokenDoc.exists) return;
+    const token = tokenDoc.data().token;
+    if (!token) return;
+
+    const message = {
+      to: token,
+      sound: 'default',
+      title,
+      body,
+      data,
+    };
+
+    await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(message),
+    });
+  } catch (err) {
+    console.error('Push notification error:', err.message);
+  }
+}
+
 async function sendEventNotifications(eventId, title, date, time, venue, type, forClasses, description, prefix, schoolId) {
   const effSchoolId = schoolId || DEFAULT_SCHOOL_ID;
   const now = new Date().toISOString();
@@ -8191,6 +8222,27 @@ app.get('/api/bus/crew', verifyAuth, async (req, res) => {
   } catch (err) {
     console.error('Bus crew error:', err.message);
     res.status(500).json({ error: 'Failed to fetch bus crew' });
+  }
+});
+
+app.post('/api/notifications/register-token', verifyAuth, async (req, res) => {
+  try {
+    const { userId, role, token } = req.body;
+    if (!userId || !token) {
+      return res.status(400).json({ error: 'userId and token required' });
+    }
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    await adminDb.collection('fcm_tokens').doc(userId).set({
+      userId,
+      role,
+      token,
+      schoolId,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Register token error:', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 

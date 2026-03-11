@@ -8,6 +8,7 @@ import { INITIAL_LEAVE_REQS } from './src/data/teacher';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { useGlobalErrorListener } from './src/hooks/useGlobalErrorListener';
 import { setErrorReporterUser, clearErrorReporterUser } from './src/services/errorReporter';
+import { registerForPushNotifications } from './src/services/notifications';
 import OfflineBanner from './src/components/OfflineBanner';
 
 import SplashScreen from './src/screens/auth/SplashScreen';
@@ -148,6 +149,7 @@ export default function App() {
     const userRole = userData.role;
     setRole(userRole);
     setCurrentUser(userData);
+    registerForPushNotifications(userData.uid, userRole);
     if (!userData.profileCompleted) {
       navigate('complete-profile');
     } else {
