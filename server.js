@@ -4319,7 +4319,7 @@ async function checkProximityAlerts(busNumber, route, lat, lng) {
           busNumber,
           route,
           distance: Math.round(dist),
-          schoolId: (req.schoolId || DEFAULT_SCHOOL_ID),
+          schoolId: DEFAULT_SCHOOL_ID,
           read: false,
           createdAt: now.toISOString(),
         });
@@ -4334,7 +4334,7 @@ async function checkProximityAlerts(busNumber, route, lat, lng) {
           studentLng: stop.lng,
           distanceAtAlert: Math.round(dist),
           message: alertMsg,
-          schoolId: (req.schoolId || DEFAULT_SCHOOL_ID),
+          schoolId: DEFAULT_SCHOOL_ID,
           sentAt: now.toISOString(),
           tripDate: now.toISOString().slice(0, 10),
         });
@@ -4568,7 +4568,7 @@ app.post('/api/admin/buses/assign-students', verifyAuth, async (req, res) => {
     if (!busId || !studentIds) return res.status(400).json({ error: 'busId and studentIds required' });
     const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
 
-    const busSnap = await getDoc(doc(db, 'buses', busId));
+    const busSnap = await getDocFS(doc(db, 'buses', busId));
     if (!busSnap.exists() || busSnap.data().schoolId !== schoolId) {
       return res.status(403).json({ error: 'Bus not found in your school' });
     }
