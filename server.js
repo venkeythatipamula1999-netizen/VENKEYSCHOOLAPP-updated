@@ -4980,8 +4980,8 @@ app.get('/api/student/qr/:studentId', async (req, res) => {
 
 app.get('/api/school-info', async (req, res) => {
   try {
-    const docSnap = await getDocFS(doc(db, 'settings', (req.schoolId || DEFAULT_SCHOOL_ID)));
-    if (docSnap.exists()) {
+    const docSnap = await adminDb.collection('settings').doc(req.schoolId || DEFAULT_SCHOOL_ID).get();
+    if (docSnap.exists) {
       res.json({ success: true, info: docSnap.data() });
     } else {
       res.json({ success: true, info: null });
@@ -4997,7 +4997,7 @@ app.post('/api/school-info', verifyAuth, async (req, res) => {
       return res.status(403).json({ error: 'Admin access required' });
     }
     const info = req.body;
-    await setDoc(doc(db, 'settings', (req.schoolId || DEFAULT_SCHOOL_ID)), info, { merge: true });
+    await adminDb.collection('settings').doc(req.schoolId || DEFAULT_SCHOOL_ID).set(info, { merge: true });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
