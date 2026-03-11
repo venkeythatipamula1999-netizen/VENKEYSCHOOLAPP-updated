@@ -3,11 +3,11 @@ import { View, Text } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { C } from '../theme/colors';
 
-export default function DonutRing({ pct, color, size = 80, stroke = 9, label, sublabel, sub }) {
+export default function DonutRing({ pct, color, size = 80, stroke = 9, label, sublabel }) {
   const r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
   const dash = (pct / 100) * circ;
-  const subText = sublabel || sub;
+  const subText = sublabel;
 
   return (
     <View style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
