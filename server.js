@@ -6071,7 +6071,8 @@ app.post('/api/parent/add-child', async (req, res) => {
     if (studentData.schoolId && req.schoolId && studentData.schoolId !== req.schoolId) {
       return res.status(403).json({ error: 'Student not found in your school' });
     }
-    if (studentData.parentPhone && phone) {
+    if (studentData.parentPhone) {
+      if (!phone) return res.status(400).json({ error: 'Phone number is required to link this student.' });
       const storedPhone = String(studentData.parentPhone).replace(/\D/g, '');
       const enteredPhone = String(phone).replace(/\D/g, '');
       if (storedPhone && enteredPhone !== storedPhone) return res.status(400).json({ error: 'Phone number does not match school records for this student.' });
