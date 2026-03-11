@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Venkeys International School",
-    "slug": "venkeys-school-app",
+    "name": "Vidyalayam",
+    "slug": "vidyalayam",
     "owner": "venkey3",
     "version": "2.0.0",
     "orientation": "portrait",
@@ -20,7 +20,7 @@
       "web"
     ],
     "android": {
-      "package": "com.venkateshthati.sreepragathi",
+      "package": "com.vidyalayam.app",
       "versionCode": 1,
       "googleServicesFile": "./google-services.json",
       "permissions": [
