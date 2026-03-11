@@ -31,6 +31,7 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
   const [boardedCount, setBoardedCount] = useState(0);
   const [unreadNotifs, setUnreadNotifs] = useState(0);
   const [recentScans, setRecentScans] = useState([]);
+  const [crew, setCrew] = useState(null);
   const watchRef = useRef(null);
   const intervalRef = useRef(null);
   const elapsedRef = useRef(null);
@@ -110,6 +111,13 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
       setUnreadNotifs(
         notifData.notifications?.filter(n => !n.read)?.length || 0
       );
+    } catch {}
+    try {
+      const crewRes = await apiFetch(
+        `/bus/crew?busNumber=${encodeURIComponent(busNumber)}`
+      );
+      const crewData = await crewRes.json();
+      if (crewData.crew) setCrew(crewData.crew);
     } catch {}
   }, [driverId, busNumber]);
 
@@ -754,7 +762,7 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
         <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 20, padding: 16 }}>
           {[
             { label: 'Driver', person: { name: driverName, photo: initials, id: driverId }, color: C.teal, icon: '\uD83D\uDE8C' },
-            { label: 'Cleaner/Attender', person: DRIVER_DEFAULT.cleaner, color: C.gold, icon: '\uD83E\uDDF9' },
+            { label: 'Cleaner/Attender', person: { name: crew?.cleaner?.name || 'Not assigned', photo: crew?.cleaner?.name ? crew.cleaner.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase() : 'NA', id: crew?.cleaner?.id || '' }, color: C.gold, icon: '\uD83E\uDDF9' },
           ].map(({ label, person, color, icon }, i) => (
             <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: i === 0 ? 1 : 0, borderBottomColor: C.border }}>
               <View style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: color + '22', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -777,7 +785,7 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
             <View style={{ width: 1, backgroundColor: C.border }} />
             <View style={{ flex: 1, alignItems: 'center' }}>
               <Text style={{ color: C.muted, fontSize: 11 }}>Capacity</Text>
-              <Text style={{ fontWeight: '700', fontSize: 13, marginTop: 2, color: C.teal }}>{DRIVER_DEFAULT.bus.capacity} seats</Text>
+              <Text style={{ fontWeight: '700', fontSize: 13, marginTop: 2, color: C.teal }}>{crew?.capacity || '--'} seats</Text>
             </View>
           </View>
         </View>

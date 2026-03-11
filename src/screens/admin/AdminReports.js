@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, BackHandler } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, BackHandler, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
@@ -263,9 +263,16 @@ export default function AdminReports({ onBack }) {
                 <DonutRing pct={classOverallPct} color={C.purple} size={78} stroke={9} label={`${classOverallPct}%`} sublabel="Class Avg" />
                 <View style={{ flex:1 }}>
                   <Text style={{ color:C.muted, fontSize:12, marginBottom:3 }}>Overall Class Average</Text>
-                  <Text style={{ fontSize:34, fontWeight:'900', color:C.purple, lineHeight:36 }}>
-                    {classOverallPct}<Text style={{ fontSize:12, color:C.muted, fontWeight:'400' }}>%</Text>
-                  </Text>
+                  <View style={{ flexDirection:'row', alignItems:'center', gap:8 }}>
+                    <Text style={{ fontSize:34, fontWeight:'900', color:C.purple, lineHeight:36 }}>
+                      {classOverallPct}<Text style={{ fontSize:12, color:C.muted, fontWeight:'400' }}>%</Text>
+                    </Text>
+                    {classOverallPct < 40 && (
+                      <View style={{ backgroundColor:C.coral+'22', borderRadius:6, paddingHorizontal:8, paddingVertical:2 }}>
+                        <Text style={{ color:C.coral, fontSize:11, fontWeight:'700' }}>⚠️ Below 40%</Text>
+                      </View>
+                    )}
+                  </View>
                   <Text style={{ color:C.muted, fontSize:11, marginTop:5 }}>
                     {'\uD83C\uDFC6'} Topper: <Text style={{ fontWeight:'700', color:'#22d38a' }}>{topper?.name?.split(' ')[0] || '—'}</Text>{topper ? ` · ${topper.overallPct}%` : ''}
                   </Text>
@@ -790,7 +797,11 @@ export default function AdminReports({ onBack }) {
 
               <View style={[st.secHead, { marginTop:8 }]}><Text style={st.secTitle}>Export</Text></View>
               {["\uD83D\uDCC4 PDF – Student List","\uD83D\uDCCA Excel – Boarding Log","\uD83D\uDCF1 Share via WhatsApp"].map(e => (
-                <TouchableOpacity key={e} style={[st.btnOutline, { marginBottom:8, width:'100%' }]}>
+                <TouchableOpacity key={e} style={[st.btnOutline, { marginBottom:8, width:'100%' }]}
+                  onPress={() => Alert.alert(
+                    e.includes('WhatsApp') ? 'Share via WhatsApp' : e.includes('Excel') ? 'Export Excel' : 'Export PDF',
+                    e.includes('WhatsApp') ? 'WhatsApp sharing coming soon.' : 'Export is being prepared. Check back soon.'
+                  )}>
                   <Text style={{ color:C.white, fontWeight:'600', fontSize:15 }}>{e}</Text>
                 </TouchableOpacity>
               ))}
@@ -847,7 +858,11 @@ export default function AdminReports({ onBack }) {
             </View>
             <View style={st.secHead}><Text style={st.secTitle}>Export</Text></View>
             {["\uD83D\uDCC4 PDF – Daily Report","\uD83D\uDCCA Excel – Monthly Sheet","\uD83D\uDCCB PDF – Term Report"].map(e => (
-              <TouchableOpacity key={e} style={[st.btnOutline, { marginBottom:8, width:'100%' }]}>
+              <TouchableOpacity key={e} style={[st.btnOutline, { marginBottom:8, width:'100%' }]}
+                onPress={() => Alert.alert(
+                  e.includes('Excel') ? 'Export Excel' : 'Export PDF',
+                  'Export is being prepared. Check back soon.'
+                )}>
                 <Text style={{ color:C.white, fontWeight:'600', fontSize:15 }}>{e}</Text>
               </TouchableOpacity>
             ))}

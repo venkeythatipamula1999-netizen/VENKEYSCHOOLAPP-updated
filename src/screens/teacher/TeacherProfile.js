@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, BackHandler } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, BackHandler, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import ChangePasswordModal from '../../components/ChangePasswordModal';
+import { apiFetch } from '../../api/client';
 
 const ALL_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -12,11 +13,25 @@ export default function TeacherProfile({ onBack, currentUser, onLogout }) {
   const teacherId = currentUser?.role_id || 'TCH-0000';
   const initials = teacherName.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
   const [showChangePwd, setShowChangePwd] = useState(false);
+  const [activeTab, setActiveTab] = useState('info');
+  const [payslips, setPayslips] = useState([]);
+  const [salaryLoading, setSalaryLoading] = useState(false);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
     return () => sub.remove();
   }, [onBack]);
+
+  useEffect(() => {
+    if (activeTab !== 'salary') return;
+    setSalaryLoading(true);
+    const id = currentUser?.role_id || currentUser?.uid || '';
+    apiFetch(`/payroll/my-year?staffId=${encodeURIComponent(id)}`)
+      .then(r => r.json())
+      .then(data => setPayslips(data.payslips || data.records || []))
+      .catch(() => {})
+      .finally(() => setSalaryLoading(false));
+  }, [activeTab]);
 
   const timetable = Array.isArray(currentUser?.timetable) ? currentUser.timetable : [];
   const assignedClasses = Array.isArray(currentUser?.assignedClasses) ? currentUser.assignedClasses : [];
@@ -78,6 +93,21 @@ export default function TeacherProfile({ onBack, currentUser, onLogout }) {
           </View>
         </LinearGradient>
 
+        <View style={{ flexDirection: 'row', marginBottom: 16, gap: 8 }}>
+          {['info', 'salary'].map(tab => (
+            <TouchableOpacity
+              key={tab}
+              onPress={() => setActiveTab(tab)}
+              style={{ flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', backgroundColor: activeTab === tab ? C.gold : C.navyMid }}
+            >
+              <Text style={{ fontWeight: '700', fontSize: 13, color: activeTab === tab ? C.navy : C.muted }}>
+                {tab === 'info' ? '👤 Profile' : '💰 Salary'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {activeTab === 'info' && (<>
         <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 20, overflow: 'hidden', marginBottom: 14 }}>
           {[
             { label: 'Employee ID', value: teacherId, icon: '\uD83E\uDEAA' },
@@ -167,6 +197,33 @@ export default function TeacherProfile({ onBack, currentUser, onLogout }) {
             <Text style={{ fontWeight: '600', fontSize: 15, color: C.coral }}>Logout</Text>
           </TouchableOpacity>
         </View>
+        </>)}
+
+        {activeTab === 'salary' && (
+          <View style={{ paddingBottom: 8 }}>
+            {salaryLoading && (
+              <ActivityIndicator color={C.gold} style={{ marginTop: 40 }} />
+            )}
+            {!salaryLoading && payslips.length === 0 && (
+              <Text style={{ color: C.muted, textAlign: 'center', marginTop: 40, fontSize: 14 }}>
+                No payslip records found
+              </Text>
+            )}
+            {payslips.map((p, i) => (
+              <View key={i} style={{ backgroundColor: C.card, borderRadius: 12, padding: 16, marginBottom: 12, borderLeftWidth: 4, borderLeftColor: C.gold }}>
+                <Text style={{ color: C.white, fontWeight: '700', fontSize: 15 }}>
+                  {p.month || p.period || `Record ${i + 1}`}
+                </Text>
+                <Text style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>
+                  Amount: ₹{Number(p.amount || p.netSalary || 0).toLocaleString('en-IN')}
+                </Text>
+                <Text style={{ color: p.status === 'paid' ? '#34D399' : C.coral, fontSize: 12, marginTop: 4 }}>
+                  {p.status === 'paid' ? '✅ Paid' : '⏳ Pending'}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
       </View>
 
       <ChangePasswordModal

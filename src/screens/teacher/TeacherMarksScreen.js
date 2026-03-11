@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Modal, KeyboardAvoidingView, Platform, BackHandler } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Modal, KeyboardAvoidingView, Platform, BackHandler, Alert } from 'react-native';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import { apiFetch } from '../../api/client';
@@ -363,6 +363,17 @@ export default function TeacherMarksScreen({ onBack, currentUser }) {
       if (!res.ok) throw new Error(data.error || 'Failed to save marks');
       setSyncStatus(data.sheetSync ? 'synced' : 'partial');
       showToast(`${exam.label} marks saved! ${entrySubject.name} – ${selectedClass?.label || ''}`, 'success');
+      const below40 = students.filter(s => {
+        const mark = marks[s.id];
+        return mark !== undefined && mark !== '' && Number(mark) < MAX_MARKS * 0.4;
+      });
+      if (below40.length > 0) {
+        Alert.alert(
+          '⚠️ Low Marks Warning',
+          `${below40.length} student${below40.length > 1 ? 's' : ''} scored below 40%. Please review before submitting to admin.`,
+          [{ text: 'OK' }]
+        );
+      }
       setSubmittedExams(prev => new Set([...prev, exam.id]));
       // Instantly reload view data so teacher sees results immediately
       if (mode === 'view' || true) {

@@ -67,7 +67,7 @@ import CleanerAlerts from './src/screens/cleaner/CleanerAlerts';
 import CleanerProfile from './src/screens/cleaner/CleanerProfile';
 import CleanerLeave from './src/screens/cleaner/CleanerLeave';
 import CompleteProfileScreen from './src/screens/auth/CompleteProfileScreen';
-import { STUDENTS_INIT as STUDENTS_INIT_CLEANER, NOTIFS_INIT as NOTIFS_INIT_CLEANER } from './src/data/cleaner';
+import { STUDENTS_INIT as STUDENTS_INIT_CLEANER } from './src/data/cleaner';
 
 export default function App() {
   useGlobalErrorListener();
@@ -77,7 +77,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [leaveRequests, setLeaveRequests] = useState(INITIAL_LEAVE_REQS);
   const [cleanerStudents, setCleanerStudents] = useState(STUDENTS_INIT_CLEANER);
-  const [cleanerNotifs, setCleanerNotifs] = useState(NOTIFS_INIT_CLEANER);
+  const [cleanerNotifs, setCleanerNotifs] = useState([]);
   const scrollRef = useRef(null);
 
   useEffect(() => {
