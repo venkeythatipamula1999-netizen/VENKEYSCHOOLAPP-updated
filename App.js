@@ -128,7 +128,9 @@ export default function App() {
     checkStoredAuth();
   }, []);
 
-  const navigate = (s) => {
+  const [navParams, setNavParams] = useState({});
+  const navigate = (s, params = {}) => {
+    setNavParams(params);
     setScreen(s);
     if (scrollRef.current && scrollRef.current.scrollTo) {
       scrollRef.current.scrollTo({ y: 0, animated: false });
@@ -295,7 +297,7 @@ export default function App() {
       case 'parent-login':
         return <ParentLoginScreen onLoginSuccess={handleLoginSuccess} onBack={() => navigate('parent-portal')} onNavigate={navigate} />;
       case 'parent-register':
-        return null;
+        return <ParentLoginScreen onLoginSuccess={handleLoginSuccess} onBack={() => navigate('parent-portal')} onNavigate={navigate} />;
       case 'teacher-login':
         return <LoginScreen role="teacher" onLoginSuccess={handleLoginSuccess} onBack={() => navigate('splash')} onNavigate={navigate} />;
       case 'driver-login':
@@ -351,7 +353,7 @@ export default function App() {
     case 'admin-salary': return <AdminSalaryScreen onBack={() => navigate('admin-home')} />;
     case 'admin-promotion': return <AdminPromotion onBack={() => navigate('admin-home')} />;
     case 'admin-fee-status': return <AdminFeeStatus onBack={() => navigate('admin-home')} />;
-    case 'admin-students': return <AdminStudents onBack={() => navigate('admin-classes')} classItem={currentUser?.selectedClass} />;
+    case 'admin-students': return <AdminStudents onBack={() => navigate('admin-classes')} classItem={navParams.selectedClass} />;
     case 'admin-profile': return <AdminProfile onBack={() => navigate('admin-home')} currentUser={currentUser} onLogout={handleLogout} onUpdateUser={(u) => setCurrentUser(u)} />;
     case 'admin-send-document': return <AdminSendDocument onBack={() => navigate('admin-home')} currentUser={currentUser} />;
       default: return null;

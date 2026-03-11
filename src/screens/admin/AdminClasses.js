@@ -136,8 +136,7 @@ function AdminClasses({ onBack, currentUser, onNavigate }) {
               <TouchableOpacity
                 key={cls.id}
                 onPress={() => {
-                  if (currentUser) currentUser.selectedClass = cls;
-                  onNavigate('admin-students');
+                  onNavigate('admin-students', { selectedClass: cls });
                 }}
                 style={st.classCard}
               >
