@@ -34,6 +34,28 @@ export default function AdminUsers({ onBack }) {
   const [drvExperience, setDrvExperience] = useState('');
   const [drvEmail, setDrvEmail] = useState('');
   const [newJoinDate, setNewJoinDate] = useState(new Date().toISOString().split('T')[0]);
+  const [showSubjectPicker, setShowSubjectPicker] = useState(false);
+  const [showJoinDatePicker, setShowJoinDatePicker] = useState(false);
+  const today = new Date();
+  const [pickerMonth, setPickerMonth] = useState(today.getMonth());
+  const [pickerYear, setPickerYear] = useState(today.getFullYear());
+
+  const SUBJECTS = ['Telugu', 'Hindi', 'English', 'Mathematics', 'Science (Physics)', 'Science (Biology)', 'Social Studies', 'Computer', 'Physical Education'];
+  const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+  const formatDisplayDate = (iso) => {
+    if (!iso) return '';
+    const [y, m, d] = iso.split('-');
+    return `${d}-${m}-${y}`;
+  };
+
+  const buildCalendarDays = (year, month) => {
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const blanks = Array(firstDay).fill(null);
+    const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+    return [...blanks, ...days];
+  };
   const [drvJoinDate, setDrvJoinDate] = useState(new Date().toISOString().split('T')[0]);
   const [clnJoinDate, setClnJoinDate] = useState(new Date().toISOString().split('T')[0]);
   const [clnName, setClnName] = useState('');
@@ -942,15 +964,7 @@ export default function AdminUsers({ onBack }) {
               <View style={{ marginTop: 12 }}>
                 {showForm ? (
                   <View style={[st.card, { marginBottom: 12 }]}>
-                    <Text style={{ fontWeight: '700', marginBottom: 12, color: C.white }}>Onboard Teacher / Staff</Text>
-                    <Text style={st.label}>Role</Text>
-                    <View style={{ flexDirection: 'row', backgroundColor: C.navy, borderRadius: 10, padding: 3, gap: 3, marginBottom: 12 }}>
-                      {['teacher', 'staff'].map(r => (
-                        <TouchableOpacity key={r} onPress={() => setNewRole(r)} style={{ flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center', backgroundColor: newRole === r ? C.gold : 'transparent' }}>
-                          <Text style={{ fontSize: 13, fontWeight: '600', color: newRole === r ? C.navy : C.muted }}>{r.charAt(0).toUpperCase() + r.slice(1)}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
+                    <Text style={{ fontWeight: '700', marginBottom: 12, color: C.white }}>Onboard New Teacher</Text>
                     <Text style={st.label}>Full Name *</Text>
                     <TextInput style={st.input} placeholder="e.g. Dr. Sanjay Kumar" placeholderTextColor={C.muted} value={newName} onChangeText={setNewName} />
                     <Text style={[st.label, { marginTop: 10 }]}>Mobile Number *</Text>
@@ -958,9 +972,23 @@ export default function AdminUsers({ onBack }) {
                     <Text style={[st.label, { marginTop: 10 }]}>Email *</Text>
                     <TextInput style={st.input} placeholder="e.g. teacher@venkeys.edu" placeholderTextColor={C.muted} value={newEmail} onChangeText={setNewEmail} keyboardType="email-address" autoCapitalize="none" />
                     <Text style={[st.label, { marginTop: 10 }]}>Assigned Subject *</Text>
-                    <TextInput style={st.input} placeholder="e.g. Physics" placeholderTextColor={C.muted} value={newSubj} onChangeText={setNewSubj} />
+                    <TouchableOpacity onPress={() => setShowSubjectPicker(true)} style={[st.input, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
+                      <Text style={{ color: newSubj ? C.white : C.muted, fontSize: 14 }}>{newSubj || 'Select Subject'}</Text>
+                      <Text style={{ color: C.muted, fontSize: 12 }}>▾</Text>
+                    </TouchableOpacity>
                     <Text style={[st.label, { marginTop: 10 }]}>Date of Joining *</Text>
-                    <TextInput style={st.input} placeholder="YYYY-MM-DD" placeholderTextColor={C.muted} value={newJoinDate} onChangeText={setNewJoinDate} />
+                    <TouchableOpacity
+                      onPress={() => {
+                        const [y, m] = newJoinDate.split('-');
+                        setPickerYear(parseInt(y, 10));
+                        setPickerMonth(parseInt(m, 10) - 1);
+                        setShowJoinDatePicker(true);
+                      }}
+                      style={[st.input, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+                    >
+                      <Text style={{ color: C.white, fontSize: 14 }}>{formatDisplayDate(newJoinDate)}</Text>
+                      <Text style={{ fontSize: 16 }}>📅</Text>
+                    </TouchableOpacity>
                     {onboardError ? (
                       <View style={{ backgroundColor: C.coral + '22', borderWidth: 1, borderColor: C.coral + '44', borderRadius: 10, padding: 10, marginTop: 12 }}>
                         <Text style={{ color: C.coral, fontSize: 12, fontWeight: '600' }}>{onboardError}</Text>
@@ -978,7 +1006,7 @@ export default function AdminUsers({ onBack }) {
                 ) : (
                   <TouchableOpacity onPress={() => setShowForm(true)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: C.teal, borderRadius: 14, paddingVertical: 14 }}>
                     <Icon name="users" size={16} color={C.navy} />
-                    <Text style={{ color: C.navy, fontWeight: '600', fontSize: 15 }}>+ Add Teacher / Staff</Text>
+                    <Text style={{ color: C.navy, fontWeight: '600', fontSize: 15 }}>+ Add New Teacher</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -1171,6 +1199,80 @@ export default function AdminUsers({ onBack }) {
           </View>
         )}
       </View>
+
+      <Modal visible={showSubjectPicker} transparent animationType="fade" onRequestClose={() => setShowSubjectPicker(false)}>
+        <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }} activeOpacity={1} onPress={() => setShowSubjectPicker(false)}>
+          <View style={{ backgroundColor: C.card, borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingBottom: 30 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 18, borderBottomWidth: 1, borderBottomColor: C.border }}>
+              <Text style={{ fontWeight: '700', fontSize: 16, color: C.white }}>Select Subject</Text>
+              <TouchableOpacity onPress={() => setShowSubjectPicker(false)}>
+                <Text style={{ color: C.muted, fontSize: 14 }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            {SUBJECTS.map((subj) => (
+              <TouchableOpacity
+                key={subj}
+                onPress={() => { setNewSubj(subj); setShowSubjectPicker(false); }}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: C.border + '55' }}
+              >
+                <Text style={{ fontSize: 15, color: newSubj === subj ? C.teal : C.white, fontWeight: newSubj === subj ? '700' : '400' }}>{subj}</Text>
+                {newSubj === subj && <Text style={{ color: C.teal, fontSize: 16 }}>✓</Text>}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal visible={showJoinDatePicker} transparent animationType="fade" onRequestClose={() => setShowJoinDatePicker(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 22, padding: 20, width: '100%', maxWidth: 360 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <Text style={{ fontWeight: '700', fontSize: 16, color: C.white }}>Select Date of Joining</Text>
+              <TouchableOpacity onPress={() => setShowJoinDatePicker(false)}>
+                <Text style={{ color: C.muted, fontSize: 14 }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <TouchableOpacity onPress={() => { let m = pickerMonth - 1; let y = pickerYear; if (m < 0) { m = 11; y -= 1; } setPickerMonth(m); setPickerYear(y); }} style={{ padding: 8 }}>
+                <Text style={{ color: C.gold, fontSize: 18, fontWeight: '700' }}>‹</Text>
+              </TouchableOpacity>
+              <Text style={{ fontWeight: '700', fontSize: 15, color: C.white }}>{MONTH_NAMES[pickerMonth]} {pickerYear}</Text>
+              <TouchableOpacity onPress={() => { let m = pickerMonth + 1; let y = pickerYear; if (m > 11) { m = 0; y += 1; } setPickerMonth(m); setPickerYear(y); }} style={{ padding: 8 }}>
+                <Text style={{ color: C.gold, fontSize: 18, fontWeight: '700' }}>›</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={{ flexDirection: 'row', marginBottom: 6 }}>
+              {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
+                <View key={d} style={{ flex: 1, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 11, color: C.muted, fontWeight: '600' }}>{d}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+              {buildCalendarDays(pickerYear, pickerMonth).map((day, idx) => {
+                if (!day) return <View key={`b-${idx}`} style={{ width: '14.28%', aspectRatio: 1 }} />;
+                const isoStr = `${pickerYear}-${String(pickerMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const isSelected = newJoinDate === isoStr;
+                const isToday = isoStr === new Date().toISOString().split('T')[0];
+                return (
+                  <TouchableOpacity
+                    key={isoStr}
+                    onPress={() => { setNewJoinDate(isoStr); setShowJoinDatePicker(false); }}
+                    style={{ width: '14.28%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: isSelected ? C.teal : isToday ? C.gold + '33' : 'transparent', alignItems: 'center', justifyContent: 'center', borderWidth: isToday && !isSelected ? 1 : 0, borderColor: C.gold }}>
+                      <Text style={{ fontSize: 13, fontWeight: isSelected || isToday ? '700' : '400', color: isSelected ? C.navy : isToday ? C.gold : C.white }}>{day}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <TouchableOpacity onPress={() => setShowJoinDatePicker(false)} style={{ marginTop: 16, backgroundColor: C.navyMid, borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}>
+              <Text style={{ color: C.muted, fontWeight: '700' }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={!!staffResult} transparent animationType="fade" onRequestClose={closeStaffPopup}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
