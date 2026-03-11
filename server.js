@@ -6068,6 +6068,9 @@ app.post('/api/parent/add-child', async (req, res) => {
     if ((parentAccount.studentIds || []).includes(sid)) return res.status(409).json({ error: 'This student is already linked to your account.' });
     const studentData = await lookupStudentById(sid);
     if (!studentData) return res.status(404).json({ error: 'Invalid Student ID. Please check and try again.' });
+    if (studentData.schoolId && req.schoolId && studentData.schoolId !== req.schoolId) {
+      return res.status(403).json({ error: 'Student not found in your school' });
+    }
     if (studentData.parentPhone && phone) {
       const storedPhone = String(studentData.parentPhone).replace(/\D/g, '');
       const enteredPhone = String(phone).replace(/\D/g, '');

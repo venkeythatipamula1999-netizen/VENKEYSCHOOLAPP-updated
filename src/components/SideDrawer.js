@@ -62,7 +62,11 @@ export default function SideDrawer({ visible, onClose, currentUser, onNavigate, 
     }
   }, [visible]);
 
-  const items = role === 'principal' ? ADMIN_ITEMS : TEACHER_ITEMS;
+  const MINIMAL_ITEMS = [
+    { icon: '👤', label: 'Profile', screen: `${role}-profile` },
+    { icon: '🚪', label: 'Logout', action: 'logout' },
+  ];
+  const items = role === 'principal' ? ADMIN_ITEMS : role === 'teacher' ? TEACHER_ITEMS : MINIMAL_ITEMS;
   const name = currentUser?.full_name || currentUser?.parentName || 'User';
   const roleLabel = role === 'principal' ? 'Principal' : 'Teacher';
   const schoolName = currentUser?.schoolName || 'Sree Pragathi High School';

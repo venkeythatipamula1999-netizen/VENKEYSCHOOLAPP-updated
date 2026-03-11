@@ -11,6 +11,8 @@ import Toast from '../../components/Toast';
 export default function CleanerDashboard({ onNavigate, currentUser, students }) {
   const [gpsOn, setGpsOn] = useState(false);
   const [gpsLoad, setGpsLoad] = useState(false);
+  const [gpsCoords, setGpsCoords] = useState(null);
+  const [gpsPermissionDenied, setGpsPermissionDenied] = useState(false);
   const [onDuty, setOnDuty] = useState(false);
   const [dutyLoading, setDutyLoading] = useState(false);
   const [clockInTime, setClockInTime] = useState(null);
@@ -101,9 +103,27 @@ export default function CleanerDashboard({ onNavigate, currentUser, students }) 
   const toggleGPS = () => {
     if (!gpsOn) {
       setGpsLoad(true);
-      setTimeout(() => { setGpsLoad(false); setGpsOn(true); }, 1800);
+      setGpsPermissionDenied(false);
+      if (typeof navigator !== 'undefined' && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            setGpsCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+            setGpsOn(true);
+            setGpsLoad(false);
+          },
+          () => {
+            setGpsPermissionDenied(true);
+            setGpsLoad(false);
+          },
+          { enableHighAccuracy: true, timeout: 10000 }
+        );
+      } else {
+        setGpsPermissionDenied(true);
+        setGpsLoad(false);
+      }
     } else {
       setGpsOn(false);
+      setGpsCoords(null);
     }
   };
 
@@ -231,7 +251,13 @@ export default function CleanerDashboard({ onNavigate, currentUser, students }) 
           {gpsLoad && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <View style={{ width: 18, height: 18, borderRadius: 9, borderWidth: 2.5, borderColor: C.gold + '40', borderTopColor: C.gold }} />
-              <Text style={{ color: C.gold, fontSize: 13 }}>Activating GPS…</Text>
+              <Text style={{ color: C.gold, fontSize: 13 }}>Acquiring GPS location…</Text>
+            </View>
+          )}
+          {gpsPermissionDenied && !gpsLoad && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.coral + '18', borderRadius: 10, padding: 10 }}>
+              <Text style={{ fontSize: 14 }}>📍</Text>
+              <Text style={{ color: C.coral, fontSize: 12, flex: 1 }}>Location access denied. Please enable GPS permissions in your device settings.</Text>
             </View>
           )}
 
@@ -242,8 +268,10 @@ export default function CleanerDashboard({ onNavigate, currentUser, students }) 
                   <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#34D399' }} />
                   <Text style={{ color: '#34D399', fontSize: 11, fontWeight: '600' }}>LIVE</Text>
                 </View>
-                <Text style={{ fontWeight: '700', fontSize: 12, color: C.white }}>12.9716N, 80.2443E</Text>
-                <Text style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>Near OMR Junction</Text>
+                <Text style={{ fontWeight: '700', fontSize: 12, color: C.white }}>
+                  {gpsCoords ? `${gpsCoords.lat.toFixed(4)}N, ${gpsCoords.lng.toFixed(4)}E` : 'Acquiring...'}
+                </Text>
+                <Text style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>Live GPS location</Text>
               </View>
               <View style={{ flex: 1, backgroundColor: C.gold + '14', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: C.gold + '38' }}>
                 <Text style={{ color: C.gold, fontSize: 11, fontWeight: '600', marginBottom: 4 }}>BOARDED TODAY</Text>

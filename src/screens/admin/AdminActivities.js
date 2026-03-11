@@ -279,7 +279,13 @@ export default function AdminActivities({ onBack, currentUser }) {
             <Text style={{ fontSize: 18, fontWeight: '700', color: C.white, marginBottom: 4 }}>{selectedClass}</Text>
             <Text style={{ color: C.muted, fontSize: 13 }}>{acts.length} activities recorded this year</Text>
           </LinearGradient>
-          {acts.map(a => (
+          {acts.length === 0 ? (
+            <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+              <Text style={{ fontSize: 38, marginBottom: 12 }}>🏅</Text>
+              <Text style={{ fontWeight: '700', fontSize: 15, color: C.white, marginBottom: 6 }}>No activities yet</Text>
+              <Text style={{ color: C.muted, fontSize: 13, textAlign: 'center', lineHeight: 20 }}>Tap + to create the first activity for this class.</Text>
+            </View>
+          ) : acts.map(a => (
             <TouchableOpacity key={a.id} onPress={() => setSelectedActivity(a)} style={[st.cardLg, { marginBottom: 12, borderLeftWidth: 3, borderLeftColor: a.color }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <View style={{ width: 50, height: 50, borderRadius: 16, backgroundColor: a.color + '22', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Text style={{ fontSize: 26 }}>{a.icon}</Text></View>

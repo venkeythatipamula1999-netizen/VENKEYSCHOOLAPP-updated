@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from '../../components/Icon';
 import { C } from '../../theme/colors';
 import { S } from '../../theme/styles';
+import { apiFetch } from '../../api/client';
 
 export default function ParentLoginScreen({ onLoginSuccess, onBack, onNavigate }) {
   const [email, setEmail] = useState('');
@@ -28,9 +29,8 @@ export default function ParentLoginScreen({ onLoginSuccess, onBack, onNavigate }
     }
     setLoading(true);
     try {
-      const res = await fetch('/api/parent/email-login', {
+      const res = await apiFetch('/parent/email-login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
       });
       const data = await res.json();
@@ -72,9 +72,8 @@ export default function ParentLoginScreen({ onLoginSuccess, onBack, onNavigate }
     }
     setResetLoading(true);
     try {
-      const res = await fetch('/api/parent/forgot-password', {
+      const res = await apiFetch('/parent/forgot-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: resetEmail.trim() }),
       });
       const data = await res.json();
