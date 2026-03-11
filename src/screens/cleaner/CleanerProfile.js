@@ -1,16 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, BackHandler } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, BackHandler, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../../theme/colors';
 import Icon from '../../components/Icon';
 import ChangePasswordModal from '../../components/ChangePasswordModal';
 import { CLEANER_DEFAULT } from '../../data/cleaner';
+import { apiFetch } from '../../api/client';
 
 export default function CleanerProfile({ onBack, currentUser, onLogout }) {
   const cleanerName = currentUser?.full_name || CLEANER_DEFAULT.name;
   const cleanerId = currentUser?.role_id || CLEANER_DEFAULT.id;
   const initials = cleanerName.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
   const [showChangePwd, setShowChangePwd] = useState(false);
+  const [crew, setCrew] = useState(null);
+  const [crewLoading, setCrewLoading] = useState(true);
+
+  const busNum = currentUser?.bus_number || '';
+
+  useEffect(() => {
+    if (!busNum) { setCrewLoading(false); return; }
+    apiFetch(`/bus/crew?busNumber=${encodeURIComponent(busNum)}`)
+      .then(r => r.json())
+      .then(data => { if (data.crew) setCrew(data.crew); })
+      .catch(() => {})
+      .finally(() => setCrewLoading(false));
+  }, [busNum]);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
@@ -69,7 +83,7 @@ export default function CleanerProfile({ onBack, currentUser, onLogout }) {
           {[
             { label: 'Number', value: currentUser?.bus_number || CLEANER_DEFAULT.bus.number },
             { label: 'Route', value: currentUser?.route || CLEANER_DEFAULT.bus.route },
-            { label: 'Capacity', value: CLEANER_DEFAULT.bus.capacity + ' students' },
+            { label: 'Capacity', value: crew ? (crew.capacity + ' students') : 'Loading...' },
           ].map(r => (
             <View key={r.label} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
               <Text style={{ color: C.muted, fontSize: 13 }}>{r.label}</Text>
@@ -82,15 +96,20 @@ export default function CleanerProfile({ onBack, currentUser, onLogout }) {
           <Text style={{ fontWeight: '600', fontSize: 14, marginBottom: 14, color: C.white }}>{'\uD83D\uDE8C'} Assigned Driver</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: C.teal + '22', alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontWeight: '700', fontSize: 16, color: C.teal }}>{CLEANER_DEFAULT.driver.photo}</Text>
+              <Text style={{ fontWeight: '700', fontSize: 16, color: C.teal }}>{'\uD83D\uDE8C'}</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontWeight: '700', fontSize: 15, color: C.white }}>{CLEANER_DEFAULT.driver.name}</Text>
-              <Text style={{ color: C.muted, fontSize: 12 }}>{CLEANER_DEFAULT.driver.id}</Text>
-              <Text style={{ color: C.muted, fontSize: 12 }}>{CLEANER_DEFAULT.driver.phone}</Text>
+              {crewLoading ? (
+                <ActivityIndicator color={C.teal} />
+              ) : (
+                <>
+                  <Text style={{ fontWeight: '700', fontSize: 15, color: C.white }}>{crew?.driver?.name || 'Not assigned'}</Text>
+                  <Text style={{ color: C.muted, fontSize: 12 }}>{crew?.driver?.id || ''}</Text>
+                </>
+              )}
             </View>
             <View style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 50, backgroundColor: C.gold + '26' }}>
-              <Text style={{ fontSize: 10, fontWeight: '600', color: C.gold }}>{'\uD83D\uDE8C'} {currentUser?.bus_number || CLEANER_DEFAULT.bus.number}</Text>
+              <Text style={{ fontSize: 10, fontWeight: '600', color: C.gold }}>{'\uD83D\uDE8C'} {busNum || CLEANER_DEFAULT.bus.number}</Text>
             </View>
           </View>
         </View>
