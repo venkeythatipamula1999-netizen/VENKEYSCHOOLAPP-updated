@@ -95,8 +95,8 @@ export default function AdminBuses({ onBack, currentUser }) {
   };
 
   const handleAddBus = async () => {
-    if (!form.busId.trim() || !form.busNumber.trim()) {
-      showToast('Bus ID and Bus Number are required.', 'error');
+    if (!form.busNumber.trim()) {
+      showToast('Vehicle Number is required.', 'error');
       return;
     }
     setSaving(true);
@@ -246,17 +246,11 @@ export default function AdminBuses({ onBack, currentUser }) {
               </TouchableOpacity>
             </View>
             <ScrollView>
-              <Text style={{ color: C.muted, fontSize: 11, marginBottom: 4 }}>BUS ID *</Text>
-              <TextInput style={inputStyle} placeholder="e.g. BUS001" placeholderTextColor={C.muted} value={form.busId} onChangeText={t => setForm(f => ({ ...f, busId: t }))} />
-
               <Text style={{ color: C.muted, fontSize: 11, marginBottom: 4 }}>VEHICLE NUMBER *</Text>
               <TextInput style={inputStyle} placeholder="e.g. TN-07-1234" placeholderTextColor={C.muted} value={form.busNumber} onChangeText={t => setForm(f => ({ ...f, busNumber: t }))} />
 
               <Text style={{ color: C.muted, fontSize: 11, marginBottom: 4 }}>ROUTE NAME</Text>
               <TextInput style={inputStyle} placeholder="e.g. Route 7 - OMR" placeholderTextColor={C.muted} value={form.route} onChangeText={t => setForm(f => ({ ...f, route: t }))} />
-
-              <Text style={{ color: C.muted, fontSize: 11, marginBottom: 4 }}>ROUTE ID</Text>
-              <TextInput style={inputStyle} placeholder="e.g. ROUTE007" placeholderTextColor={C.muted} value={form.routeId} onChangeText={t => setForm(f => ({ ...f, routeId: t }))} />
 
               <Text style={{ color: C.muted, fontSize: 11, marginBottom: 4 }}>DRIVER NAME</Text>
               <TextInput style={inputStyle} placeholder="e.g. Suresh R" placeholderTextColor={C.muted} value={form.driverName} onChangeText={t => setForm(f => ({ ...f, driverName: t }))} />
