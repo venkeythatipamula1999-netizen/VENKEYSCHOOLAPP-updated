@@ -1037,6 +1037,171 @@ app.post('/api/admin/fees/send-reminder', verifyAuth, async (req, res) => {
   }
 });
 
+app.post('/api/fee/structure/save', verifyAuth, async (req, res) => {
+  try {
+    if (req.userRole !== 'admin' && req.userRole !== 'principal') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    const { classId, className, tuitionFee, busFee, miscFee, dueDay, academicYear, quarter } = req.body;
+    if (!classId || !academicYear || tuitionFee === undefined) {
+      return res.status(400).json({ error: 'classId, academicYear and tuitionFee are required' });
+    }
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    const structureId = `${schoolId}_${classId}_${academicYear}`;
+    await adminDb.collection('fee_structure').doc(structureId).set({
+      structureId, schoolId, classId, className: className || classId,
+      tuitionFee: Number(tuitionFee) || 0,
+      busFee: Number(busFee) || 0,
+      miscFee: Number(miscFee) || 0,
+      totalFee: (Number(tuitionFee) || 0) + (Number(busFee) || 0) + (Number(miscFee) || 0),
+      dueDay: Number(dueDay) || 10,
+      academicYear, quarter: quarter || null,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    res.json({ success: true, structureId });
+  } catch (err) {
+    console.error('[fee/structure/save] Error:', err.message);
+    res.status(500).json({ error: 'Failed to save fee structure' });
+  }
+});
+
+app.get('/api/fee/structure', verifyAuth, async (req, res) => {
+  try {
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    const { academicYear } = req.query;
+    let query = adminDb.collection('fee_structure').where('schoolId', '==', schoolId);
+    if (academicYear) query = query.where('academicYear', '==', academicYear);
+    const snap = await query.get();
+    const structures = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    res.json({ success: true, structures });
+  } catch (err) {
+    console.error('[fee/structure] Error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch fee structures' });
+  }
+});
+
+app.post('/api/fee/discount/save', verifyAuth, async (req, res) => {
+  try {
+    if (req.userRole !== 'admin' && req.userRole !== 'principal') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    const { studentId, discountType, discountValue, reason } = req.body;
+    if (!studentId || !discountType) {
+      return res.status(400).json({ error: 'studentId and discountType are required' });
+    }
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    const discountId = `${schoolId}_${studentId}`;
+    await adminDb.collection('fee_discounts').doc(discountId).set({
+      discountId, schoolId, studentId,
+      discountType, discountValue: Number(discountValue) || 0,
+      reason: reason || '',
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[fee/discount/save] Error:', err.message);
+    res.status(500).json({ error: 'Failed to save discount' });
+  }
+});
+
+app.get('/api/fee/discount/:studentId', verifyAuth, async (req, res) => {
+  try {
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    const { studentId } = req.params;
+    const discountId = `${schoolId}_${studentId}`;
+    const snap = await adminDb.collection('fee_discounts').doc(discountId).get();
+    if (!snap.exists) return res.json({ success: true, discount: null });
+    res.json({ success: true, discount: snap.data() });
+  } catch (err) {
+    console.error('[fee/discount] Error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch discount' });
+  }
+});
+
+app.post('/api/fee/generate-records', verifyAuth, async (req, res) => {
+  try {
+    if (req.userRole !== 'admin' && req.userRole !== 'principal') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    const { classId, academicYear, quarter } = req.body;
+    if (!classId || !academicYear || !quarter) {
+      return res.status(400).json({ error: 'classId, academicYear and quarter are required' });
+    }
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+
+    const structureId = `${schoolId}_${classId}_${academicYear}`;
+    const structureSnap = await adminDb.collection('fee_structure').doc(structureId).get();
+    if (!structureSnap.exists) {
+      return res.status(404).json({ error: 'Fee structure not found for this class. Please save it first.' });
+    }
+    const structure = structureSnap.data();
+
+    const studentsSnap = await adminDb.collection('students')
+      .where('schoolId', '==', schoolId)
+      .where('classId', '==', classId)
+      .get();
+
+    if (studentsSnap.empty) {
+      return res.status(404).json({ error: 'No students found in this class' });
+    }
+
+    const dueDate = new Date();
+    dueDate.setDate(structure.dueDay || 10);
+    const dueDateStr = dueDate.toISOString().split('T')[0];
+
+    const batch = adminDb.batch();
+    let recordsCreated = 0;
+
+    for (const studentDoc of studentsSnap.docs) {
+      const student = studentDoc.data();
+      const studentId = student.studentId || studentDoc.id;
+
+      const discountId = `${schoolId}_${studentId}`;
+      const discountSnap = await adminDb.collection('fee_discounts').doc(discountId).get();
+      const discount = discountSnap.exists ? discountSnap.data() : null;
+
+      let discountAmount = 0;
+      if (discount) {
+        if (discount.discountType === 'waiver') {
+          discountAmount = structure.totalFee;
+        } else if (discount.discountType === 'percentage') {
+          discountAmount = Math.round((structure.totalFee * (discount.discountValue || 0)) / 100);
+        } else {
+          discountAmount = discount.discountValue || 0;
+        }
+      }
+
+      const netAmount = Math.max(0, structure.totalFee - discountAmount);
+      const recordId = `${schoolId}_${studentId}_${academicYear}_Q${quarter}`;
+      const recordRef = adminDb.collection('fee_records').doc(recordId);
+
+      batch.set(recordRef, {
+        recordId, studentId, studentName: student.name || student.full_name || '',
+        classId, className: structure.className, schoolId, academicYear,
+        quarter: Number(quarter),
+        tuitionFee: structure.tuitionFee,
+        busFee: structure.busFee,
+        miscFee: structure.miscFee,
+        discountType: discount?.discountType || null,
+        discountValue: discountAmount,
+        totalAmount: structure.totalFee,
+        netAmount,
+        dueDate: dueDateStr,
+        status: 'pending',
+        paymentMethod: null, paidAt: null, receiptNumber: null,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: false });
+      recordsCreated++;
+    }
+
+    await batch.commit();
+    res.json({ success: true, recordsCreated });
+  } catch (err) {
+    console.error('[fee/generate-records] Error:', err.message);
+    res.status(500).json({ error: 'Failed to generate fee records' });
+  }
+});
+
 app.get('/api/classes', async (req, res) => {
   try {
     const [classesSnap, studentsSnap] = await Promise.all([
