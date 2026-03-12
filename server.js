@@ -5,6 +5,7 @@ const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
 const PDFDocument = require('pdfkit');
+const cron = require('node-cron');
 const { runDailyBackup } = require('./src/services/firestoreBackup');
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error('[FATAL] JWT_SECRET environment variable is not set');
@@ -1379,6 +1380,265 @@ app.get('/api/fee/receipt/:receiptNumber', verifyAuth, async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch receipt' });
   }
 });
+
+app.post('/api/fee/reminders/send-manual', verifyAuth, async (req, res) => {
+  try {
+    if (req.userRole !== 'admin' && req.userRole !== 'principal') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    const { studentIds, quarter, academicYear, type, customMessage } = req.body;
+    if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
+      return res.status(400).json({ error: 'studentIds array required' });
+    }
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    const sentBy = req.userId || 'admin';
+    const sentAt = new Date().toISOString();
+    let sentCount = 0;
+
+    for (const studentId of studentIds) {
+      const recordId = `${schoolId}_${studentId}_${academicYear}_Q${quarter}`;
+      const recordSnap = await adminDb.collection('fee_records').doc(recordId).get();
+      const record = recordSnap.exists ? recordSnap.data() : {};
+
+      const amount = record.netAmount || record.totalAmount || 0;
+      const dueDate = record.dueDate || '';
+      const studentName = record.studentName || studentId;
+
+      let message = customMessage;
+      if (!message) {
+        if (type === 'overdue') {
+          message = `\u26A0\uFE0F Fee Overdue: \u20B9${Number(amount).toLocaleString('en-IN')} was due on ${dueDate}. Please pay immediately.`;
+        } else {
+          message = `\uD83D\uDCC5 Fee Reminder: \u20B9${Number(amount).toLocaleString('en-IN')} is due on ${dueDate} for Q${quarter}.`;
+        }
+      }
+
+      const studentSnap = await adminDb.collection('students').where('studentId', '==', studentId).where('schoolId', '==', schoolId).limit(1).get();
+      if (!studentSnap.empty) {
+        const parentId = studentSnap.docs[0].data().parentId;
+        if (parentId) {
+          const title = type === 'overdue' ? '\u26A0\uFE0F Fee Overdue Alert' : '\uD83D\uDCC5 Fee Reminder';
+          sendPushNotification(parentId, title, message, { type: 'fee_reminder', studentId, quarter: String(quarter), academicYear });
+        }
+      }
+
+      await adminDb.collection('fee_reminders').add({
+        studentId, studentName, quarter: Number(quarter), academicYear,
+        type: type || 'reminder', sentAt, sentBy, message, schoolId,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      sentCount++;
+    }
+
+    res.json({ success: true, sent: sentCount });
+  } catch (err) {
+    console.error('[fee/reminders/send-manual] Error:', err.message);
+    res.status(500).json({ error: 'Failed to send reminders' });
+  }
+});
+
+app.post('/api/fee/reminders/send-bulk', verifyAuth, async (req, res) => {
+  try {
+    if (req.userRole !== 'admin' && req.userRole !== 'principal') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    const { classId, quarter, academicYear, statusFilter, type, customMessage } = req.body;
+    if (!academicYear || !quarter) {
+      return res.status(400).json({ error: 'academicYear and quarter are required' });
+    }
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    const sentBy = req.userId || 'admin';
+    const sentAt = new Date().toISOString();
+
+    let query = adminDb.collection('fee_records')
+      .where('schoolId', '==', schoolId)
+      .where('academicYear', '==', academicYear)
+      .where('quarter', '==', Number(quarter));
+    if (classId) query = query.where('classId', '==', classId);
+    if (statusFilter && statusFilter !== 'all') query = query.where('status', '==', statusFilter);
+
+    const snap = await query.get();
+    if (snap.empty) return res.json({ success: true, sent: 0 });
+
+    let sentCount = 0;
+    for (const doc of snap.docs) {
+      const record = doc.data();
+      const studentId = record.studentId;
+      const amount = record.netAmount || record.totalAmount || 0;
+      const dueDate = record.dueDate || '';
+      const studentName = record.studentName || studentId;
+
+      let message = customMessage;
+      if (!message) {
+        if (type === 'overdue') {
+          message = `\u26A0\uFE0F Fee Overdue: \u20B9${Number(amount).toLocaleString('en-IN')} was due on ${dueDate}. Please pay immediately.`;
+        } else {
+          message = `\uD83D\uDCC5 Fee Reminder: \u20B9${Number(amount).toLocaleString('en-IN')} is due on ${dueDate} for Q${quarter}.`;
+        }
+      }
+
+      const studentSnap = await adminDb.collection('students').where('studentId', '==', studentId).where('schoolId', '==', schoolId).limit(1).get();
+      if (!studentSnap.empty) {
+        const parentId = studentSnap.docs[0].data().parentId;
+        if (parentId) {
+          const title = type === 'overdue' ? '\u26A0\uFE0F Fee Overdue Alert' : '\uD83D\uDCC5 Fee Reminder';
+          sendPushNotification(parentId, title, message, { type: 'fee_reminder', studentId, quarter: String(quarter), academicYear });
+        }
+      }
+
+      await adminDb.collection('fee_reminders').add({
+        studentId, studentName, quarter: Number(quarter), academicYear,
+        type: type || 'reminder', sentAt, sentBy, message, schoolId,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      sentCount++;
+    }
+
+    res.json({ success: true, sent: sentCount });
+  } catch (err) {
+    console.error('[fee/reminders/send-bulk] Error:', err.message);
+    res.status(500).json({ error: 'Failed to send bulk reminders' });
+  }
+});
+
+app.get('/api/fee/reminders/schedule', verifyAuth, async (req, res) => {
+  try {
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    const { academicYear, quarter } = req.query;
+    let query = adminDb.collection('fee_records')
+      .where('schoolId', '==', schoolId)
+      .where('status', '==', 'pending');
+    if (academicYear) query = query.where('academicYear', '==', academicYear);
+    if (quarter) query = query.where('quarter', '==', Number(quarter));
+
+    const snap = await query.get();
+    const today = new Date();
+    const schedule = [];
+
+    snap.docs.forEach(doc => {
+      const r = doc.data();
+      if (!r.dueDate) return;
+      const due = new Date(r.dueDate);
+      const diffDays = Math.round((due - today) / (1000 * 60 * 60 * 24));
+      let nextReminder = null;
+      if (diffDays === 7) nextReminder = 'Today (7-day reminder)';
+      else if (diffDays === 1) nextReminder = 'Today (1-day reminder)';
+      else if (diffDays < 0 && Math.abs(diffDays) === 1) nextReminder = 'Today (1-day overdue)';
+      else if (diffDays < 0 && Math.abs(diffDays) === 7) nextReminder = 'Today (7-day overdue)';
+      else if (diffDays < 0 && Math.abs(diffDays) === 30) nextReminder = 'Today (30-day overdue)';
+      else if (diffDays > 0) nextReminder = `In ${diffDays} days`;
+      else if (diffDays < 0) nextReminder = `${Math.abs(diffDays)} days overdue`;
+
+      schedule.push({
+        studentId: r.studentId, studentName: r.studentName,
+        classId: r.classId, className: r.className,
+        quarter: r.quarter, academicYear: r.academicYear,
+        dueDate: r.dueDate, netAmount: r.netAmount,
+        diffDays, nextReminder,
+      });
+    });
+
+    schedule.sort((a, b) => a.diffDays - b.diffDays);
+    res.json({ success: true, schedule });
+  } catch (err) {
+    console.error('[fee/reminders/schedule] Error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch schedule' });
+  }
+});
+
+app.post('/api/fee/reminders/auto-schedule', verifyAuth, async (req, res) => {
+  try {
+    if (req.userRole !== 'admin' && req.userRole !== 'principal') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    const { academicYear, quarter, enabled } = req.body;
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    await adminDb.collection('fee_reminder_settings').doc(schoolId).set({
+      schoolId, academicYear, quarter: quarter || null,
+      enabled: Boolean(enabled),
+      remindDaysBefore: [7, 1],
+      overdueRemindDays: [1, 7, 30],
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[fee/reminders/auto-schedule] Error:', err.message);
+    res.status(500).json({ error: 'Failed to save auto-reminder settings' });
+  }
+});
+
+cron.schedule('0 8 * * *', async () => {
+  console.log('[FeeReminderJob] Running daily fee reminder check...');
+  try {
+    const schoolsSnap = await adminDb.collection('fee_reminder_settings').where('enabled', '==', true).get();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().split('T')[0];
+    let totalSent = 0;
+
+    for (const settingDoc of schoolsSnap.docs) {
+      const settings = settingDoc.data();
+      const schoolId = settings.schoolId;
+      const remindBefore = settings.remindDaysBefore || [7, 1];
+      const remindAfter = settings.overdueRemindDays || [1, 7, 30];
+
+      const pendingSnap = await adminDb.collection('fee_records')
+        .where('schoolId', '==', schoolId)
+        .where('status', '==', 'pending')
+        .get();
+
+      for (const doc of pendingSnap.docs) {
+        const record = doc.data();
+        if (!record.dueDate || !record.studentId) continue;
+
+        const dueDate = new Date(record.dueDate);
+        dueDate.setHours(0, 0, 0, 0);
+        const diffDays = Math.round((dueDate - today) / (1000 * 60 * 60 * 24));
+
+        const triggerBefore = remindBefore.includes(diffDays);
+        const triggerAfter = remindAfter.includes(Math.abs(diffDays)) && diffDays < 0;
+        if (!triggerBefore && !triggerAfter) continue;
+
+        const alreadySentSnap = await adminDb.collection('fee_reminders')
+          .where('studentId', '==', record.studentId)
+          .where('schoolId', '==', schoolId)
+          .where('quarter', '==', record.quarter)
+          .where('sentAt', '>=', todayStr)
+          .limit(1)
+          .get();
+        if (!alreadySentSnap.empty) continue;
+
+        const amount = record.netAmount || record.totalAmount || 0;
+        const isOverdue = diffDays < 0;
+        const message = isOverdue
+          ? `\u26A0\uFE0F Fee Overdue: \u20B9${Number(amount).toLocaleString('en-IN')} was due on ${record.dueDate}. Please pay immediately.`
+          : `\uD83D\uDCC5 Fee Reminder: \u20B9${Number(amount).toLocaleString('en-IN')} is due on ${record.dueDate} for Q${record.quarter}.`;
+
+        const studentSnap = await adminDb.collection('students').where('studentId', '==', record.studentId).where('schoolId', '==', schoolId).limit(1).get();
+        if (!studentSnap.empty) {
+          const parentId = studentSnap.docs[0].data().parentId;
+          if (parentId) {
+            const title = isOverdue ? '\u26A0\uFE0F Fee Overdue Alert' : '\uD83D\uDCC5 Fee Due Reminder';
+            sendPushNotification(parentId, title, message, { type: 'fee_reminder_auto', quarter: String(record.quarter), studentId: record.studentId });
+          }
+        }
+
+        await adminDb.collection('fee_reminders').add({
+          studentId: record.studentId, studentName: record.studentName || '',
+          quarter: record.quarter, academicYear: record.academicYear,
+          type: isOverdue ? 'overdue' : 'reminder',
+          sentAt: new Date().toISOString(), sentBy: 'auto',
+          message, schoolId, auto: true,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        totalSent++;
+      }
+    }
+    console.log(`[FeeReminderJob] Done — ${totalSent} notifications sent`);
+  } catch (err) {
+    console.error('[FeeReminderJob] Error:', err.message);
+  }
+}, { timezone: 'Asia/Kolkata' });
 
 app.get('/api/classes', async (req, res) => {
   try {

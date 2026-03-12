@@ -101,6 +101,18 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
   const [notifyMsg, setNotifyMsg] = useState('');
   const [notifyDueDate, setNotifyDueDate] = useState('');
   const [notifySending, setNotifySending] = useState(false);
+
+  const [reminderModal, setReminderModal] = useState(false);
+  const [reminderType, setReminderType] = useState('reminder');
+  const [reminderCustomMsg, setReminderCustomMsg] = useState('');
+  const [sendingReminder, setSendingReminder] = useState(false);
+
+  const [bulkConfirmClass, setBulkConfirmClass] = useState(null);
+  const [sendingBulk, setSendingBulk] = useState(false);
+
+  const [autoEnabled, setAutoEnabled] = useState(false);
+  const [autoSaving, setAutoSaving] = useState(false);
+
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
   const showToast = (msg, type = 'success') => setToast({ visible: true, message: msg, type });
 
@@ -350,6 +362,59 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
     setDiscSaving(false);
   };
 
+  const sendManualReminder = async () => {
+    if (!detail) return;
+    setSendingReminder(true);
+    try {
+      const studentId = detail.studentId || detail.id;
+      const quarter = detail.quarter || '1';
+      const academicYear = detail.academicYear || '2025-2026';
+      const res = await apiFetch('/fee/reminders/send-manual', {
+        method: 'POST',
+        body: JSON.stringify({ studentIds: [studentId], quarter, academicYear, type: reminderType, customMessage: reminderCustomMsg || undefined }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast(`Reminder sent to ${detail.name || detail.studentName || 'parent'}`);
+        setReminderModal(false); setReminderCustomMsg(''); setReminderType('reminder');
+      } else showToast(data.error || 'Failed to send reminder', 'error');
+    } catch (e) { showToast(getFriendlyError(e, 'Network error'), 'error'); }
+    setSendingReminder(false);
+  };
+
+  const sendBulkReminder = async (cls) => {
+    if (!cls) return;
+    setSendingBulk(true);
+    try {
+      const quarter = selectedQuarter || '1';
+      const academicYear = selectedYear || '2025-2026';
+      const res = await apiFetch('/fee/reminders/send-bulk', {
+        method: 'POST',
+        body: JSON.stringify({ classId: cls.classId, quarter, academicYear, statusFilter: 'pending', type: 'reminder' }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast(`Reminders sent to ${data.sent} parent(s) in ${cls.className}`);
+        setBulkConfirmClass(null);
+      } else showToast(data.error || 'Failed to send bulk reminders', 'error');
+    } catch (e) { showToast(getFriendlyError(e, 'Network error'), 'error'); }
+    setSendingBulk(false);
+  };
+
+  const saveAutoSettings = async () => {
+    setAutoSaving(true);
+    try {
+      const res = await apiFetch('/fee/reminders/auto-schedule', {
+        method: 'POST',
+        body: JSON.stringify({ academicYear: structYear || '2025-2026', enabled: autoEnabled }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) showToast(`Auto reminders ${autoEnabled ? 'enabled' : 'disabled'}`);
+      else showToast(data.error || 'Failed to save', 'error');
+    } catch (e) { showToast(getFriendlyError(e, 'Network error'), 'error'); }
+    setAutoSaving(false);
+  };
+
   const classesByGroup = useMemo(() => {
     const unique = {};
     students.forEach(s => {
@@ -443,26 +508,39 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
             </View>
 
             {balance > 0 && (
-              <TouchableOpacity onPress={() => { setNotifyModal(!notifyModal); setPayModal(false); setDiscModal(false); }} style={{ paddingVertical: 13, borderRadius: 14, borderWidth: 1.5, borderColor: C.coral + '55', backgroundColor: C.coral + '18', alignItems: 'center', marginBottom: 20 }}>
-                <Text style={{ fontWeight: '700', fontSize: 14, color: C.coral }}>{'\uD83D\uDD14'} Notify Fee to Parent</Text>
+              <TouchableOpacity onPress={() => { setReminderModal(!reminderModal); setPayModal(false); setDiscModal(false); setNotifyModal(false); }} style={{ paddingVertical: 13, borderRadius: 14, borderWidth: 1.5, borderColor: C.coral + '55', backgroundColor: C.coral + '18', alignItems: 'center', marginBottom: 20 }}>
+                <Text style={{ fontWeight: '700', fontSize: 14, color: C.coral }}>{'\uD83D\uDD14'} Send Reminder</Text>
               </TouchableOpacity>
             )}
             {balance <= 0 && <View style={{ marginBottom: 10 }} />}
 
-            {notifyModal && (
+            {reminderModal && (
               <View style={[st.card, { marginBottom: 16, borderRadius: 18, borderTopWidth: 3, borderTopColor: C.coral }]}>
-                <Text style={{ fontWeight: '700', fontSize: 15, color: C.white, marginBottom: 6 }}>{'\uD83D\uDD14'} Send Fee Reminder</Text>
-                <Text style={{ fontSize: 12, color: C.muted, marginBottom: 14 }}>Notify {detail.name || detail.studentName}'s parent about pending balance of {INR(balance)}.</Text>
-                <Text style={st.label}>Due Date (optional)</Text>
-                <TextInput style={st.inputField} placeholder="e.g. 15 Mar 2026" placeholderTextColor={C.muted} value={notifyDueDate} onChangeText={setNotifyDueDate} />
-                <Text style={[st.label, { marginTop: 10 }]}>Custom Message (optional)</Text>
-                <TextInput style={[st.inputField, { marginBottom: 14, minHeight: 60 }]} placeholder="Leave blank for default message" placeholderTextColor={C.muted} value={notifyMsg} onChangeText={setNotifyMsg} multiline />
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <TouchableOpacity onPress={() => setNotifyModal(false)} style={{ flex: 1, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: C.border, backgroundColor: C.navyMid, alignItems: 'center' }}>
+                <Text style={{ fontWeight: '700', fontSize: 15, color: C.white, marginBottom: 4 }}>{'\uD83D\uDD14'} Send Fee Reminder</Text>
+                <Text style={{ fontSize: 12, color: C.muted, marginBottom: 14 }}>Notify {detail.name || detail.studentName}'s parent · Balance: {INR(balance)}</Text>
+
+                <Text style={st.label}>Reminder Type</Text>
+                <View style={{ flexDirection: 'row', gap: 6, marginBottom: 14 }}>
+                  {[['reminder', '\uD83D\uDCC5 Reminder'], ['overdue', '\u26A0\uFE0F Overdue'], ['custom', '\u270F\uFE0F Custom']].map(([key, label]) => (
+                    <TouchableOpacity key={key} onPress={() => setReminderType(key)} style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center', backgroundColor: reminderType === key ? C.coral : C.navyMid, borderWidth: 1.5, borderColor: reminderType === key ? C.coral : C.border }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: reminderType === key ? C.white : C.muted }}>{label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {reminderType === 'custom' && (
+                  <>
+                    <Text style={[st.label, { marginTop: 2 }]}>Custom Message</Text>
+                    <TextInput style={[st.inputField, { marginBottom: 14, minHeight: 60 }]} placeholder="Type your custom message..." placeholderTextColor={C.muted} value={reminderCustomMsg} onChangeText={setReminderCustomMsg} multiline />
+                  </>
+                )}
+
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                  <TouchableOpacity onPress={() => { setReminderModal(false); setReminderCustomMsg(''); setReminderType('reminder'); }} style={{ flex: 1, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: C.border, backgroundColor: C.navyMid, alignItems: 'center' }}>
                     <Text style={{ fontWeight: '600', color: C.muted }}>Cancel</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={sendFeeNotification} disabled={notifySending} style={{ flex: 1, paddingVertical: 10, borderRadius: 12, backgroundColor: C.coral, alignItems: 'center', opacity: notifySending ? 0.6 : 1 }}>
-                    {notifySending ? <ActivityIndicator size="small" color={C.white} /> : <Text style={{ fontWeight: '800', color: C.white }}>{'\uD83D\uDD14'} Send</Text>}
+                  <TouchableOpacity onPress={sendManualReminder} disabled={sendingReminder} style={{ flex: 1, paddingVertical: 10, borderRadius: 12, backgroundColor: C.coral, alignItems: 'center', opacity: sendingReminder ? 0.6 : 1 }}>
+                    {sendingReminder ? <ActivityIndicator size="small" color={C.white} /> : <Text style={{ fontWeight: '800', color: C.white }}>{'\uD83D\uDD14'} Send</Text>}
                   </TouchableOpacity>
                 </View>
               </View>
@@ -715,7 +793,7 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
                     <Text style={{ fontWeight: '700', fontSize: 16, color: C.white }}>{cls.className}</Text>
                     <Text style={{ color: C.muted, fontSize: 13 }}>{cls.students.length} students</Text>
                   </View>
-                  <View style={{ flexDirection: 'row', gap: 16 }}>
+                  <View style={{ flexDirection: 'row', gap: 16, marginBottom: pending > 0 ? 12 : 0 }}>
                     {[['\u2705', paid, '#34D399'], ['\uD83D\uDD34', overdue, C.coral], ['\u23F3', pending, C.gold]].map(([icon, count, color]) => (
                       <View key={icon} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                         <Text style={{ fontSize: 14 }}>{icon}</Text>
@@ -723,6 +801,11 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
                       </View>
                     ))}
                   </View>
+                  {pending > 0 && (
+                    <TouchableOpacity onPress={(e) => { e.stopPropagation && e.stopPropagation(); setBulkConfirmClass(cls); }} style={{ paddingVertical: 8, borderRadius: 10, borderWidth: 1.5, borderColor: C.coral + '55', backgroundColor: C.coral + '14', alignItems: 'center' }}>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: C.coral }}>{'\uD83D\uDD14'} Remind {pending} Pending</Text>
+                    </TouchableOpacity>
+                  )}
                 </TouchableOpacity>
               );
             })}
@@ -925,9 +1008,54 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
                 {discSaving ? <ActivityIndicator size="small" color={C.navy} /> : <Text style={{ fontWeight: '800', fontSize: 15, color: C.navy }}>{'\u2713'} Save Discount</Text>}
               </TouchableOpacity>
             </View>
+
+            <View style={[st.card, { marginBottom: 20, borderRadius: 18, borderTopWidth: 3, borderTopColor: C.coral }]}>
+              <Text style={{ fontWeight: '700', fontSize: 16, color: C.white, marginBottom: 4 }}>{'\uD83D\uDD14'} Auto Reminders</Text>
+              <Text style={{ fontSize: 12, color: C.muted, marginBottom: 18 }}>Automatically notify parents 7 days before due date, 1 day before, and on overdue days (1, 7, 30). Runs daily at 8:00 AM.</Text>
+
+              <TouchableOpacity onPress={() => setAutoEnabled(v => !v)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 14, backgroundColor: autoEnabled ? C.coral + '22' : C.navyMid, borderWidth: 1.5, borderColor: autoEnabled ? C.coral : C.border, marginBottom: 16 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <Text style={{ fontSize: 20 }}>{autoEnabled ? '\uD83D\uDD14' : '\uD83D\uDD15'}</Text>
+                  <View>
+                    <Text style={{ fontWeight: '700', fontSize: 14, color: C.white }}>Auto Reminders</Text>
+                    <Text style={{ fontSize: 11, color: autoEnabled ? C.coral : C.muted }}>{autoEnabled ? 'Enabled — daily check at 8 AM' : 'Disabled'}</Text>
+                  </View>
+                </View>
+                <View style={{ width: 44, height: 24, borderRadius: 12, backgroundColor: autoEnabled ? C.coral : C.border, justifyContent: 'center', paddingHorizontal: 2 }}>
+                  <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: C.white, alignSelf: autoEnabled ? 'flex-end' : 'flex-start' }} />
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={saveAutoSettings} disabled={autoSaving} style={{ paddingVertical: 14, borderRadius: 14, backgroundColor: C.coral, alignItems: 'center', opacity: autoSaving ? 0.6 : 1 }}>
+                {autoSaving ? <ActivityIndicator size="small" color={C.white} /> : <Text style={{ fontWeight: '800', fontSize: 15, color: C.white }}>{'\u2713'} Save Settings</Text>}
+              </TouchableOpacity>
+            </View>
           </>
         )}
       </ScrollView>
+
+      <Modal visible={!!bulkConfirmClass} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+          <View style={{ backgroundColor: C.navyMid, borderRadius: 20, padding: 24, width: '100%', maxWidth: 340, borderWidth: 1.5, borderColor: C.coral + '44' }}>
+            <Text style={{ fontSize: 24, textAlign: 'center', marginBottom: 10 }}>{'\uD83D\uDD14'}</Text>
+            <Text style={{ fontWeight: '800', fontSize: 16, color: C.white, textAlign: 'center', marginBottom: 8 }}>Bulk Reminder</Text>
+            {bulkConfirmClass && (
+              <Text style={{ fontSize: 13, color: C.muted, textAlign: 'center', marginBottom: 20 }}>
+                Send fee reminders to all pending parents in{' '}
+                <Text style={{ color: C.white, fontWeight: '700' }}>{bulkConfirmClass.className}</Text>?
+              </Text>
+            )}
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity onPress={() => setBulkConfirmClass(null)} style={{ flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: C.border, backgroundColor: C.navy, alignItems: 'center' }}>
+                <Text style={{ fontWeight: '600', color: C.muted }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => sendBulkReminder(bulkConfirmClass)} disabled={sendingBulk} style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: C.coral, alignItems: 'center', opacity: sendingBulk ? 0.6 : 1 }}>
+                {sendingBulk ? <ActivityIndicator size="small" color={C.white} /> : <Text style={{ fontWeight: '800', color: C.white }}>Send All</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
