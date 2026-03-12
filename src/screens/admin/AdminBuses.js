@@ -312,6 +312,15 @@ export default function AdminBuses({ onBack, currentUser }) {
                 onChangeText={t => setForm(f => ({ ...f, busNumber: t }))}
               />
 
+              {/* Bus ID preview (read-only) */}
+              <View style={{ backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.teal + '66', padding: 12, marginBottom: 14 }}>
+                <Text style={{ color: C.muted, fontSize: 10, marginBottom: 2 }}>BUS ID (AUTO-GENERATED)</Text>
+                <Text style={{ color: C.teal, fontWeight: '700', fontSize: 15 }}>
+                  SG-Route-{String(buses.length + 1).padStart(3, '0')}
+                </Text>
+                <Text style={{ color: C.muted, fontSize: 10, marginTop: 2 }}>Assigned automatically by server</Text>
+              </View>
+
               {/* Route Name + Route ID preview */}
               <Text style={{ color: C.muted, fontSize: 11, marginBottom: 4 }}>ROUTE NAME</Text>
               <TextInput
