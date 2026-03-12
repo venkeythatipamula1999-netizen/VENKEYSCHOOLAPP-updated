@@ -658,14 +658,15 @@ app.post('/api/complete-profile', async (req, res) => {
 
 app.get('/api/available-classes', async (req, res) => {
   try {
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
     const classesRef = db.collection('classes');
-    const classesSnap = await classesRef.where('schoolId', '==', (req.schoolId || DEFAULT_SCHOOL_ID)).get();
+    const classesSnap = await classesRef.where('schoolId', '==', schoolId).get();
     const allClasses = classesSnap.docs.map(d => ({ id: d.id, name: d.data().name })).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
 
     const usersRef = db.collection('users');
-    const assignedSnap = await usersRef.where('schoolId', '==', (req.schoolId || DEFAULT_SCHOOL_ID)).where('classTeacherOf', '!=', null).get();
+    const allUsersSnap = await usersRef.where('schoolId', '==', schoolId).get();
     const assignedMap = {};
-    assignedSnap.docs.forEach(d => {
+    allUsersSnap.docs.forEach(d => {
       const data = d.data();
       if (data.classTeacherOf) assignedMap[data.classTeacherOf] = { role_id: data.role_id, full_name: data.full_name };
     });
