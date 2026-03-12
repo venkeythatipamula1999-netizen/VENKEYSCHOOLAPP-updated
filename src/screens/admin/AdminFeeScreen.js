@@ -149,6 +149,15 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
   const [genLoading, setGenLoading] = useState(false);
   const [quarterDropOpen, setQuarterDropOpen] = useState(false);
 
+  const [rptYear, setRptYear] = useState('2025-2026');
+  const [rptQuarter, setRptQuarter] = useState('1');
+  const [rptSummary, setRptSummary] = useState(null);
+  const [rptDefaulters, setRptDefaulters] = useState([]);
+  const [rptLoading, setRptLoading] = useState(false);
+  const [rptYearDropOpen, setRptYearDropOpen] = useState(false);
+  const [rptQtrDropOpen, setRptQtrDropOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
   const [discStudentSearch, setDiscStudentSearch] = useState('');
   const [discSelectedStudent, setDiscSelectedStudent] = useState(null);
   const [discType, setDiscType] = useState('percentage');
@@ -201,6 +210,7 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
     if (activeTab === 'settings' || activeTab === 'classes') {
       apiFetch('/available-classes').then(r => r.json()).then(data => { if (data.classes) setAvailableClasses(data.classes); }).catch(() => {});
     }
+    if (activeTab === 'reports') loadReport(rptYear, rptQuarter);
   }, [activeTab]);
 
   useEffect(() => {
@@ -386,17 +396,27 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
     if (!cls) return;
     setSendingBulk(true);
     try {
-      const quarter = selectedQuarter || '1';
-      const academicYear = selectedYear || '2025-2026';
-      const res = await apiFetch('/fee/reminders/send-bulk', {
-        method: 'POST',
-        body: JSON.stringify({ classId: cls.classId, quarter, academicYear, statusFilter: 'pending', type: 'reminder' }),
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        showToast(`Reminders sent to ${data.sent} parent(s) in ${cls.className}`);
-        setBulkConfirmClass(null);
-      } else showToast(data.error || 'Failed to send bulk reminders', 'error');
+      const quarter = rptQuarter || '1';
+      const academicYear = rptYear || '2025-2026';
+      if (cls._singleStudentId) {
+        const res = await apiFetch('/fee/reminders/send-manual', {
+          method: 'POST',
+          body: JSON.stringify({ studentIds: [cls._singleStudentId], quarter, academicYear, type: 'overdue' }),
+        });
+        const data = await res.json();
+        if (res.ok && data.success) { showToast('Reminder sent'); setBulkConfirmClass(null); }
+        else showToast(data.error || 'Failed to send reminder', 'error');
+      } else {
+        const res = await apiFetch('/fee/reminders/send-bulk', {
+          method: 'POST',
+          body: JSON.stringify({ classId: cls.classId, quarter, academicYear, statusFilter: 'pending', type: 'reminder' }),
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(`Reminders sent to ${data.sent} parent(s) in ${cls.className}`);
+          setBulkConfirmClass(null);
+        } else showToast(data.error || 'Failed to send bulk reminders', 'error');
+      }
     } catch (e) { showToast(getFriendlyError(e, 'Network error'), 'error'); }
     setSendingBulk(false);
   };
@@ -413,6 +433,39 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
       else showToast(data.error || 'Failed to save', 'error');
     } catch (e) { showToast(getFriendlyError(e, 'Network error'), 'error'); }
     setAutoSaving(false);
+  };
+
+  const loadReport = async (year, quarter) => {
+    const y = year || rptYear;
+    const q = quarter || rptQuarter;
+    setRptLoading(true);
+    setRptSummary(null);
+    setRptDefaulters([]);
+    try {
+      const [sumRes, defRes] = await Promise.all([
+        apiFetch(`/fee/reports/summary?academicYear=${encodeURIComponent(y)}&quarter=${q}`),
+        apiFetch(`/fee/reports/defaulters?academicYear=${encodeURIComponent(y)}&quarter=${q}`),
+      ]);
+      const sumData = await sumRes.json();
+      const defData = await defRes.json();
+      if (sumRes.ok && sumData.success) setRptSummary(sumData);
+      if (defRes.ok && defData.success) setRptDefaulters(defData.students || []);
+    } catch (e) { showToast(getFriendlyError(e, 'Network error'), 'error'); }
+    setRptLoading(false);
+  };
+
+  const exportReport = async () => {
+    setExporting(true);
+    try {
+      const res = await apiFetch(`/fee/reports/export?academicYear=${encodeURIComponent(rptYear)}&quarter=${rptQuarter}&format=csv`);
+      const csv = await res.text();
+      if (!res.ok) { showToast('Export failed', 'error'); setExporting(false); return; }
+      await Share.share({
+        message: csv,
+        title: `FeeReport_Q${rptQuarter}_${rptYear}.csv`,
+      });
+    } catch (e) { showToast(getFriendlyError(e, 'Export failed'), 'error'); }
+    setExporting(false);
   };
 
   const classesByGroup = useMemo(() => {
@@ -678,7 +731,7 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
 
   if (loading) return <LoadingSpinner fullScreen message="Loading fee data..." />;
 
-  const tabDefs = [{ key: 'students', label: 'Students' }, { key: 'classes', label: 'Classes' }, { key: 'settings', label: 'Settings' }];
+  const tabDefs = [{ key: 'students', label: 'Students' }, { key: 'classes', label: 'Classes' }, { key: 'settings', label: 'Settings' }, { key: 'reports', label: 'Reports' }];
 
   return (
     <View style={{ flex: 1, backgroundColor: C.navy }}>
@@ -1032,17 +1085,209 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
             </View>
           </>
         )}
+
+        {activeTab === 'reports' && (
+          <>
+            <View style={[st.card, { marginBottom: 16, borderRadius: 18, borderTopWidth: 3, borderTopColor: C.teal }]}>
+              <Text style={{ fontWeight: '800', fontSize: 16, color: C.white, marginBottom: 14 }}>{'\uD83D\uDCCA'} Fee Report</Text>
+
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={st.label}>Academic Year</Text>
+                  <TouchableOpacity style={[st.inputField, { paddingVertical: 12 }]} onPress={() => setRptYearDropOpen(true)}>
+                    <Text style={{ color: C.white, fontSize: 14 }}>{rptYear}</Text>
+                  </TouchableOpacity>
+                  <Modal visible={rptYearDropOpen} transparent animationType="fade">
+                    <TouchableOpacity style={st.modalOverlay} onPress={() => setRptYearDropOpen(false)}>
+                      <View style={st.modalContent}>
+                        {ACADEMIC_YEARS.map(y => (
+                          <TouchableOpacity key={y} onPress={() => { setRptYear(y); setRptYearDropOpen(false); }} style={st.modalItem}>
+                            <Text style={{ color: rptYear === y ? C.teal : C.white, fontSize: 14 }}>{y}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </TouchableOpacity>
+                  </Modal>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={st.label}>Quarter</Text>
+                  <TouchableOpacity style={[st.inputField, { paddingVertical: 12 }]} onPress={() => setRptQtrDropOpen(true)}>
+                    <Text style={{ color: C.white, fontSize: 14 }}>Q{rptQuarter}</Text>
+                  </TouchableOpacity>
+                  <Modal visible={rptQtrDropOpen} transparent animationType="fade">
+                    <TouchableOpacity style={st.modalOverlay} onPress={() => setRptQtrDropOpen(false)}>
+                      <View style={st.modalContent}>
+                        {QUARTERS.map(q => (
+                          <TouchableOpacity key={q} onPress={() => { setRptQuarter(q); setRptQtrDropOpen(false); }} style={st.modalItem}>
+                            <Text style={{ color: rptQuarter === q ? C.teal : C.white, fontSize: 14 }}>Quarter {q}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </TouchableOpacity>
+                  </Modal>
+                </View>
+              </View>
+
+              <TouchableOpacity onPress={() => loadReport(rptYear, rptQuarter)} disabled={rptLoading} style={{ paddingVertical: 11, borderRadius: 12, backgroundColor: C.teal, alignItems: 'center', opacity: rptLoading ? 0.6 : 1 }}>
+                {rptLoading ? <ActivityIndicator size="small" color={C.navy} /> : <Text style={{ fontWeight: '800', color: C.navy }}>Load Report</Text>}
+              </TouchableOpacity>
+            </View>
+
+            {rptSummary && (
+              <>
+                <View style={[st.card, { marginBottom: 14, borderRadius: 18 }]}>
+                  <Text style={{ fontWeight: '700', fontSize: 15, color: C.white, marginBottom: 16 }}>
+                    {'\uD83D\uDCB0'} Q{rptQuarter} {rptYear} Summary
+                  </Text>
+
+                  {[
+                    ['\uD83D\uDCB0 Total Expected', rptSummary.totalExpected, C.teal],
+                    ['\u2705 Collected', rptSummary.totalCollected, '#34D399'],
+                    ['\uD83D\uDD34 Overdue', rptSummary.totalOverdue, C.coral],
+                    ['\u23F3 Pending', rptSummary.totalPending, C.gold],
+                  ].map(([label, amount, color]) => (
+                    <View key={label} style={{ marginBottom: 12 }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <Text style={{ color: C.muted, fontSize: 13 }}>{label}</Text>
+                        <Text style={{ color, fontWeight: '700', fontSize: 14 }}>{INR(amount)}</Text>
+                      </View>
+                      {label.includes('Collected') && (
+                        <View style={[st.progressTrack, { height: 6 }]}>
+                          <View style={[st.progressFill, { width: `${rptSummary.collectionPercentage}%`, backgroundColor: '#34D399' }]} />
+                        </View>
+                      )}
+                    </View>
+                  ))}
+
+                  <View style={{ marginTop: 6, paddingTop: 14, borderTopWidth: 1, borderTopColor: C.border }}>
+                    <Text style={{ fontWeight: '700', fontSize: 13, color: C.white, marginBottom: 12 }}>Payment Methods</Text>
+                    {Object.entries(rptSummary.paymentMethodBreakdown).map(([method, amount]) => {
+                      const maxAmt = Math.max(...Object.values(rptSummary.paymentMethodBreakdown), 1);
+                      const pct = Math.round((amount / maxAmt) * 100);
+                      return (
+                        <View key={method} style={{ marginBottom: 10 }}>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <Text style={{ color: C.muted, fontSize: 12, textTransform: 'capitalize' }}>{method}</Text>
+                            <Text style={{ color: C.white, fontWeight: '600', fontSize: 12 }}>{amount > 0 ? INR(amount) : '—'}</Text>
+                          </View>
+                          {amount > 0 && (
+                            <View style={[st.progressTrack, { height: 5 }]}>
+                              <View style={[st.progressFill, { width: `${pct}%`, backgroundColor: C.teal }]} />
+                            </View>
+                          )}
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                {rptSummary.classSummary && rptSummary.classSummary.length > 0 && (
+                  <View style={[st.card, { marginBottom: 14, borderRadius: 18 }]}>
+                    <Text style={{ fontWeight: '700', fontSize: 15, color: C.white, marginBottom: 14 }}>{'\uD83C\uDFEB'} Class Breakdown</Text>
+                    <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+                      <Text style={{ flex: 2, fontSize: 11, color: C.muted, fontWeight: '700' }}>CLASS</Text>
+                      <Text style={{ flex: 1, fontSize: 11, color: '#34D399', fontWeight: '700', textAlign: 'center' }}>PAID</Text>
+                      <Text style={{ flex: 1, fontSize: 11, color: C.coral, fontWeight: '700', textAlign: 'center' }}>OVERDUE</Text>
+                      <Text style={{ flex: 1, fontSize: 11, color: C.gold, fontWeight: '700', textAlign: 'center' }}>PENDING</Text>
+                    </View>
+                    {rptSummary.classSummary.map((cls, i) => (
+                      <View key={cls.classId} style={{ flexDirection: 'row', paddingVertical: 10, borderTopWidth: i > 0 ? 1 : 0, borderTopColor: C.border + '55' }}>
+                        <View style={{ flex: 2 }}>
+                          <Text style={{ color: C.white, fontWeight: '600', fontSize: 13 }}>{cls.className}</Text>
+                          <Text style={{ color: C.muted, fontSize: 10 }}>{cls.totalStudents} students · {INR(cls.amountCollected)} collected</Text>
+                        </View>
+                        <Text style={{ flex: 1, color: '#34D399', fontWeight: '700', textAlign: 'center', fontSize: 14 }}>{cls.paid}</Text>
+                        <Text style={{ flex: 1, color: C.coral, fontWeight: '700', textAlign: 'center', fontSize: 14 }}>{cls.overdue}</Text>
+                        <Text style={{ flex: 1, color: C.gold, fontWeight: '700', textAlign: 'center', fontSize: 14 }}>{cls.pending}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {rptDefaulters.length > 0 && (
+                  <View style={[st.card, { marginBottom: 100, borderRadius: 18, borderTopWidth: 3, borderTopColor: C.coral }]}>
+                    <Text style={{ fontWeight: '700', fontSize: 15, color: C.white, marginBottom: 14 }}>
+                      {'\uD83D\uDD34'} Defaulters ({rptDefaulters.length} students)
+                    </Text>
+                    {rptDefaulters.map((d, i) => (
+                      <View key={d.studentId} style={{ paddingVertical: 14, borderTopWidth: i > 0 ? 1 : 0, borderTopColor: C.border + '55' }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ color: C.white, fontWeight: '700', fontSize: 14 }}>{d.studentName}</Text>
+                            <Text style={{ color: C.muted, fontSize: 12 }}>{d.className} · {d.studentId}</Text>
+                          </View>
+                          <Text style={{ color: C.coral, fontWeight: '800', fontSize: 14 }}>{INR(d.netAmount)}</Text>
+                        </View>
+                        <Text style={{ color: d.daysOverdue > 0 ? C.coral : C.gold, fontSize: 12, marginBottom: 10 }}>
+                          {d.daysOverdue > 0 ? `${d.daysOverdue} days overdue` : `Due: ${d.dueDate || 'N/A'}`}
+                          {d.lastReminderSent ? `  ·  Last reminded: ${new Date(d.lastReminderSent).toLocaleDateString('en-IN')}` : ''}
+                        </Text>
+                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                          {d.contactNumber && (
+                            <TouchableOpacity style={{ flex: 1, paddingVertical: 8, borderRadius: 10, borderWidth: 1.5, borderColor: '#34D399' + '55', backgroundColor: '#34D399' + '14', alignItems: 'center' }}>
+                              <Text style={{ fontSize: 12, fontWeight: '700', color: '#34D399' }}>{'\uD83D\uDCDE'} Call</Text>
+                            </TouchableOpacity>
+                          )}
+                          <TouchableOpacity
+                            onPress={() => { setBulkConfirmClass({ classId: d.classId, className: d.className, _singleStudentId: d.studentId }); }}
+                            style={{ flex: 1, paddingVertical: 8, borderRadius: 10, borderWidth: 1.5, borderColor: C.coral + '55', backgroundColor: C.coral + '14', alignItems: 'center' }}>
+                            <Text style={{ fontSize: 12, fontWeight: '700', color: C.coral }}>{'\uD83D\uDD14'} Remind</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {rptDefaulters.length === 0 && (
+                  <View style={[st.card, { alignItems: 'center', padding: 32, marginBottom: 100 }]}>
+                    <Text style={{ fontSize: 28, marginBottom: 8 }}>{'\uD83C\uDF89'}</Text>
+                    <Text style={{ color: '#34D399', fontWeight: '700', fontSize: 15 }}>No Defaulters!</Text>
+                    <Text style={{ color: C.muted, fontSize: 12, textAlign: 'center', marginTop: 4 }}>All fees collected for Q{rptQuarter} {rptYear}</Text>
+                  </View>
+                )}
+              </>
+            )}
+
+            {!rptSummary && !rptLoading && (
+              <View style={[st.card, { alignItems: 'center', padding: 32, marginBottom: 24 }]}>
+                <Text style={{ fontSize: 32, marginBottom: 8 }}>{'\uD83D\uDCCA'}</Text>
+                <Text style={{ color: C.muted, fontSize: 13, textAlign: 'center' }}>Select a year and quarter, then tap Load Report.</Text>
+              </View>
+            )}
+          </>
+        )}
       </ScrollView>
+
+      {activeTab === 'reports' && rptSummary && (
+        <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: C.navy, borderTopWidth: 1, borderTopColor: C.border }}>
+          <TouchableOpacity onPress={exportReport} disabled={exporting} style={{ paddingVertical: 15, borderRadius: 16, backgroundColor: C.teal, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 10, opacity: exporting ? 0.6 : 1 }}>
+            {exporting ? <ActivityIndicator size="small" color={C.navy} /> : (
+              <>
+                <Text style={{ fontSize: 18 }}>{'\uD83D\uDCCA'}</Text>
+                <Text style={{ fontWeight: '800', fontSize: 15, color: C.navy }}>Export to Excel / CSV</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
 
       <Modal visible={!!bulkConfirmClass} transparent animationType="fade">
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
           <View style={{ backgroundColor: C.navyMid, borderRadius: 20, padding: 24, width: '100%', maxWidth: 340, borderWidth: 1.5, borderColor: C.coral + '44' }}>
             <Text style={{ fontSize: 24, textAlign: 'center', marginBottom: 10 }}>{'\uD83D\uDD14'}</Text>
-            <Text style={{ fontWeight: '800', fontSize: 16, color: C.white, textAlign: 'center', marginBottom: 8 }}>Bulk Reminder</Text>
+            <Text style={{ fontWeight: '800', fontSize: 16, color: C.white, textAlign: 'center', marginBottom: 8 }}>
+              {bulkConfirmClass && bulkConfirmClass._singleStudentId ? 'Send Reminder' : 'Bulk Reminder'}
+            </Text>
             {bulkConfirmClass && (
               <Text style={{ fontSize: 13, color: C.muted, textAlign: 'center', marginBottom: 20 }}>
-                Send fee reminders to all pending parents in{' '}
-                <Text style={{ color: C.white, fontWeight: '700' }}>{bulkConfirmClass.className}</Text>?
+                {bulkConfirmClass._singleStudentId
+                  ? `Send a fee reminder to this student's parent?`
+                  : `Send fee reminders to all pending parents in `}
+                {!bulkConfirmClass._singleStudentId && (
+                  <Text style={{ color: C.white, fontWeight: '700' }}>{bulkConfirmClass.className}</Text>
+                )}
+                {!bulkConfirmClass._singleStudentId && '?'}
               </Text>
             )}
             <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -1050,7 +1295,7 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
                 <Text style={{ fontWeight: '600', color: C.muted }}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => sendBulkReminder(bulkConfirmClass)} disabled={sendingBulk} style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: C.coral, alignItems: 'center', opacity: sendingBulk ? 0.6 : 1 }}>
-                {sendingBulk ? <ActivityIndicator size="small" color={C.white} /> : <Text style={{ fontWeight: '800', color: C.white }}>Send All</Text>}
+                {sendingBulk ? <ActivityIndicator size="small" color={C.white} /> : <Text style={{ fontWeight: '800', color: C.white }}>Send</Text>}
               </TouchableOpacity>
             </View>
           </View>

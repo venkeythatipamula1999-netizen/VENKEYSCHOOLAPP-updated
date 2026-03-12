@@ -1567,6 +1567,199 @@ app.post('/api/fee/reminders/auto-schedule', verifyAuth, async (req, res) => {
   }
 });
 
+app.get('/api/fee/reports/summary', verifyAuth, async (req, res) => {
+  try {
+    if (req.userRole !== 'admin' && req.userRole !== 'principal') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    const { academicYear, quarter } = req.query;
+    if (!academicYear || !quarter) return res.status(400).json({ error: 'academicYear and quarter required' });
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+
+    const recordsSnap = await adminDb.collection('fee_records')
+      .where('schoolId', '==', schoolId)
+      .where('academicYear', '==', academicYear)
+      .where('quarter', '==', Number(quarter))
+      .get();
+
+    const txSnap = await adminDb.collection('fee_transactions')
+      .where('schoolId', '==', schoolId)
+      .where('academicYear', '==', academicYear)
+      .where('quarter', '==', Number(quarter))
+      .get();
+
+    let totalExpected = 0, totalCollected = 0, totalPending = 0, totalOverdue = 0;
+    const classSummaryMap = {};
+    const methodBreakdown = { cash: 0, cheque: 0, upi: 0, card: 0 };
+
+    recordsSnap.docs.forEach(doc => {
+      const r = doc.data();
+      const net = r.netAmount || r.totalAmount || 0;
+      const paid = r.paid || 0;
+      const status = (r.status || '').toLowerCase();
+      totalExpected += net;
+      totalCollected += paid;
+      if (status === 'overdue') totalOverdue += (net - paid);
+      else if (status === 'pending' || status === 'upcoming') totalPending += (net - paid);
+
+      const cid = r.classId || 'unknown';
+      if (!classSummaryMap[cid]) {
+        classSummaryMap[cid] = { classId: cid, className: r.className || cid, totalStudents: 0, paid: 0, pending: 0, overdue: 0, amountCollected: 0, amountPending: 0 };
+      }
+      classSummaryMap[cid].totalStudents++;
+      if (status === 'paid' || status === 'cleared') { classSummaryMap[cid].paid++; classSummaryMap[cid].amountCollected += paid; }
+      else if (status === 'overdue') { classSummaryMap[cid].overdue++; classSummaryMap[cid].amountPending += (net - paid); }
+      else { classSummaryMap[cid].pending++; classSummaryMap[cid].amountPending += (net - paid); }
+    });
+
+    txSnap.docs.forEach(doc => {
+      const t = doc.data();
+      const method = (t.paymentMethod || 'cash').toLowerCase();
+      const amount = Number(t.amountPaid || 0);
+      if (method === 'cash') methodBreakdown.cash += amount;
+      else if (method === 'cheque') methodBreakdown.cheque += amount;
+      else if (method === 'upi') methodBreakdown.upi += amount;
+      else if (method === 'card') methodBreakdown.card += amount;
+    });
+
+    const collectionPercentage = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
+
+    res.json({
+      success: true,
+      totalExpected, totalCollected, totalPending, totalOverdue, collectionPercentage,
+      classSummary: Object.values(classSummaryMap).sort((a, b) => a.className.localeCompare(b.className)),
+      paymentMethodBreakdown: methodBreakdown,
+    });
+  } catch (err) {
+    console.error('[fee/reports/summary] Error:', err.message);
+    res.status(500).json({ error: 'Failed to generate summary' });
+  }
+});
+
+app.get('/api/fee/reports/defaulters', verifyAuth, async (req, res) => {
+  try {
+    if (req.userRole !== 'admin' && req.userRole !== 'principal') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    const { academicYear, quarter, classId } = req.query;
+    if (!academicYear || !quarter) return res.status(400).json({ error: 'academicYear and quarter required' });
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    const today = new Date();
+
+    let query = adminDb.collection('fee_records')
+      .where('schoolId', '==', schoolId)
+      .where('academicYear', '==', academicYear)
+      .where('quarter', '==', Number(quarter));
+    if (classId) query = query.where('classId', '==', classId);
+    const recordsSnap = await query.get();
+
+    const defaulters = [];
+    for (const doc of recordsSnap.docs) {
+      const r = doc.data();
+      const status = (r.status || '').toLowerCase();
+      if (status !== 'pending' && status !== 'overdue') continue;
+
+      const net = r.netAmount || r.totalAmount || 0;
+      const paid = r.paid || 0;
+      if (net - paid <= 0) continue;
+
+      let daysOverdue = 0;
+      if (r.dueDate) {
+        const due = new Date(r.dueDate);
+        daysOverdue = Math.max(0, Math.round((today - due) / (1000 * 60 * 60 * 24)));
+      }
+
+      const lastReminderSnap = await adminDb.collection('fee_reminders')
+        .where('studentId', '==', r.studentId)
+        .where('schoolId', '==', schoolId)
+        .where('quarter', '==', r.quarter)
+        .orderBy('sentAt', 'desc')
+        .limit(1)
+        .get();
+      const lastReminderSent = lastReminderSnap.empty ? null : lastReminderSnap.docs[0].data().sentAt;
+
+      let contactNumber = null;
+      const studentSnap = await adminDb.collection('students').where('studentId', '==', r.studentId).where('schoolId', '==', schoolId).limit(1).get();
+      if (!studentSnap.empty) contactNumber = studentSnap.docs[0].data().contactNumber || studentSnap.docs[0].data().phone || null;
+
+      defaulters.push({
+        studentId: r.studentId, studentName: r.studentName || r.studentId,
+        classId: r.classId, className: r.className || r.classId,
+        netAmount: net - paid, totalFee: net, paid,
+        dueDate: r.dueDate || null, daysOverdue, lastReminderSent,
+        contactNumber, status,
+      });
+    }
+
+    defaulters.sort((a, b) => b.daysOverdue - a.daysOverdue);
+    res.json({ success: true, students: defaulters });
+  } catch (err) {
+    console.error('[fee/reports/defaulters] Error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch defaulters' });
+  }
+});
+
+app.get('/api/fee/reports/export', verifyAuth, async (req, res) => {
+  try {
+    if (req.userRole !== 'admin' && req.userRole !== 'principal') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    const { academicYear, quarter } = req.query;
+    if (!academicYear || !quarter) return res.status(400).json({ error: 'academicYear and quarter required' });
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+
+    const recordsSnap = await adminDb.collection('fee_records')
+      .where('schoolId', '==', schoolId)
+      .where('academicYear', '==', academicYear)
+      .where('quarter', '==', Number(quarter))
+      .get();
+
+    const txMap = {};
+    const txSnap = await adminDb.collection('fee_transactions')
+      .where('schoolId', '==', schoolId)
+      .where('academicYear', '==', academicYear)
+      .where('quarter', '==', Number(quarter))
+      .get();
+    txSnap.docs.forEach(doc => {
+      const t = doc.data();
+      if (!txMap[t.studentId]) txMap[t.studentId] = [];
+      txMap[t.studentId].push(t);
+    });
+
+    const escape = (v) => {
+      if (v === null || v === undefined) return '';
+      const s = String(v);
+      if (s.includes(',') || s.includes('"') || s.includes('\n')) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    };
+
+    const header = ['Student ID', 'Name', 'Class', 'Tuition', 'Bus', 'Misc', 'Discount', 'Net Amount', 'Status', 'Paid Date', 'Payment Method', 'Receipt Number'];
+    const rows = [header.join(',')];
+
+    recordsSnap.docs.forEach(doc => {
+      const r = doc.data();
+      const txList = txMap[r.studentId] || [];
+      const lastTx = txList.sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt))[0] || {};
+      const paidDate = lastTx.paidAt ? new Date(lastTx.paidAt).toLocaleDateString('en-IN') : '';
+      rows.push([
+        escape(r.studentId), escape(r.studentName), escape(r.className || r.classId),
+        escape(r.tuitionFee || 0), escape(r.busFee || 0), escape(r.miscFee || 0),
+        escape(r.discount || 0), escape(r.netAmount || r.totalAmount || 0),
+        escape(r.status), escape(paidDate), escape(lastTx.paymentMethod || ''), escape(lastTx.receiptNumber || ''),
+      ].join(','));
+    });
+
+    const csv = rows.join('\n');
+    const filename = `FeeReport_Q${quarter}_${academicYear.replace('-', '_')}.csv`;
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(csv);
+  } catch (err) {
+    console.error('[fee/reports/export] Error:', err.message);
+    res.status(500).json({ error: 'Failed to export report' });
+  }
+});
+
 cron.schedule('0 8 * * *', async () => {
   console.log('[FeeReminderJob] Running daily fee reminder check...');
   try {
