@@ -11,6 +11,8 @@ import { setErrorReporterUser, clearErrorReporterUser } from './src/services/err
 import { registerForPushNotifications } from './src/services/notifications';
 import OfflineBanner from './src/components/OfflineBanner';
 
+import WelcomeScreen from './src/screens/onboarding/WelcomeScreen';
+import SchoolSplashScreen from './src/screens/onboarding/SchoolSplashScreen';
 import SplashScreen from './src/screens/auth/SplashScreen';
 import SplashIntroScreen from './src/screens/auth/SplashIntroScreen';
 import LoginScreen from './src/screens/auth/LoginScreen';
@@ -73,7 +75,7 @@ import { STUDENTS_INIT as STUDENTS_INIT_CLEANER } from './src/data/cleaner';
 export default function App() {
   useGlobalErrorListener();
   
-  const [screen, setScreen] = useState('splash-intro');
+  const [screen, setScreen] = useState('loading');
   const [role, setRole] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [leaveRequests, setLeaveRequests] = useState(INITIAL_LEAVE_REQS);
@@ -93,7 +95,7 @@ export default function App() {
     global.__onAuthExpired = () => {
       setCurrentUser(null);
       setRole(null);
-      navigate('splash');
+      navigate('school-splash');
       setTimeout(() => {
         alert('Your session has expired. Please log in again.');
       }, 300);
@@ -105,42 +107,47 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const checkStoredAuth = async () => {
+    const checkOnboarding = async () => {
       try {
-        const token = await AsyncStorage.getItem('authToken');
-        if (!token) return;
+        const schoolId   = await AsyncStorage.getItem('schoolId');
+        const token      = await AsyncStorage.getItem('authToken');
+        const storedUser = await AsyncStorage.getItem('userData');
 
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const expiry = payload.exp * 1000;
-        const now = Date.now();
-
-        if (expiry < now) {
-          await AsyncStorage.multiRemove(['authToken', 'schoolId', 'userData']);
-          console.log('[Auth] Stored token expired — cleared');
+        if (!schoolId) {
+          setScreen('welcome');
           return;
         }
 
-        const storedUserData = await AsyncStorage.getItem('userData');
-        if (!storedUserData) return;
+        if (!token || !storedUser) {
+          setScreen('school-splash');
+          return;
+        }
 
-        const userData = JSON.parse(storedUserData);
-        const userRole = userData.role;
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          if (payload.exp * 1000 < Date.now()) {
+            await AsyncStorage.multiRemove(['authToken', 'userData']);
+            setScreen('school-splash');
+            return;
+          }
+        } catch {
+          await AsyncStorage.multiRemove(['authToken', 'userData']);
+          setScreen('school-splash');
+          return;
+        }
+
+        const userData = JSON.parse(storedUser);
         setCurrentUser(userData);
-        setRole(userRole);
-
-        if (userRole === 'principal') setScreen('admin-home');
-        else if (userRole === 'driver') setScreen('driver-home');
-        else if (userRole === 'cleaner') setScreen('cleaner-home');
-        else if (userRole === 'teacher' || userRole === 'staff') setScreen('teacher-home');
-        else setScreen('parent-home');
-
-        console.log('[Auth] Session restored for role:', userRole);
+        setRole(userData.role);
+        setScreen('school-splash');
+        console.log('[Auth] Session ready for role:', userData.role);
       } catch (e) {
         await AsyncStorage.multiRemove(['authToken', 'schoolId', 'userData']);
+        setScreen('welcome');
       }
     };
 
-    checkStoredAuth();
+    checkOnboarding();
   }, []);
 
   const [navParams, setNavParams] = useState({});
@@ -187,10 +194,10 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    await AsyncStorage.multiRemove(['authToken', 'schoolId', 'userData']);
+    await AsyncStorage.multiRemove(['authToken', 'userData']);
     setCurrentUser(null);
     setRole(null);
-    navigate('splash');
+    navigate('school-splash');
   };
 
   const driverScreens = ['driver-home', 'driver-scans', 'driver-locations', 'driver-duration', 'driver-profile', 'driver-leave', 'driver-proximity'];
@@ -299,6 +306,12 @@ export default function App() {
 
   const renderScreen = () => {
     switch (screen) {
+      case 'loading':
+        return <View style={{ flex: 1, backgroundColor: '#0a1628' }} />;
+      case 'welcome':
+        return <WelcomeScreen onNavigate={navigate} />;
+      case 'school-splash':
+        return <SchoolSplashScreen onNavigate={navigate} currentUser={currentUser} />;
       case 'splash-intro':
         return <SplashIntroScreen onFinish={() => navigate('splash')} />;
       case 'splash':

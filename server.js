@@ -275,6 +275,10 @@ app.use((req, res, next) => {
     return next();
   }
   if (req.path.startsWith('/api/super/')) return next();
+  if (req.method === 'GET' && req.path.startsWith('/api/school/info/')) return next();
+  if (req.method === 'GET' && req.path.startsWith('/api/students/qr/')) return next();
+  if (req.method === 'GET' && req.path.startsWith('/api/whatsapp/webhook')) return next();
+  if (req.method === 'POST' && req.path === '/api/whatsapp/webhook') return next();
   const isPublic = PUBLIC_ROUTES.some(
     r => r.method === req.method && req.path === r.path
   );
@@ -5812,6 +5816,98 @@ app.get('/api/student/qr/:studentId', async (req, res) => {
   }
 });
 
+app.get('/api/school/info/:schoolId', async (req, res) => {
+  try {
+    const { schoolId } = req.params;
+    const schoolSnap = await adminDb.collection('schools').doc(schoolId).get();
+    if (!schoolSnap.exists) return res.status(404).json({ error: 'School not found' });
+    const d = schoolSnap.data();
+    res.json({
+      schoolId:      d.schoolId,
+      schoolName:    d.schoolName,
+      location:      d.location || '',
+      logoUrl:       d.logoUrl || '',
+      primaryColor:  d.primaryColor || '#1a3c5e',
+      tagline:       d.tagline || '',
+      isActive:      d.status === 'active',
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/students/qr/:studentId', async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const studentQ = await db.collection('students').where('studentId', '==', studentId).get();
+    if (studentQ.empty) return res.status(404).json({ error: 'Student not found' });
+    const s = studentQ.docs[0].data();
+    const schoolId = s.schoolId || DEFAULT_SCHOOL_ID;
+    let schoolName = '', logoUrl = '', primaryColor = '#1a3c5e', location = '';
+    try {
+      const schoolSnap = await adminDb.collection('schools').doc(schoolId).get();
+      if (schoolSnap.exists) {
+        const sd = schoolSnap.data();
+        schoolName    = sd.schoolName    || '';
+        logoUrl       = sd.logoUrl       || '';
+        primaryColor  = sd.primaryColor  || '#1a3c5e';
+        location      = sd.location      || '';
+      }
+    } catch (_) {}
+    res.json({
+      studentId:       s.studentId,
+      studentName:     s.name || s.studentName || '',
+      schoolId,
+      schoolName,
+      logoUrl,
+      primaryColor,
+      className:       s.className || s.class || '',
+      admissionNumber: s.admissionNumber || s.studentId,
+      location,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/students/generate-qr', verifyAuth, async (req, res) => {
+  try {
+    const { studentId } = req.body;
+    if (!studentId) return res.status(400).json({ error: 'studentId required' });
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    const studentQ = await db.collection('students').where('studentId', '==', studentId).get();
+    if (studentQ.empty) return res.status(404).json({ error: 'Student not found' });
+    const s = studentQ.docs[0].data();
+    let schoolName = '', logoUrl = '', primaryColor = '#1a3c5e', location = '';
+    try {
+      const schoolSnap = await adminDb.collection('schools').doc(schoolId).get();
+      if (schoolSnap.exists) {
+        const sd = schoolSnap.data();
+        schoolName   = sd.schoolName   || '';
+        logoUrl      = sd.logoUrl      || '';
+        primaryColor = sd.primaryColor || '#1a3c5e';
+        location     = sd.location     || '';
+      }
+    } catch (_) {}
+    const qrData = JSON.stringify({
+      type:            'student',
+      studentId:       s.studentId,
+      studentName:     s.name || s.studentName || '',
+      schoolId,
+      schoolName,
+      location,
+      logoUrl,
+      primaryColor,
+      className:       s.className || s.class || '',
+      admissionNumber: s.admissionNumber || s.studentId,
+    });
+    await studentQ.docs[0].ref.update({ qrCode: qrData });
+    res.json({ success: true, qrCode: qrData });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/school-info', async (req, res) => {
   try {
     const docSnap = await adminDb.collection('settings').doc(req.schoolId || DEFAULT_SCHOOL_ID).get();
@@ -7937,7 +8033,18 @@ app.post('/api/super/schools/create', superAdminLimiter, verifySuperAdmin, async
       }
     }
 
-    res.json({ success: true, schoolId, schoolName, principalEmail, principalUid, message: `School created: ${schoolId}` });
+    const schoolQR = JSON.stringify({
+      type:         'school',
+      schoolId,
+      schoolName,
+      location:     location || '',
+      logoUrl:      '',
+      primaryColor: '#1a3c5e',
+      tagline:      `Excellence in Education`,
+    });
+    await adminDb.collection('schools').doc(schoolId).update({ schoolQR });
+
+    res.json({ success: true, schoolId, schoolName, principalEmail, principalUid, schoolQR, message: `School created: ${schoolId}` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

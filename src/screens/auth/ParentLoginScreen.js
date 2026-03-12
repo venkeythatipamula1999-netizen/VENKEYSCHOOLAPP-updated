@@ -1,25 +1,53 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Modal, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View, Text, TextInput, TouchableOpacity, ScrollView,
+  Modal, ActivityIndicator, Image, StyleSheet, Vibration,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Camera, CameraView } from 'expo-camera';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from '../../components/Icon';
 import { C } from '../../theme/colors';
 import { S } from '../../theme/styles';
 import { apiFetch } from '../../api/client';
 
+const PRODUCTION_URL = 'https://vidyalayam.replit.app';
+
 export default function ParentLoginScreen({ onLoginSuccess, onBack, onNavigate }) {
-  const [email, setEmail] = useState('');
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading]   = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const [showForgot, setShowForgot] = useState(false);
-  const [resetEmail, setResetEmail] = useState('');
-  const [resetLoading, setResetLoading] = useState(false);
-  const [resetMsg, setResetMsg] = useState('');
-  const [resetError, setResetError] = useState('');
-  const [resetSent, setResetSent] = useState(false);
+  const [showForgot, setShowForgot]       = useState(false);
+  const [resetEmail, setResetEmail]       = useState('');
+  const [resetLoading, setResetLoading]   = useState(false);
+  const [resetMsg, setResetMsg]           = useState('');
+  const [resetError, setResetError]       = useState('');
+  const [resetSent, setResetSent]         = useState(false);
+
+  const [schoolName, setSchoolName]       = useState('');
+  const [schoolLogoUrl, setSchoolLogoUrl] = useState('');
+  const [schoolInitials, setSchoolInitials] = useState('');
+
+  const [scanning, setScanning]           = useState(false);
+  const [hasPermission, setHasPermission] = useState(null);
+  const [scanned, setScanned]             = useState(false);
+
+  const [confirmModal, setConfirmModal]   = useState(false);
+  const [confirmData, setConfirmData]     = useState(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.multiGet(['schoolName', 'schoolLogoUrl']).then(vals => {
+      const name = vals[0][1] || '';
+      const logo = vals[1][1] || '';
+      setSchoolName(name);
+      setSchoolLogoUrl(logo);
+      setSchoolInitials(name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase());
+    }).catch(() => {});
+  }, []);
 
   const handleLogin = async () => {
     setErrorMsg('');
@@ -88,6 +116,89 @@ export default function ParentLoginScreen({ onLoginSuccess, onBack, onNavigate }
     }
   };
 
+  const openScanner = async () => {
+    const { status } = await Camera.requestCameraPermissionsAsync();
+    setHasPermission(status === 'granted');
+    setScanned(false);
+    setScanning(true);
+  };
+
+  const handleStudentQRScanned = async ({ data }) => {
+    if (scanned) return;
+    setScanned(true);
+    Vibration.vibrate(100);
+    setScanning(false);
+    setConfirmLoading(true);
+    setConfirmModal(true);
+    try {
+      const parsed = JSON.parse(data);
+      if (parsed.type !== 'student') {
+        setConfirmData({ error: 'This is not a student QR code. Please scan a student ID card.' });
+        setConfirmLoading(false);
+        return;
+      }
+      const res = await fetch(`${PRODUCTION_URL}/api/students/qr/${encodeURIComponent(parsed.studentId)}`);
+      const student = await res.json();
+      if (!res.ok || student.error) {
+        setConfirmData({ error: student.error || 'Student not found.' });
+      } else {
+        setConfirmData(student);
+      }
+    } catch {
+      setConfirmData({ error: 'Could not read QR code. Please try again.' });
+    } finally {
+      setConfirmLoading(false);
+    }
+  };
+
+  const handleConfirmYes = async () => {
+    if (!confirmData || confirmData.error) return;
+    await AsyncStorage.multiSet([
+      ['parentStudentId',   confirmData.studentId   || ''],
+      ['parentStudentName', confirmData.studentName || ''],
+      ['parentClassName',   confirmData.className   || ''],
+    ]);
+    setConfirmModal(false);
+    if (onNavigate) onNavigate('parent-login');
+  };
+
+  const handleConfirmNo = () => {
+    setConfirmModal(false);
+    setConfirmData(null);
+    setScanned(false);
+  };
+
+  if (scanning) {
+    if (hasPermission === false) {
+      return (
+        <View style={{ flex: 1, backgroundColor: '#0a1628', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+          <Text style={{ color: C.coral, fontSize: 15, textAlign: 'center', marginBottom: 20 }}>
+            Camera permission denied. Please enable it in device settings.
+          </Text>
+          <TouchableOpacity onPress={() => setScanning(false)} style={{ padding: 16 }}>
+            <Text style={{ color: C.teal, fontSize: 15 }}>← Back</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return (
+      <View style={{ flex: 1, backgroundColor: '#000' }}>
+        <CameraView
+          style={StyleSheet.absoluteFillObject}
+          barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+          onBarcodeScanned={scanned ? undefined : handleStudentQRScanned}
+        />
+        <View style={st.scanOverlay}>
+          <View style={st.scanFrame} />
+          <Text style={st.scanHint}>Scan student ID card QR code</Text>
+        </View>
+        <TouchableOpacity onPress={() => setScanning(false)} style={st.scanClose}>
+          <Text style={{ color: C.white, fontSize: 18, fontWeight: '700' }}>✕</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <LinearGradient
       colors={[C.navyLt, C.navy]}
@@ -103,16 +214,41 @@ export default function ParentLoginScreen({ onLoginSuccess, onBack, onNavigate }
         </View>
 
         <View style={{ paddingHorizontal: 28, paddingTop: 20, paddingBottom: 40, flex: 1 }}>
-          <View style={{ marginBottom: 36 }}>
+          {schoolName ? (
+            <View style={{ alignItems: 'center', marginBottom: 20 }}>
+              {schoolLogoUrl ? (
+                <Image source={{ uri: schoolLogoUrl }} style={{ width: 50, height: 50, borderRadius: 10, marginBottom: 6 }} resizeMode="contain" />
+              ) : schoolInitials ? (
+                <View style={{ width: 50, height: 50, borderRadius: 10, backgroundColor: C.navyLt, alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+                  <Text style={{ color: C.teal, fontSize: 18, fontWeight: '800' }}>{schoolInitials}</Text>
+                </View>
+              ) : null}
+              <Text style={{ color: C.muted, fontSize: 13, fontWeight: '600' }}>{schoolName}</Text>
+            </View>
+          ) : null}
+
+          <View style={{ marginBottom: 28 }}>
             <View style={[S.chip, S.chipGold, { marginBottom: 16, alignSelf: 'flex-start' }]}>
-              <Text style={[S.chipText, { color: C.gold }]}>
-                {'👨‍👩‍👧 Parent Portal'}
-              </Text>
+              <Text style={[S.chipText, { color: C.gold }]}>{'👨‍👩‍👧 Parent Portal'}</Text>
             </View>
             <Text style={{ fontSize: 30, fontWeight: '700', color: C.white, marginBottom: 8 }}>
               Welcome Back
             </Text>
             <Text style={{ color: C.muted, fontSize: 14 }}>Sign in to continue</Text>
+          </View>
+
+          <TouchableOpacity
+            style={{ backgroundColor: C.teal, borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginBottom: 20, flexDirection: 'row', justifyContent: 'center', gap: 10 }}
+            onPress={openScanner}
+          >
+            <Text style={{ fontSize: 18 }}>📷</Text>
+            <Text style={{ color: C.white, fontWeight: '700', fontSize: 15 }}>Scan Student QR</Text>
+          </TouchableOpacity>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
+            <View style={{ flex: 1, height: 1, backgroundColor: C.border }} />
+            <Text style={{ color: C.muted, marginHorizontal: 14, fontSize: 13 }}>or</Text>
+            <View style={{ flex: 1, height: 1, backgroundColor: C.border }} />
           </View>
 
           {errorMsg ? (
@@ -164,7 +300,7 @@ export default function ParentLoginScreen({ onLoginSuccess, onBack, onNavigate }
             {loading
               ? <ActivityIndicator color={C.white} />
               : <>
-                  <Text style={S.btnTextLight}>{loading ? 'Signing In...' : 'Sign In'}</Text>
+                  <Text style={S.btnTextLight}>Sign In</Text>
                   <Icon name="arrow" size={16} color={C.white} />
                 </>
             }
@@ -239,6 +375,81 @@ export default function ParentLoginScreen({ onLoginSuccess, onBack, onNavigate }
           </View>
         </View>
       </Modal>
+
+      <Modal visible={confirmModal} transparent animationType="slide" onRequestClose={handleConfirmNo}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: C.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 28, borderWidth: 1, borderColor: C.border }}>
+            {confirmLoading ? (
+              <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+                <ActivityIndicator size="large" color={C.teal} />
+                <Text style={{ color: C.muted, marginTop: 14 }}>Fetching student details...</Text>
+              </View>
+            ) : confirmData?.error ? (
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ fontSize: 36, marginBottom: 12 }}>⚠️</Text>
+                <Text style={{ color: C.coral, fontSize: 15, fontWeight: '700', textAlign: 'center', marginBottom: 20 }}>{confirmData.error}</Text>
+                <TouchableOpacity
+                  onPress={handleConfirmNo}
+                  style={{ backgroundColor: C.teal, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 28 }}
+                >
+                  <Text style={{ color: C.white, fontWeight: '700', fontSize: 15 }}>Try Again</Text>
+                </TouchableOpacity>
+              </View>
+            ) : confirmData ? (
+              <View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
+                  <Text style={{ fontSize: 22, marginRight: 10 }}>🏫</Text>
+                  <Text style={{ color: C.white, fontSize: 15, fontWeight: '600', flex: 1 }}>{confirmData.schoolName}</Text>
+                </View>
+                <View style={{ backgroundColor: C.navyMid, borderRadius: 16, padding: 18, marginBottom: 24 }}>
+                  <Text style={{ fontSize: 32, marginBottom: 10 }}>👦</Text>
+                  <Text style={{ color: C.white, fontSize: 22, fontWeight: '800', marginBottom: 4 }}>{confirmData.studentName}</Text>
+                  <Text style={{ color: C.muted, fontSize: 14, marginBottom: 2 }}>Class {confirmData.className}</Text>
+                  <Text style={{ color: C.muted, fontSize: 13 }}>ID: {confirmData.studentId}</Text>
+                </View>
+                <Text style={{ color: C.white, fontSize: 15, textAlign: 'center', marginBottom: 20 }}>
+                  Is this your child?
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <TouchableOpacity
+                    onPress={handleConfirmNo}
+                    style={{ flex: 1, borderWidth: 1.5, borderColor: C.muted, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}
+                  >
+                    <Text style={{ color: C.muted, fontWeight: '700', fontSize: 14 }}>No, Scan Again</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleConfirmYes}
+                    style={{ flex: 1, backgroundColor: C.teal, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}
+                  >
+                    <Text style={{ color: C.white, fontWeight: '700', fontSize: 14 }}>Yes ✓</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : null}
+          </View>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 }
+
+const st = StyleSheet.create({
+  scanOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  scanFrame: {
+    width: 240, height: 240,
+    borderWidth: 3, borderColor: '#00B8A9', borderRadius: 16,
+  },
+  scanHint: {
+    color: '#FFFFFF', fontSize: 14, marginTop: 20,
+    backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8,
+  },
+  scanClose: {
+    position: 'absolute', top: 52, right: 20,
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+});

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Modal, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Modal, ActivityIndicator, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from '../../components/Icon';
@@ -21,6 +21,19 @@ export default function LoginScreen({ role, onLoginSuccess, onBack, onNavigate }
   const [resetSent, setResetSent] = useState(false);
   const isParent = role === 'parent';
   const isDriver = role === 'driver';
+
+  const [schoolName, setSchoolName] = useState('');
+  const [schoolLogoUrl, setSchoolLogoUrl] = useState('');
+  const [schoolInitials, setSchoolInitials] = useState('');
+  useEffect(() => {
+    AsyncStorage.multiGet(['schoolName', 'schoolLogoUrl']).then(vals => {
+      const name = vals[0][1] || '';
+      const logo = vals[1][1] || '';
+      setSchoolName(name);
+      setSchoolLogoUrl(logo);
+      setSchoolInitials(name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase());
+    }).catch(() => {});
+  }, []);
 
   const handleLogin = async () => {
     setErrorMsg('');
@@ -96,6 +109,18 @@ export default function LoginScreen({ role, onLoginSuccess, onBack, onNavigate }
         </View>
 
         <View style={{ paddingHorizontal: 28, paddingTop: 20, paddingBottom: 40, flex: 1 }}>
+          {schoolName ? (
+            <View style={{ alignItems: 'center', marginBottom: 20 }}>
+              {schoolLogoUrl ? (
+                <Image source={{ uri: schoolLogoUrl }} style={{ width: 50, height: 50, borderRadius: 10, marginBottom: 6 }} resizeMode="contain" />
+              ) : schoolInitials ? (
+                <View style={{ width: 50, height: 50, borderRadius: 10, backgroundColor: C.navyLt, alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+                  <Text style={{ color: C.teal, fontSize: 18, fontWeight: '800' }}>{schoolInitials}</Text>
+                </View>
+              ) : null}
+              <Text style={{ color: C.muted, fontSize: 13, fontWeight: '600' }}>{schoolName}</Text>
+            </View>
+          ) : null}
           <View style={{ marginBottom: 36 }}>
             <View style={[S.chip, isParent ? S.chipGold : S.chipTeal, { marginBottom: 16, alignSelf: 'flex-start' }]}>
               <Text style={[S.chipText, { color: isParent ? C.gold : isDriver ? '#A78BFA' : C.teal }]}>
