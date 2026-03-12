@@ -658,11 +658,11 @@ app.post('/api/complete-profile', async (req, res) => {
 app.get('/api/available-classes', async (req, res) => {
   try {
     const classesRef = db.collection('classes');
-    const classesSnap = await classesRef.where('schoolId', '==', (req.schoolId || DEFAULT_SCHOOL_ID.get()));
+    const classesSnap = await classesRef.where('schoolId', '==', (req.schoolId || DEFAULT_SCHOOL_ID)).get();
     const allClasses = classesSnap.docs.map(d => ({ id: d.id, name: d.data().name })).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
 
     const usersRef = db.collection('users');
-    const assignedSnap = await usersRef.where('schoolId', '==', (req.schoolId || DEFAULT_SCHOOL_ID.get()).where('classTeacherOf', '!=', null));
+    const assignedSnap = await usersRef.where('schoolId', '==', (req.schoolId || DEFAULT_SCHOOL_ID)).where('classTeacherOf', '!=', null).get();
     const assignedMap = {};
     assignedSnap.docs.forEach(d => {
       const data = d.data();
@@ -2972,7 +2972,7 @@ app.post('/api/add-logistics-staff', async (req, res) => {
 app.get('/api/logistics-staff', async (req, res) => {
   try {
     const logisticsRef = db.collection('logistics_staff');
-    const snapshot = await logisticsRef.where('schoolId', '==', (req.schoolId || DEFAULT_SCHOOL_ID.get()));
+    const snapshot = await logisticsRef.where('schoolId', '==', (req.schoolId || DEFAULT_SCHOOL_ID)).get();
     const staff = snapshot.docs.map(d => {
       const data = d.data();
       return {
