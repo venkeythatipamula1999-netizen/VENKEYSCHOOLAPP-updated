@@ -1063,33 +1063,48 @@ app.get('/api/classes', async (req, res) => {
   }
 });
 
-app.post('/api/classes/add', async (req, res) => {
+app.post('/api/classes/add', verifyAuth, async (req, res) => {
   try {
+    if (req.userRole !== 'admin' && req.userRole !== 'principal') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
     const { className } = req.body;
-    console.log('Add class request received:', className);
-    if (!className) return res.status(400).json({ error: 'className required' });
-    
-    const classesRef = db.collection('classes');
-    const q = classesRef.where('schoolId', '==', (req.schoolId || DEFAULT_SCHOOL_ID)).where('name', '==', className);
-    const snapshot = await q.get();
-    
-    if (!snapshot.empty) {
-      console.log('Class already exists:', className);
+    if (!className) return res.status(400).json({ error: 'Class name is required' });
+
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+
+    const schoolSnap = await db.collection('schools').doc(schoolId).get();
+    const schoolName = schoolSnap.exists ? schoolSnap.data().name : schoolId;
+    const initials = schoolName
+      .split(' ')
+      .filter(w => w.length > 0)
+      .map(w => w[0].toUpperCase())
+      .join('');
+
+    const cleanName = className.replace(/\s+/g, '').toUpperCase();
+    const classId = `${initials}-${cleanName}`;
+
+    const existing = await db.collection('classes')
+      .where('schoolId', '==', schoolId)
+      .where('name', '==', className)
+      .get();
+    if (!existing.empty) {
       return res.status(400).json({ error: 'Class already exists' });
     }
-    
-    const newDoc = await db.collection('classes').add({
+
+    await db.collection('classes').doc(classId).set({
+      classId,
       name: className,
       studentCount: 0,
-      schoolId: (req.schoolId || DEFAULT_SCHOOL_ID),
-      createdAt: new Date().toISOString()
+      schoolId,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
-    
-    console.log('Class added successfully with ID:', newDoc.id);
-    res.json({ success: true, id: newDoc.id });
+
+    console.log('Class added successfully with ID:', classId);
+    res.json({ success: true, id: classId });
   } catch (err) {
-    console.error('Add class error details:', err);
-    res.status(500).json({ error: 'Failed to add class: ' + err.message });
+    console.error('Add class error:', err.message);
+    res.status(500).json({ error: 'Failed to create class' });
   }
 });
 
@@ -1105,8 +1120,11 @@ app.delete('/api/classes/:id', async (req, res) => {
   }
 });
 
-app.post('/api/classes/delete', async (req, res) => {
+app.post('/api/classes/delete', verifyAuth, async (req, res) => {
   try {
+    if (req.userRole !== 'admin' && req.userRole !== 'principal') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
     const { className } = req.body;
     if (!className) return res.status(400).json({ error: 'className required' });
     
@@ -4525,31 +4543,56 @@ app.get('/api/admin/buses', async (req, res) => {
 app.post('/api/admin/buses/add', verifyAuth, async (req, res) => {
   try {
     if (req.userRole !== 'admin' && req.userRole !== 'principal') {
-      return res.status(403).json({ error: 'Admin access required' });
+      return res.status(403).json({ error: 'Access denied' });
     }
-    const { busNumber, busId, route, routeId, driverId, driverName, cleanerId, cleanerName } = req.body;
-    if (!busNumber || !busId) return res.status(400).json({ error: 'busNumber and busId required' });
+    const { busNumber, route, driverId, driverName, cleanerId, cleanerName } = req.body;
+    if (!busNumber) return res.status(400).json({ error: 'Bus number is required' });
+
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+
+    const schoolSnap = await db.collection('schools').doc(schoolId).get();
+    const schoolName = schoolSnap.exists ? schoolSnap.data().name : schoolId;
+    const initials = schoolName
+      .split(' ')
+      .filter(w => w.length > 0)
+      .map(w => w[0].toUpperCase())
+      .join('');
+
+    const busSnap = await db.collection('buses')
+      .where('schoolId', '==', schoolId)
+      .get();
+    const nextNumber = String(busSnap.size + 1).padStart(3, '0');
+    const busId = `${initials}-Route-${nextNumber}`;
+    const routeId = busId;
+
+    const existing = await db.collection('buses')
+      .where('schoolId', '==', schoolId)
+      .where('busNumber', '==', busNumber)
+      .get();
+    if (!existing.empty) {
+      return res.status(400).json({ error: 'Bus number already exists' });
+    }
 
     await db.collection('buses').doc(busId).set({
-      busNumber,
       busId,
+      busNumber,
       route: route || '',
-      routeId: routeId || '',
+      routeId,
       driverId: driverId || '',
       driverName: driverName || '',
       cleanerId: cleanerId || '',
       cleanerName: cleanerName || '',
-      schoolId: (req.schoolId || DEFAULT_SCHOOL_ID),
+      schoolId,
       studentIds: [],
       status: 'active',
-      createdAt: new Date().toISOString()
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
     console.log(`Bus added: ${busNumber} (${busId})`);
-    res.json({ success: true, busId });
+    res.json({ success: true, busId, routeId });
   } catch (err) {
     console.error('Add bus error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Failed to create bus route' });
   }
 });
 
