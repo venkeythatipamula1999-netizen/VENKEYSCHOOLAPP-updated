@@ -12,6 +12,8 @@
     { "collectionGroup": "users", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "schoolId", "order": "ASCENDING" }, { "fieldPath": "role", "order": "ASCENDING" }] },
     { "collectionGroup": "buses", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "schoolId", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" }] },
     { "collectionGroup": "admin_notifications", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "schoolId", "order": "ASCENDING" }, { "fieldPath": "timestamp", "order": "DESCENDING" }] },
+    { "collectionGroup": "admin_notifications", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "schoolId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "admin_notifications", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "schoolId", "order": "ASCENDING" }, { "fieldPath": "read", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
     { "collectionGroup": "parent_notifications", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "schoolId", "order": "ASCENDING" }, { "fieldPath": "timestamp", "order": "DESCENDING" }] },
     { "collectionGroup": "teacher_notifications", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "schoolId", "order": "ASCENDING" }, { "fieldPath": "timestamp", "order": "DESCENDING" }] },
     { "collectionGroup": "events", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "schoolId", "order": "ASCENDING" }, { "fieldPath": "date", "order": "ASCENDING" }] },
