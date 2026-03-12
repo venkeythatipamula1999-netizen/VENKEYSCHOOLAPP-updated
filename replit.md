@@ -1,13 +1,17 @@
-# Venkeys International School App — Setup Complete
+# Vidyalayam School App — Setup Complete
 
 ## Project Overview
 A comprehensive school management system with React Native (Expo) frontend serving multiple portals: Parent, Teacher, Admin (Principal), Driver, and Cleaner. Built with Node.js/Express backend and Firebase Firestore real-time database.
 
+## Production URL
+- **Production**: `https://vidyalayam.replit.app` (current)
+- **Legacy**: `https://venkeyschoolapp-updated.replit.app` (kept for CORS compatibility)
+
 ## Technology Stack
 - **Frontend**: React Native (Expo SDK 52) with web output, Metro bundler
 - **Backend**: Express.js API server (Node.js)
-- **Database**: Firebase Firestore (project: school-app-87900)
-- **Authentication**: Firebase Auth (Email/Password)
+- **Database**: Firebase Firestore (project: school-app-87900) — **Admin SDK only** (no client SDK on server)
+- **Authentication**: Firebase Auth — Admin SDK (`adminAuth`) for create/update; REST API for sign-in and password reset
 - **Google Sheets**: Auto-sync for attendance, marks, payroll, and master timetable
 - **Error Tracking**: Automatic error reporting to Firestore "alerts" collection
 
