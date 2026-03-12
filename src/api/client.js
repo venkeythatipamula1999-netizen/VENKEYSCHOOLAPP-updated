@@ -21,8 +21,7 @@ export async function apiFetch(path, options = {}) {
   });
 
   if (res.status === 401) {
-    await AsyncStorage.removeItem('authToken');
-    await AsyncStorage.removeItem('schoolId');
+    await AsyncStorage.multiRemove(['authToken', 'schoolId', 'userData']);
     if (typeof global.__onAuthExpired === 'function') {
       global.__onAuthExpired();
     }

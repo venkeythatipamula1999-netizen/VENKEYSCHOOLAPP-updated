@@ -35,6 +35,7 @@ export default function LoginScreen({ role, onLoginSuccess, onBack, onNavigate }
       if (data.token) {
         await AsyncStorage.setItem('authToken', data.token);
         await AsyncStorage.setItem('schoolId', data.user?.schoolId || 'SP-GOPA');
+        await AsyncStorage.setItem('userData', JSON.stringify(data.user));
       }
       const userData = data.user;
       if (onLoginSuccess) onLoginSuccess(userData);

@@ -115,13 +115,28 @@ export default function App() {
         const now = Date.now();
 
         if (expiry < now) {
-          await AsyncStorage.removeItem('authToken');
-          await AsyncStorage.removeItem('schoolId');
+          await AsyncStorage.multiRemove(['authToken', 'schoolId', 'userData']);
           console.log('[Auth] Stored token expired — cleared');
+          return;
         }
+
+        const storedUserData = await AsyncStorage.getItem('userData');
+        if (!storedUserData) return;
+
+        const userData = JSON.parse(storedUserData);
+        const userRole = userData.role;
+        setCurrentUser(userData);
+        setRole(userRole);
+
+        if (userRole === 'principal') setScreen('admin-home');
+        else if (userRole === 'driver') setScreen('driver-home');
+        else if (userRole === 'cleaner') setScreen('cleaner-home');
+        else if (userRole === 'teacher' || userRole === 'staff') setScreen('teacher-home');
+        else setScreen('parent-home');
+
+        console.log('[Auth] Session restored for role:', userRole);
       } catch (e) {
-        await AsyncStorage.removeItem('authToken');
-        await AsyncStorage.removeItem('schoolId');
+        await AsyncStorage.multiRemove(['authToken', 'schoolId', 'userData']);
       }
     };
 
@@ -172,8 +187,7 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem('authToken');
-    await AsyncStorage.removeItem('schoolId');
+    await AsyncStorage.multiRemove(['authToken', 'schoolId', 'userData']);
     setCurrentUser(null);
     setRole(null);
     navigate('splash');
