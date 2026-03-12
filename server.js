@@ -1202,6 +1202,184 @@ app.post('/api/fee/generate-records', verifyAuth, async (req, res) => {
   }
 });
 
+async function generateReceiptNumber(schoolId) {
+  const initials = (schoolId || 'SC').split(/[-_\s]+/).filter(Boolean).map(p => p[0]).join('').toUpperCase().substring(0, 2);
+  const year = new Date().getFullYear();
+  const counterRef = adminDb.collection('fee_counters').doc(`${schoolId}_${year}`);
+  let seq = 1;
+  try {
+    seq = await adminDb.runTransaction(async (t) => {
+      const doc = await t.get(counterRef);
+      const next = (doc.exists ? (doc.data().count || 0) : 0) + 1;
+      t.set(counterRef, { count: next, schoolId, year }, { merge: true });
+      return next;
+    });
+  } catch (e) {
+    seq = Math.floor(Math.random() * 9000) + 1000;
+  }
+  return `RCP-${initials}-${year}-${String(seq).padStart(4, '0')}`;
+}
+
+app.post('/api/fee/payment/cash', verifyAuth, async (req, res) => {
+  try {
+    if (req.userRole !== 'admin' && req.userRole !== 'principal') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    const { studentId, academicYear, quarter, amountPaid, paymentMethod, receiptNumber: customReceipt, notes } = req.body;
+    if (!studentId || !academicYear || !quarter || !amountPaid) {
+      return res.status(400).json({ error: 'studentId, academicYear, quarter and amountPaid are required' });
+    }
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    const recordId = `${schoolId}_${studentId}_${academicYear}_Q${quarter}`;
+    const recordSnap = await adminDb.collection('fee_records').doc(recordId).get();
+
+    const receiptNumber = customReceipt || await generateReceiptNumber(schoolId);
+    const paidAt = new Date().toISOString();
+    const recordedBy = req.userId || 'admin';
+
+    const updateData = {
+      status: 'paid', paidAt, amountPaid: Number(amountPaid),
+      paymentMethod: paymentMethod || 'cash',
+      receiptNumber, recordedBy, notes: notes || '',
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    await adminDb.collection('fee_records').doc(recordId).set(updateData, { merge: true });
+
+    const studentData = recordSnap.exists ? recordSnap.data() : {};
+    const txData = {
+      transactionId: receiptNumber, studentId,
+      studentName: studentData.studentName || '',
+      classId: studentData.classId || '', className: studentData.className || '',
+      schoolId, academicYear, quarter: Number(quarter),
+      amountPaid: Number(amountPaid), paymentMethod: paymentMethod || 'cash',
+      receiptNumber, recordedBy, paidAt, notes: notes || '',
+      type: 'manual',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    await adminDb.collection('fee_transactions').add(txData);
+
+    const studentSnap = await adminDb.collection('students').where('studentId', '==', studentId).where('schoolId', '==', schoolId).limit(1).get();
+    if (!studentSnap.empty) {
+      const parentId = studentSnap.docs[0].data().parentId;
+      if (parentId) {
+        sendPushNotification(parentId, '\u2705 Fee Payment Received',
+          `Fee payment of \u20B9${Number(amountPaid).toLocaleString('en-IN')} received for Q${quarter}. Receipt: ${receiptNumber}`,
+          { type: 'fee_paid', receiptNumber, quarter: String(quarter) });
+      }
+    }
+
+    res.json({ success: true, receiptNumber });
+  } catch (err) {
+    console.error('[fee/payment/cash] Error:', err.message);
+    res.status(500).json({ error: 'Failed to record payment' });
+  }
+});
+
+app.post('/api/fee/payment/online', verifyAuth, async (req, res) => {
+  try {
+    const { studentId, academicYear, quarter, amountPaid, transactionId, paymentMethod } = req.body;
+    if (!studentId || !academicYear || !quarter || !amountPaid) {
+      return res.status(400).json({ error: 'studentId, academicYear, quarter and amountPaid are required' });
+    }
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    const recordId = `${schoolId}_${studentId}_${academicYear}_Q${quarter}`;
+    const recordSnap = await adminDb.collection('fee_records').doc(recordId).get();
+
+    const receiptNumber = await generateReceiptNumber(schoolId);
+    const paidAt = new Date().toISOString();
+    const recordedBy = req.userId || studentId;
+
+    const updateData = {
+      status: 'paid', paidAt, amountPaid: Number(amountPaid),
+      paymentMethod: paymentMethod || 'upi',
+      receiptNumber, transactionId: transactionId || '', recordedBy,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    await adminDb.collection('fee_records').doc(recordId).set(updateData, { merge: true });
+
+    const studentData = recordSnap.exists ? recordSnap.data() : {};
+    const txData = {
+      transactionId: transactionId || receiptNumber, studentId,
+      studentName: studentData.studentName || '',
+      classId: studentData.classId || '', className: studentData.className || '',
+      schoolId, academicYear, quarter: Number(quarter),
+      amountPaid: Number(amountPaid), paymentMethod: paymentMethod || 'upi',
+      receiptNumber, recordedBy, paidAt,
+      type: 'online',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    await adminDb.collection('fee_transactions').add(txData);
+
+    const parentId = req.userId;
+    if (parentId) {
+      sendPushNotification(parentId, '\u2705 Payment Successful!',
+        `Payment of \u20B9${Number(amountPaid).toLocaleString('en-IN')} confirmed. Receipt: ${receiptNumber}`,
+        { type: 'fee_paid', receiptNumber, quarter: String(quarter) });
+    }
+
+    res.json({ success: true, receiptNumber });
+  } catch (err) {
+    console.error('[fee/payment/online] Error:', err.message);
+    res.status(500).json({ error: 'Failed to record online payment' });
+  }
+});
+
+app.get('/api/fee/transactions/:studentId', verifyAuth, async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    const snap = await adminDb.collection('fee_transactions')
+      .where('studentId', '==', studentId)
+      .where('schoolId', '==', schoolId)
+      .get();
+    const transactions = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.paidAt || '').localeCompare(a.paidAt || ''));
+    res.json({ success: true, transactions });
+  } catch (err) {
+    console.error('[fee/transactions] Error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch transactions' });
+  }
+});
+
+app.get('/api/fee/receipt/:receiptNumber', verifyAuth, async (req, res) => {
+  try {
+    const { receiptNumber } = req.params;
+    const snap = await adminDb.collection('fee_transactions')
+      .where('receiptNumber', '==', receiptNumber)
+      .limit(1)
+      .get();
+    if (snap.empty) return res.status(404).json({ error: 'Receipt not found' });
+    const data = snap.docs[0].data();
+    const schoolId = data.schoolId || DEFAULT_SCHOOL_ID;
+    let schoolName = 'Vidyalayam';
+    try {
+      const schoolSnap = await adminDb.collection('schools').doc(schoolId).get();
+      if (schoolSnap.exists) schoolName = schoolSnap.data().name || schoolName;
+    } catch (_) {}
+    res.json({
+      success: true,
+      receipt: {
+        receiptNumber: data.receiptNumber,
+        studentName: data.studentName,
+        studentId: data.studentId,
+        className: data.className,
+        schoolName,
+        academicYear: data.academicYear,
+        quarter: data.quarter,
+        amountPaid: data.amountPaid,
+        paymentMethod: data.paymentMethod,
+        paidAt: data.paidAt,
+        recordedBy: data.recordedBy,
+        type: data.type,
+      },
+    });
+  } catch (err) {
+    console.error('[fee/receipt] Error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch receipt' });
+  }
+});
+
 app.get('/api/classes', async (req, res) => {
   try {
     const [classesSnap, studentsSnap] = await Promise.all([
