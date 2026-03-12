@@ -22,19 +22,6 @@ export default function AdminOverview({ onNavigate, currentUser, onLogout, curre
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [realStats, setRealStats] = useState({ teachers: 0, drivers: 0, cleaners: 0, classes: 0 });
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
-  const [syncStatus, setSyncStatus] = useState(null);
-
-  useEffect(() => {
-    const fetchSync = () => {
-      apiFetch('/admin/sync-status?t=' + Date.now(), { cache: 'no-store' })
-        .then(r => r.json())
-        .then(data => setSyncStatus(data))
-        .catch(() => {});
-    };
-    fetchSync();
-    const interval = setInterval(fetchSync, 60000);
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     const fetchUnread = () => {
@@ -198,14 +185,6 @@ export default function AdminOverview({ onNavigate, currentUser, onLogout, curre
   return (
     <>
     <ScrollView style={styles.container}>
-      {syncStatus !== null && (syncStatus.synced || (syncStatus.pending ?? 0) > 0) && (
-        <View style={{ marginHorizontal: 20, marginTop: 16, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: syncStatus.synced ? 'rgba(52,211,153,0.12)' : 'rgba(251,146,60,0.12)', borderWidth: 1, borderColor: syncStatus.synced ? '#34D399' : '#FB923C' }}>
-          <Text style={{ fontSize: 14 }}>{syncStatus.synced ? '✅' : '⚠️'}</Text>
-          <Text style={{ fontSize: 12, fontWeight: '600', color: syncStatus.synced ? '#34D399' : '#FB923C', flex: 1 }}>
-            {syncStatus.synced ? 'Google Sheets synced' : `Sync pending — ${syncStatus.pending ?? 0} record${(syncStatus.pending ?? 0) !== 1 ? 's' : ''} waiting`}
-          </Text>
-        </View>
-      )}
       <View style={{ padding: 20, paddingBottom: 0 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>

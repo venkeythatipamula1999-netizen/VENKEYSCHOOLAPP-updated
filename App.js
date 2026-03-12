@@ -386,12 +386,6 @@ export default function App() {
 
   const content = (
     <View style={isWeb ? webContainerStyle : { flex: 1, backgroundColor: C.navy }}>
-      {showNav && (
-        <View style={S.statusbar}>
-          <Text style={{ fontSize: 13, fontWeight: '600', color: C.white }}>9:41</Text>
-          <Text style={{ fontSize: 12, color: C.white }}>{'\u{1F4F6}'} {'\u{1F50B}'} 84%</Text>
-        </View>
-      )}
 
       <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1 }}>
         <React.Fragment key={screen}>
