@@ -20,13 +20,15 @@ export default function AdminBuses({ onBack, currentUser }) {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Add Bus form state
-  const [form, setForm] = useState({
-    busId: '', busNumber: '', route: '', routeId: '',
-    driverName: '', driverId: '', cleanerName: '', cleanerId: ''
-  });
+  const emptyForm = { busNumber: '', route: '', driverId: '', driverName: '', cleanerId: '', cleanerName: '' };
+  const [form, setForm] = useState(emptyForm);
 
-  // Assign Students state
+  const [drivers, setDrivers] = useState([]);
+  const [cleaners, setCleaners] = useState([]);
+  const [staffLoading, setStaffLoading] = useState(false);
+  const [showDriverPicker, setShowDriverPicker] = useState(false);
+  const [showCleanerPicker, setShowCleanerPicker] = useState(false);
+
   const [allStudents, setAllStudents] = useState([]);
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
   const [studentsLoading, setStudentsLoading] = useState(false);
@@ -54,6 +56,71 @@ export default function AdminBuses({ onBack, currentUser }) {
 
   useEffect(() => { fetchBuses(); }, []);
 
+  const fetchStaff = async () => {
+    setStaffLoading(true);
+    try {
+      const res = await apiFetch('/logistics-staff');
+      const data = await res.json();
+      const staff = data.staff || [];
+      setDrivers(staff.filter(s => s.type === 'driver'));
+      setCleaners(staff.filter(s => s.type === 'cleaner'));
+    } catch (e) {
+      console.error('Failed to load staff:', e.message);
+    } finally {
+      setStaffLoading(false);
+    }
+  };
+
+  const openAddModal = () => {
+    setForm(emptyForm);
+    setShowDriverPicker(false);
+    setShowCleanerPicker(false);
+    setShowAddModal(true);
+    fetchStaff();
+  };
+
+  const selectDriver = (driver) => {
+    setForm(f => ({ ...f, driverName: driver.full_name, driverId: driver.staff_id || driver.id }));
+    setShowDriverPicker(false);
+  };
+
+  const selectCleaner = (cleaner) => {
+    setForm(f => ({ ...f, cleanerName: cleaner.full_name, cleanerId: cleaner.staff_id || cleaner.id }));
+    setShowCleanerPicker(false);
+  };
+
+  const handleAddBus = async () => {
+    if (!form.busNumber.trim()) {
+      showToast('Vehicle Number is required.', 'error');
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = {
+        busNumber: form.busNumber.trim(),
+        route: form.route.trim(),
+        driverId: form.driverId,
+        driverName: form.driverName,
+        cleanerId: form.cleanerId,
+        cleanerName: form.cleanerName,
+      };
+      const res = await apiFetch('/admin/buses/add', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create bus');
+      setShowAddModal(false);
+      setForm(emptyForm);
+      fetchBuses();
+      showToast(`Bus created! Bus ID: ${data.busId || data.id || ''}`, 'success');
+    } catch (err) {
+      showToast(getFriendlyError(err, 'Failed to create bus.'), 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const openOnboardModal = async (bus) => {
     setSelectedBus(bus);
     setShowOnboardModal(true);
@@ -75,7 +142,6 @@ export default function AdminBuses({ onBack, currentUser }) {
     setShowAssignModal(true);
     setStudentsLoading(true);
     try {
-      // Fetch all classes then all students
       const classRes = await apiFetch('/classes');
       const classData = await classRes.json();
       const classes = classData.classes || classData || [];
@@ -91,29 +157,6 @@ export default function AdminBuses({ onBack, currentUser }) {
       console.error('Failed to load students:', err.message);
     } finally {
       setStudentsLoading(false);
-    }
-  };
-
-  const handleAddBus = async () => {
-    if (!form.busNumber.trim()) {
-      showToast('Vehicle Number is required.', 'error');
-      return;
-    }
-    setSaving(true);
-    try {
-      const res = await apiFetch('/admin/buses/add', {
-        method: 'POST',
-        body: JSON.stringify(form)
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create bus');
-      setShowAddModal(false);
-      setForm({ busId: '', busNumber: '', route: '', routeId: '', driverName: '', driverId: '', cleanerName: '', cleanerId: '' });
-      fetchBuses();
-    } catch (err) {
-      showToast(getFriendlyError(err, 'Failed to create bus.'), 'error');
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -160,8 +203,22 @@ export default function AdminBuses({ onBack, currentUser }) {
     color: C.white,
     padding: 12,
     fontSize: 14,
-    marginBottom: 10
+    marginBottom: 10,
   };
+
+  const pickerButtonStyle = {
+    backgroundColor: C.navyMid || '#0d2137',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: C.border,
+    padding: 12,
+    marginBottom: 4,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  };
+
+  const nextRouteNumber = String(buses.length + 1).padStart(3, '0');
 
   return (
     <View style={{ flex: 1, backgroundColor: C.navy }}>
@@ -177,7 +234,7 @@ export default function AdminBuses({ onBack, currentUser }) {
           </View>
         </View>
         <TouchableOpacity
-          onPress={() => setShowAddModal(true)}
+          onPress={openAddModal}
           style={{ backgroundColor: C.teal, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}
         >
           <Text style={{ color: C.white, fontWeight: '700', fontSize: 13 }}>+ Add Bus</Text>
@@ -213,8 +270,6 @@ export default function AdminBuses({ onBack, currentUser }) {
                   </Text>
                 </View>
               </View>
-
-              {/* Action buttons */}
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
                 <TouchableOpacity
                   onPress={() => openOnboardModal(bus)}
@@ -238,31 +293,107 @@ export default function AdminBuses({ onBack, currentUser }) {
       {/* ── ADD BUS MODAL ── */}
       <Modal visible={showAddModal} transparent animationType="slide" onRequestClose={() => setShowAddModal(false)}>
         <View style={{ flex: 1, backgroundColor: '#000000aa', justifyContent: 'flex-end' }}>
-          <View style={{ backgroundColor: C.navy, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '90%' }}>
+          <View style={{ backgroundColor: C.navy, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '92%' }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <Text style={{ color: C.white, fontWeight: '700', fontSize: 17 }}>🚌 Add New Bus</Text>
               <TouchableOpacity onPress={() => setShowAddModal(false)}>
                 <Text style={{ color: C.muted, fontSize: 22 }}>✕</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView>
+            <ScrollView keyboardShouldPersistTaps="handled">
+
+              {/* Vehicle Number */}
               <Text style={{ color: C.muted, fontSize: 11, marginBottom: 4 }}>VEHICLE NUMBER *</Text>
-              <TextInput style={inputStyle} placeholder="e.g. TN-07-1234" placeholderTextColor={C.muted} value={form.busNumber} onChangeText={t => setForm(f => ({ ...f, busNumber: t }))} />
+              <TextInput
+                style={inputStyle}
+                placeholder="e.g. TN-07-1234"
+                placeholderTextColor={C.muted}
+                value={form.busNumber}
+                onChangeText={t => setForm(f => ({ ...f, busNumber: t }))}
+              />
 
+              {/* Route Name + Route ID preview */}
               <Text style={{ color: C.muted, fontSize: 11, marginBottom: 4 }}>ROUTE NAME</Text>
-              <TextInput style={inputStyle} placeholder="e.g. Route 7 - OMR" placeholderTextColor={C.muted} value={form.route} onChangeText={t => setForm(f => ({ ...f, route: t }))} />
+              <TextInput
+                style={inputStyle}
+                placeholder="e.g. Route 7 - OMR"
+                placeholderTextColor={C.muted}
+                value={form.route}
+                onChangeText={t => setForm(f => ({ ...f, route: t }))}
+              />
+              <Text style={{ color: C.teal, fontSize: 11, marginTop: -6, marginBottom: 12 }}>
+                Route ID will be: auto-generated (e.g. SG-Route-{nextRouteNumber})
+              </Text>
 
-              <Text style={{ color: C.muted, fontSize: 11, marginBottom: 4 }}>DRIVER NAME</Text>
-              <TextInput style={inputStyle} placeholder="e.g. Suresh R" placeholderTextColor={C.muted} value={form.driverName} onChangeText={t => setForm(f => ({ ...f, driverName: t }))} />
+              {/* Driver Dropdown */}
+              <Text style={{ color: C.muted, fontSize: 11, marginBottom: 4 }}>DRIVER</Text>
+              <TouchableOpacity
+                style={pickerButtonStyle}
+                onPress={() => { setShowDriverPicker(v => !v); setShowCleanerPicker(false); }}
+              >
+                <Text style={{ color: form.driverName ? C.white : C.muted, fontSize: 14 }}>
+                  {form.driverName || (staffLoading ? 'Loading drivers...' : 'Select a driver')}
+                </Text>
+                <Text style={{ color: C.muted, fontSize: 12 }}>{showDriverPicker ? '▲' : '▼'}</Text>
+              </TouchableOpacity>
+              {showDriverPicker && (
+                <View style={{ backgroundColor: C.navyMid || '#0d2137', borderRadius: 10, borderWidth: 1, borderColor: C.border, marginBottom: 10, maxHeight: 180 }}>
+                  <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+                    {drivers.length === 0 ? (
+                      <Text style={{ color: C.muted, padding: 12, fontSize: 13 }}>
+                        {staffLoading ? 'Loading...' : 'No drivers found'}
+                      </Text>
+                    ) : drivers.map((d, i) => (
+                      <TouchableOpacity
+                        key={i}
+                        onPress={() => selectDriver(d)}
+                        style={{ padding: 12, borderBottomWidth: i < drivers.length - 1 ? 1 : 0, borderBottomColor: C.border }}
+                      >
+                        <Text style={{ color: C.white, fontSize: 14 }}>{d.full_name}</Text>
+                        {d.staff_id ? <Text style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>ID: {d.staff_id}</Text> : null}
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+              {form.driverId ? (
+                <Text style={{ color: C.muted, fontSize: 11, marginTop: -6, marginBottom: 10 }}>Driver ID: {form.driverId}</Text>
+              ) : null}
 
-              <Text style={{ color: C.muted, fontSize: 11, marginBottom: 4 }}>DRIVER ROLE ID</Text>
-              <TextInput style={inputStyle} placeholder="e.g. DRV-1234" placeholderTextColor={C.muted} value={form.driverId} onChangeText={t => setForm(f => ({ ...f, driverId: t }))} />
-
-              <Text style={{ color: C.muted, fontSize: 11, marginBottom: 4 }}>CLEANER NAME</Text>
-              <TextInput style={inputStyle} placeholder="e.g. Kumar" placeholderTextColor={C.muted} value={form.cleanerName} onChangeText={t => setForm(f => ({ ...f, cleanerName: t }))} />
-
-              <Text style={{ color: C.muted, fontSize: 11, marginBottom: 4 }}>CLEANER ROLE ID</Text>
-              <TextInput style={inputStyle} placeholder="e.g. CLN-5678" placeholderTextColor={C.muted} value={form.cleanerId} onChangeText={t => setForm(f => ({ ...f, cleanerId: t }))} />
+              {/* Cleaner Dropdown */}
+              <Text style={{ color: C.muted, fontSize: 11, marginBottom: 4 }}>CLEANER</Text>
+              <TouchableOpacity
+                style={pickerButtonStyle}
+                onPress={() => { setShowCleanerPicker(v => !v); setShowDriverPicker(false); }}
+              >
+                <Text style={{ color: form.cleanerName ? C.white : C.muted, fontSize: 14 }}>
+                  {form.cleanerName || (staffLoading ? 'Loading cleaners...' : 'Select a cleaner')}
+                </Text>
+                <Text style={{ color: C.muted, fontSize: 12 }}>{showCleanerPicker ? '▲' : '▼'}</Text>
+              </TouchableOpacity>
+              {showCleanerPicker && (
+                <View style={{ backgroundColor: C.navyMid || '#0d2137', borderRadius: 10, borderWidth: 1, borderColor: C.border, marginBottom: 10, maxHeight: 180 }}>
+                  <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+                    {cleaners.length === 0 ? (
+                      <Text style={{ color: C.muted, padding: 12, fontSize: 13 }}>
+                        {staffLoading ? 'Loading...' : 'No cleaners found'}
+                      </Text>
+                    ) : cleaners.map((c, i) => (
+                      <TouchableOpacity
+                        key={i}
+                        onPress={() => selectCleaner(c)}
+                        style={{ padding: 12, borderBottomWidth: i < cleaners.length - 1 ? 1 : 0, borderBottomColor: C.border }}
+                      >
+                        <Text style={{ color: C.white, fontSize: 14 }}>{c.full_name}</Text>
+                        {c.staff_id ? <Text style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>ID: {c.staff_id}</Text> : null}
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+              {form.cleanerId ? (
+                <Text style={{ color: C.muted, fontSize: 11, marginTop: -6, marginBottom: 10 }}>Cleaner ID: {form.cleanerId}</Text>
+              ) : null}
 
               <TouchableOpacity
                 onPress={handleAddBus}
@@ -291,7 +422,6 @@ export default function AdminBuses({ onBack, currentUser }) {
                 <Text style={{ color: C.muted, fontSize: 22 }}>✕</Text>
               </TouchableOpacity>
             </View>
-
             <TextInput
               style={{ ...inputStyle, marginBottom: 12 }}
               placeholder="Search students..."
@@ -299,7 +429,6 @@ export default function AdminBuses({ onBack, currentUser }) {
               value={searchText}
               onChangeText={setSearchText}
             />
-
             {studentsLoading ? (
               <ActivityIndicator size="large" color={C.teal} style={{ marginVertical: 30 }} />
             ) : (
@@ -310,17 +439,9 @@ export default function AdminBuses({ onBack, currentUser }) {
                     <TouchableOpacity
                       key={i}
                       onPress={() => toggleStudent(student.studentId)}
-                      style={{
-                        flexDirection: 'row', alignItems: 'center', paddingVertical: 10,
-                        borderBottomWidth: 1, borderBottomColor: C.border, gap: 12
-                      }}
+                      style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border, gap: 12 }}
                     >
-                      <View style={{
-                        width: 22, height: 22, borderRadius: 6, borderWidth: 2,
-                        borderColor: isSelected ? C.teal : C.border,
-                        backgroundColor: isSelected ? C.teal : 'transparent',
-                        alignItems: 'center', justifyContent: 'center'
-                      }}>
+                      <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: isSelected ? C.teal : C.border, backgroundColor: isSelected ? C.teal : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
                         {isSelected && <Text style={{ color: C.white, fontSize: 13, fontWeight: '700' }}>✓</Text>}
                       </View>
                       <View style={{ flex: 1 }}>
@@ -332,7 +453,6 @@ export default function AdminBuses({ onBack, currentUser }) {
                 })}
               </ScrollView>
             )}
-
             <TouchableOpacity
               onPress={handleAssignStudents}
               disabled={saving}
@@ -347,7 +467,7 @@ export default function AdminBuses({ onBack, currentUser }) {
         </View>
       </Modal>
 
-      <Toast {...toast} onHide={() => setToast(t => ({...t, visible: false}))} />
+      <Toast {...toast} onHide={() => setToast(t => ({ ...t, visible: false }))} />
 
       {/* ── ONBOARD STUDENTS MODAL ── */}
       <Modal visible={showOnboardModal} transparent animationType="slide" onRequestClose={() => setShowOnboardModal(false)}>
@@ -366,7 +486,6 @@ export default function AdminBuses({ onBack, currentUser }) {
                 <Text style={{ color: C.muted, fontSize: 22 }}>✕</Text>
               </TouchableOpacity>
             </View>
-
             {modalLoading ? (
               <ActivityIndicator size="large" color={C.teal} style={{ marginVertical: 30 }} />
             ) : onboardStudents.length === 0 ? (
