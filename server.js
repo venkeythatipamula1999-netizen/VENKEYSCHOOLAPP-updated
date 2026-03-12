@@ -190,6 +190,13 @@ const app = express();
 app.set('trust proxy', 1);
 const PORT = 5000;
 
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+app.get('/_health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
 const allowedOrigins = [
   'https://super-admin-with-error-tracking-8b9.vercel.app',
   'https://venkeyschoolapp-updated.replit.app',
@@ -7331,10 +7338,6 @@ app.get('/api/super/schools/:schoolId/security-logs', superAdminLimiter, verifyS
 });
 
 
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/public', express.static(path.join(__dirname, 'public')));
 
@@ -7346,9 +7349,13 @@ app.use(express.static(path.join(__dirname, 'dist'), {
   }
 }));
 
-
 app.get(/^(?!\/api\/).*$/, (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+  const indexPath = path.join(__dirname, 'dist', 'index.html');
+  if (require('fs').existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(200).json({ status: 'Vidyalayam API running', version: '2.0.0' });
+  }
 });
 
 function scheduleAutoClockout() {
