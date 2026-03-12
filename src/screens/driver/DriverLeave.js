@@ -215,7 +215,7 @@ export default function DriverLeave({ onBack, currentUser }) {
 
                   <View style={{ marginTop: 14, marginBottom: 20 }}>
                     <Text style={{ fontSize: 13, fontWeight: '500', color: C.muted, marginBottom: 8 }}>Reason</Text>
-                    <TextInput value={form.reason} onChangeText={v => setForm(p => ({ ...p, reason: v }))} placeholder="Brief reason for leave…" placeholderTextColor={C.muted} multiline numberOfLines={3} style={{ padding: 14, borderRadius: 14, backgroundColor: C.card, borderWidth: 1.5, borderColor: C.border, color: C.white, fontSize: 14, textAlignVertical: 'top', minHeight: 80 }} />
+                    <TextInput value={form.reason} onChangeText={v => setForm(p => ({ ...p, reason: v }))} placeholder="Brief reason for leave..." placeholderTextColor={C.muted} multiline numberOfLines={3} style={{ padding: 14, borderRadius: 14, backgroundColor: C.card, borderWidth: 1.5, borderColor: C.border, color: C.white, fontSize: 14, textAlignVertical: 'top', minHeight: 80 }} />
                   </View>
 
                   <View style={{ flexDirection: 'row', gap: 10 }}>

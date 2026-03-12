@@ -161,7 +161,7 @@ export default function AdminSalaryScreen({ onBack, currentUser }) {
           <View style={{ position: 'absolute', left: 12, top: 0, bottom: 0, justifyContent: 'center', zIndex: 1 }}>
             <Icon name="search" size={15} color={C.muted} />
           </View>
-          <TextInput style={[st.inputField, { paddingLeft: 36 }]} placeholder="Search employee…"
+          <TextInput style={[st.inputField, { paddingLeft: 36 }]} placeholder="Search employee..."
             placeholderTextColor={C.muted} value={search} onChangeText={setSearch} />
         </View>
 
@@ -649,7 +649,7 @@ function EmployeeDetail({ employee, month, currentUser, onBack }) {
               ))}
             </View>
             <Text style={st.label}>Reason (required)</Text>
-            <TextInput style={[st.inputField, { marginBottom: 16 }]} placeholder="e.g. Official duty, holiday…"
+            <TextInput style={[st.inputField, { marginBottom: 16 }]} placeholder="e.g. Official duty, holiday..."
               placeholderTextColor={C.muted} value={overrideReason} onChangeText={setOverrideReason} />
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <TouchableOpacity onPress={() => setOverrideModal(null)}

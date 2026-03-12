@@ -260,7 +260,7 @@ function LeaveTab({ staffId, currentUser }) {
           </View>
 
           {reason?.id === 'other' && (
-            <TextInput value={custom} onChangeText={setCustom} placeholder="Describe your reason…"
+            <TextInput value={custom} onChangeText={setCustom} placeholder="Describe your reason..."
               placeholderTextColor={C.muted} multiline
               style={{ minHeight: 60, backgroundColor: C.navyMid, borderWidth: 1.5, borderColor: C.border, borderRadius: 12, padding: 12, color: C.white, fontSize: 13, marginBottom: 12, textAlignVertical: 'top' }} />
           )}

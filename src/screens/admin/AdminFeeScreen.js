@@ -789,7 +789,7 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
               <View style={{ position: 'absolute', left: 12, top: 0, bottom: 0, justifyContent: 'center', zIndex: 1 }}>
                 <Icon name="search" size={15} color={C.muted} />
               </View>
-              <TextInput style={[st.inputField, { paddingLeft: 36 }]} placeholder="Search by name or grade\u2026" placeholderTextColor={C.muted} value={search} onChangeText={setSearch} />
+              <TextInput style={[st.inputField, { paddingLeft: 36 }]} placeholder="Search by student name or class..." placeholderTextColor={C.muted} value={search} onChangeText={setSearch} />
             </View>
 
             {filteredStudents.map(s => {
@@ -912,7 +912,7 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
 
               <Text style={st.label}>Class</Text>
               <TouchableOpacity style={st.inputField} onPress={() => setClassDropOpen(true)}>
-                <Text style={{ color: structClassId ? C.white : C.muted, fontSize: 15 }}>{structClassName || 'Select class\u2026'}</Text>
+                <Text style={{ color: structClassId ? C.white : C.muted, fontSize: 15 }}>{structClassName || 'Select class...'}</Text>
               </TouchableOpacity>
               <Modal visible={classDropOpen} transparent animationType="fade">
                 <TouchableOpacity style={st.modalOverlay} onPress={() => setClassDropOpen(false)}>
@@ -1008,7 +1008,7 @@ export default function AdminFeeScreen({ onBack, currentUser }) {
               <Text style={{ fontSize: 12, color: C.muted, marginBottom: 18 }}>Apply concessions to individual students</Text>
 
               <Text style={st.label}>Search Student</Text>
-              <TextInput style={st.inputField} placeholder="Type student name or ID\u2026" placeholderTextColor={C.muted} value={discStudentSearch} onChangeText={t => { setDiscStudentSearch(t); setDiscSelectedStudent(null); }} />
+              <TextInput style={st.inputField} placeholder="Type student name or ID..." placeholderTextColor={C.muted} value={discStudentSearch} onChangeText={t => { setDiscStudentSearch(t); setDiscSelectedStudent(null); }} />
               {discStudentSearchResults.length > 0 && !discSelectedStudent && (
                 <View style={{ backgroundColor: C.navyMid, borderRadius: 12, borderWidth: 1, borderColor: C.border, marginTop: 4, marginBottom: 8 }}>
                   {discStudentSearchResults.map(s => (

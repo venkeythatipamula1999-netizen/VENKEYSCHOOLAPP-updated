@@ -863,7 +863,7 @@ export default function AdminUsers({ onBack }) {
           </View>
           <TextInput
             style={[st.input, { paddingLeft: 36 }]}
-            placeholder="Search by name or ID…"
+            placeholder="Search by name or ID..."
             placeholderTextColor={C.muted}
             value={search}
             onChangeText={setSearch}
