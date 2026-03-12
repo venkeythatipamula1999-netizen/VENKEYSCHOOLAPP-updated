@@ -28,7 +28,7 @@
       ]
     },
     "plugins": [
-      "expo-barcode-scanner",
+      "expo-updates",
       [
         "expo-notifications",
         {

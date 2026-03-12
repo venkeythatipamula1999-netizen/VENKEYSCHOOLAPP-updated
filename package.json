@@ -6,20 +6,21 @@
   "scripts": {
     "start": "node server.js",
     "build": "npx expo export --platform web --output-dir dist",
-    "dev": "npx expo start --web --port 5000"
+    "dev": "npx expo start --web --port 5000",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "private": true,
   "dependencies": {
     "@expo/metro-runtime": "~4.0.1",
     "@google-cloud/firestore": "^8.3.0",
-    "@react-native-async-storage/async-storage": "^1.24.0",
+    "@react-native-async-storage/async-storage": "1.23.1",
     "@react-native-community/netinfo": "^11.4.1",
     "babel-preset-expo": "~12.0.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
     "csv-parser": "^3.2.0",
     "expo": "~52.0.46",
-    "expo-barcode-scanner": "^13.0.1",
     "expo-camera": "~16.0.18",
     "expo-device": "~7.0.3",
     "expo-document-picker": "~13.0.3",
@@ -28,6 +29,7 @@
     "expo-linear-gradient": "~14.0.2",
     "expo-notifications": "~0.29.14",
     "expo-sharing": "~13.0.1",
+    "expo-system-ui": "~4.0.9",
     "expo-updates": "~0.27.5",
     "express": "^4.22.1",
     "express-rate-limit": "^8.3.1",
