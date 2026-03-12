@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { getFriendlyError } from '../../utils/errorMessages';
 import { apiFetch } from '../../api/client';
 
-export default function AdminUsers({ onBack }) {
+export default function AdminUsers({ onBack, onNavigate }) {
   const [tab, setTab] = useState('teachers');
   const [search, setSearch] = useState('');
   const [onboardedUsers, setOnboardedUsers] = useState([]);
@@ -850,7 +850,7 @@ export default function AdminUsers({ onBack }) {
 
       <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
         <View style={{ flexDirection: 'row', backgroundColor: C.navyMid, borderRadius: 12, padding: 4, gap: 4, marginBottom: 16, flexWrap: 'wrap' }}>
-          {[['teachers', 'Teachers'], ['drivers', 'Drivers'], ['cleaners', 'Cleaners'], ['parents', 'Parents']].map(([id, lbl]) => (
+          {[['teachers', 'Teachers'], ['drivers', 'Drivers'], ['cleaners', 'Cleaners'], ['parents', 'Parents'], ['students', 'Students']].map(([id, lbl]) => (
             <TouchableOpacity key={id} onPress={() => { setTab(id); setSearch(''); }} style={{ flex: 1, paddingVertical: 8, borderRadius: 9, alignItems: 'center', backgroundColor: tab === id ? C.gold : 'transparent', minWidth: 64 }}>
               <Text style={{ fontSize: 11, fontWeight: '600', color: tab === id ? C.navy : C.muted }}>{lbl}</Text>
             </TouchableOpacity>
@@ -877,7 +877,39 @@ export default function AdminUsers({ onBack }) {
           </View>
         ) : (
           <View>
-            {tab !== 'parents' && (
+            {tab === 'students' && (
+              <View>
+                <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+                  <TouchableOpacity
+                    onPress={() => onNavigate && onNavigate('student-import')}
+                    style={{ flex: 1, backgroundColor: C.teal, borderRadius: 12, paddingVertical: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
+                  >
+                    <Text style={{ fontSize: 18 }}>📥</Text>
+                    <Text style={{ color: C.white, fontWeight: '700', fontSize: 14 }}>Import Students</Text>
+                  </TouchableOpacity>
+                </View>
+                <TouchableOpacity
+                  onPress={() => onNavigate && onNavigate('student-list')}
+                  style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.navyMid, borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: C.border }}
+                >
+                  <Text style={{ fontSize: 20, marginRight: 12 }}>🎓</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: C.white, fontWeight: '700', fontSize: 14 }}>View All Students</Text>
+                    <Text style={{ color: C.muted, fontSize: 12, marginTop: 2 }}>Browse students and QR codes by class</Text>
+                  </View>
+                  <Text style={{ color: C.muted, fontSize: 18 }}>›</Text>
+                </TouchableOpacity>
+                <View style={{ backgroundColor: C.navyMid, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: C.border }}>
+                  <Text style={{ color: C.muted, fontSize: 12, fontWeight: '700', marginBottom: 6 }}>How to import:</Text>
+                  <Text style={{ color: C.muted, fontSize: 12, marginBottom: 4 }}>1. Download the CSV template</Text>
+                  <Text style={{ color: C.muted, fontSize: 12, marginBottom: 4 }}>2. Fill in student details (admission number, name, class...)</Text>
+                  <Text style={{ color: C.muted, fontSize: 12, marginBottom: 4 }}>3. Upload via Import Students</Text>
+                  <Text style={{ color: C.muted, fontSize: 12 }}>4. QR codes are auto-generated for each student</Text>
+                </View>
+              </View>
+            )}
+
+            {tab !== 'parents' && tab !== 'students' && (
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <Text style={{ color: C.muted, fontSize: 12 }}>
                   {filteredList.length} {tab === 'teachers' ? 'teacher' : tab === 'drivers' ? 'driver' : 'cleaner'}{filteredList.length !== 1 ? 's' : ''} onboarded
@@ -888,7 +920,7 @@ export default function AdminUsers({ onBack }) {
               </View>
             )}
 
-            {tab !== 'parents' && filteredList.length === 0 && !loading && (
+            {tab !== 'parents' && tab !== 'students' && filteredList.length === 0 && !loading && (
               <View style={[st.card, { alignItems: 'center', paddingVertical: 28, marginBottom: 14 }]}>
                 <Text style={{ fontSize: 36, marginBottom: 10 }}>
                   {tab === 'teachers' ? '\uD83D\uDC69\u200D\uD83C\uDFEB' : tab === 'drivers' ? '\uD83D\uDE8C' : '\uD83E\uDDF9'}
@@ -902,7 +934,7 @@ export default function AdminUsers({ onBack }) {
               </View>
             )}
 
-            {filteredList.map(u => {
+            {tab !== 'students' && filteredList.map(u => {
               const isTeacher = tab === 'teachers';
               const roleId = isTeacher ? u.role_id : u.staff_id;
               const name = u.full_name || '';

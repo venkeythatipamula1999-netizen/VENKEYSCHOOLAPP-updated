@@ -268,6 +268,7 @@ const PUBLIC_ROUTES = [
   { method: 'GET',  path: '/api/parent/check-student' },
   { method: 'GET',  path: '/api/school-info' },
   { method: 'GET',  path: '/api/report' },
+  { method: 'GET',  path: '/api/students/import/template' },
 ];
 
 app.use((req, res, next) => {
@@ -1980,6 +1981,156 @@ app.post('/api/students', async (req, res) => {
   } catch (err) {
     console.error('Add student error:', err.message);
     res.status(500).json({ error: 'Failed to add student' });
+  }
+});
+
+app.get('/api/students/import/template', (req, res) => {
+  const csv = `Admission Number,Student Name,Father Name,Class,Date of Birth\r\n1001,Venkatesh Kumar,Ramesh Kumar,6A,15-06-2012\r\n1002,Priya Sharma,Suresh Sharma,7B,22-09-2011\r\n`;
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="StudentImportTemplate.csv"');
+  res.send(csv);
+});
+
+app.get('/api/students/list', async (req, res) => {
+  try {
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    const { classId, search } = req.query;
+    let q = db.collection('students').where('schoolId', '==', schoolId);
+    if (classId) q = q.where('classId', '==', classId);
+    const snap = await q.get();
+    let students = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (search) {
+      const s = search.toLowerCase();
+      students = students.filter(st =>
+        (st.studentName || st.name || '').toLowerCase().includes(s) ||
+        (st.studentId   || '').toLowerCase().includes(s) ||
+        (st.admissionNumber || '').toLowerCase().includes(s)
+      );
+    }
+    students.sort((a, b) => {
+      const ca = a.className || '';
+      const cb = b.className || '';
+      if (ca !== cb) return ca.localeCompare(cb);
+      return (a.studentName || a.name || '').localeCompare(b.studentName || b.name || '');
+    });
+    res.json({ success: true, students, total: students.length });
+  } catch (err) {
+    console.error('[students/list]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/students/import', verifyAuth, async (req, res) => {
+  try {
+    if (req.userRole !== 'principal' && req.userRole !== 'admin') {
+      return res.status(403).json({ error: 'Principal access required' });
+    }
+    const { students: rows, academicYear } = req.body;
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return res.status(400).json({ error: 'No students provided' });
+    }
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    const schoolIdClean = schoolId.replace(/-/g, '').toUpperCase();
+
+    let schoolName = '', logoUrl = '', primaryColor = '#1a3c5e', location = '';
+    try {
+      const schoolSnap = await adminDb.collection('schools').doc(schoolId).get();
+      if (schoolSnap.exists) {
+        const sd = schoolSnap.data();
+        schoolName   = sd.schoolName   || '';
+        logoUrl      = sd.logoUrl      || '';
+        primaryColor = sd.primaryColor || '#1a3c5e';
+        location     = sd.location     || '';
+      }
+    } catch (_) {}
+
+    const classesSnap = await db.collection('classes').where('schoolId', '==', schoolId).get();
+    const classMap = {};
+    classesSnap.docs.forEach(d => {
+      const data = d.data();
+      classMap[(data.name || '').trim().toLowerCase()] = { classId: d.id, name: data.name };
+    });
+
+    const imported = [];
+    const skippedList = [];
+    const batch = db.batch();
+
+    for (const row of rows) {
+      const { admissionNumber, studentName, fatherName, className, dateOfBirth } = row;
+      if (!admissionNumber || !studentName) {
+        skippedList.push({ admissionNumber: admissionNumber || '?', reason: 'Missing required fields' });
+        continue;
+      }
+
+      const dupQ = await db.collection('students')
+        .where('schoolId', '==', schoolId)
+        .where('admissionNumber', '==', String(admissionNumber))
+        .limit(1).get();
+      if (!dupQ.empty) {
+        skippedList.push({ admissionNumber, reason: 'Already exists' });
+        continue;
+      }
+
+      const studentId = `${schoolIdClean}-${admissionNumber}`;
+      const clsKey    = (className || '').trim().toLowerCase();
+      const classInfo = classMap[clsKey] || { classId: clsKey, name: className };
+
+      const qrData = JSON.stringify({
+        type:            'student',
+        studentId,
+        studentName:     String(studentName).trim(),
+        fatherName:      String(fatherName  || '').trim(),
+        schoolId,
+        schoolName,
+        location,
+        logoUrl,
+        primaryColor,
+        className:       String(className   || '').trim(),
+        admissionNumber: String(admissionNumber),
+      });
+
+      const docRef = db.collection('students').doc(studentId);
+      batch.set(docRef, {
+        studentId,
+        admissionNumber: String(admissionNumber),
+        studentName:     String(studentName).trim(),
+        name:            String(studentName).trim(),
+        fatherName:      String(fatherName  || '').trim(),
+        dateOfBirth:     String(dateOfBirth || '').trim(),
+        className:       String(className   || '').trim(),
+        classId:         classInfo.classId,
+        schoolId,
+        academicYear:    academicYear || '',
+        status:          'active',
+        qrData,
+        qrCode:          studentId,
+        createdAt:       admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      const parentRef = db.collection('parent_accounts').doc(studentId);
+      batch.set(parentRef, {
+        studentId,
+        studentName:     String(studentName).trim(),
+        schoolId,
+        className:       String(className || '').trim(),
+        status:          'pending_registration',
+        createdAt:       admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+
+      imported.push({ studentId, studentName: String(studentName).trim(), className: String(className || '').trim(), qrData });
+    }
+
+    await batch.commit();
+    res.json({
+      success:     true,
+      imported:    imported.length,
+      skipped:     skippedList.length,
+      skippedList,
+      students:    imported,
+    });
+  } catch (err) {
+    console.error('[students/import]', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
