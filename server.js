@@ -2134,6 +2134,34 @@ app.post('/api/students/import', verifyAuth, async (req, res) => {
   }
 });
 
+app.get('/api/students/qr-sheet/:classId', verifyAuth, async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    const snap = await db.collection('students')
+      .where('schoolId', '==', schoolId)
+      .where('classId', '==', classId)
+      .get();
+    const students = snap.docs.map(d => {
+      const s = d.data();
+      return {
+        studentId:      s.studentId || d.id,
+        studentName:    s.studentName || s.name || '',
+        fatherName:     s.fatherName  || '',
+        className:      s.className   || '',
+        admissionNumber: s.admissionNumber || '',
+        qrData:         s.qrData || s.studentId || d.id,
+      };
+    });
+    students.sort((a, b) => (a.studentName || '').localeCompare(b.studentName || ''));
+    const className = students[0]?.className || classId;
+    res.json({ success: true, className, students });
+  } catch (err) {
+    console.error('[qr-sheet]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/students/:classId', async (req, res) => {
   try {
     const { classId } = req.params;

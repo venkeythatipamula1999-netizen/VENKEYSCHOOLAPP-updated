@@ -10,9 +10,11 @@ import { apiFetch } from '../../api/client';
 import AdminStudents from './AdminStudents';
 import Toast from '../../components/Toast';
 import { getFriendlyError } from '../../utils/errorMessages';
+import QRSheetModal from '../../components/QRSheetModal';
 
 function AdminClasses({ onBack, currentUser, onNavigate }) {
-  const [classes, setClasses] = useState([]);
+  const [classes, setClasses]   = useState([]);
+  const [qrSheet, setQrSheet]   = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedClass, setSelectedClass] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -133,36 +135,50 @@ function AdminClasses({ onBack, currentUser, onNavigate }) {
         ) : (
           <View style={st.classGrid}>
             {classes.map(cls => (
-              <TouchableOpacity
-                key={cls.id}
-                onPress={() => {
-                  onNavigate('admin-students', { selectedClass: cls });
-                }}
-                style={st.classCard}
-              >
-                <LinearGradient colors={[C.navyLt, C.navyMid]} style={st.classGradient}>
-                  <Text style={st.className}>{cls.name}</Text>
-                  <Text style={st.classDetail}>{cls.studentCount || 0} Students</Text>
-                  <View style={st.manageTag}>
-                    <Text style={st.manageTagText}>Manage Students</Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={e => {
-                      e.stopPropagation && e.stopPropagation();
-                      handleDeleteClass(cls.id);
-                    }}
-                    style={{ position: 'absolute', top: 10, right: 10 }}
-                  >
-                    <Icon name="close" size={14} color={C.coral} />
-                  </TouchableOpacity>
-                </LinearGradient>
-              </TouchableOpacity>
+              <View key={cls.id} style={{ width: '47%' }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    onNavigate('admin-students', { selectedClass: cls });
+                  }}
+                  style={{ height: 140, borderRadius: 18, overflow: 'hidden' }}
+                >
+                  <LinearGradient colors={[C.navyLt, C.navyMid]} style={st.classGradient}>
+                    <Text style={st.className}>{cls.name}</Text>
+                    <Text style={st.classDetail}>{cls.studentCount || 0} Students</Text>
+                    <View style={st.manageTag}>
+                      <Text style={st.manageTagText}>Manage Students</Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={e => {
+                        e.stopPropagation && e.stopPropagation();
+                        handleDeleteClass(cls.id);
+                      }}
+                      style={{ position: 'absolute', top: 10, right: 10 }}
+                    >
+                      <Icon name="close" size={14} color={C.coral} />
+                    </TouchableOpacity>
+                  </LinearGradient>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setQrSheet({ classId: cls.id, className: cls.name })}
+                  style={{ marginTop: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: C.teal + '18', borderRadius: 8, paddingVertical: 7, borderWidth: 1, borderColor: C.teal + '44' }}
+                >
+                  <Text style={{ color: C.teal, fontSize: 11, fontWeight: '700' }}>📥 Download QR Sheet</Text>
+                </TouchableOpacity>
+              </View>
             ))}
           </View>
         )}
       </ScrollView>
 
       <Toast {...toast} onHide={() => setToast(t => ({...t, visible: false}))} />
+
+      <QRSheetModal
+        visible={!!qrSheet}
+        classId={qrSheet?.classId}
+        className={qrSheet?.className}
+        onClose={() => setQrSheet(null)}
+      />
 
       {showAddModal && (
         <View style={st.modalOverlay}>
@@ -215,7 +231,7 @@ const st = StyleSheet.create({
   },
   addBtn: { backgroundColor: C.gold, paddingHorizontal: 15, paddingVertical: 8, borderRadius: 10 },
   classGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 15 },
-  classCard: { width: '47%', height: 140, borderRadius: 18, overflow: 'hidden' },
+  classCard: { height: 140, borderRadius: 18, overflow: 'hidden' },
   classGradient: { flex: 1, padding: 15, justifyContent: 'center', alignItems: 'center' },
   className: { fontSize: 22, fontWeight: '800', color: C.white },
   classDetail: { fontSize: 12, color: C.muted, marginTop: 4 },

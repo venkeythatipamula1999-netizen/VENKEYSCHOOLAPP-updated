@@ -6,6 +6,7 @@ import {
 import QRCode from 'react-native-qrcode-svg';
 import { C } from '../../theme/colors';
 import { apiFetch } from '../../api/client';
+import QRSheetModal from '../../components/QRSheetModal';
 
 export default function StudentList({ onBack }) {
   const [loading, setLoading]       = useState(true);
@@ -14,6 +15,7 @@ export default function StudentList({ onBack }) {
   const [search, setSearch]         = useState('');
   const [showQR, setShowQR]         = useState(null);
   const [error, setError]           = useState('');
+  const [qrSheet, setQrSheet]       = useState(null);
 
   useEffect(() => { fetchStudents(); }, []);
 
@@ -109,10 +111,16 @@ export default function StudentList({ onBack }) {
           {grouped.map(group => (
             <View key={group.cls} style={{ marginBottom: 20 }}>
               <View style={st.classHeader}>
-                <Text style={{ color: C.gold, fontWeight: '800', fontSize: 13 }}>
+                <Text style={{ color: C.gold, fontWeight: '800', fontSize: 13, flex: 1 }}>
                   CLASS {group.cls}
                 </Text>
-                <Text style={{ color: C.muted, fontSize: 12 }}>{group.items.length} students</Text>
+                <Text style={{ color: C.muted, fontSize: 11, marginRight: 8 }}>{group.items.length} students</Text>
+                <TouchableOpacity
+                  onPress={() => setQrSheet({ classId: group.items[0]?.classId || group.cls, className: group.cls })}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.teal + '22', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: C.teal + '55' }}
+                >
+                  <Text style={{ color: C.teal, fontSize: 11, fontWeight: '700' }}>📥 QR Sheet</Text>
+                </TouchableOpacity>
               </View>
               <View style={{ height: 1, backgroundColor: C.border, marginBottom: 8 }} />
               {group.items.map((s, i) => {
@@ -138,6 +146,13 @@ export default function StudentList({ onBack }) {
           ))}
         </ScrollView>
       )}
+
+      <QRSheetModal
+        visible={!!qrSheet}
+        classId={qrSheet?.classId}
+        className={qrSheet?.className}
+        onClose={() => setQrSheet(null)}
+      />
 
       <Modal visible={!!showQR} transparent animationType="fade" onRequestClose={() => setShowQR(null)}>
         <View style={st.modalOverlay}>
