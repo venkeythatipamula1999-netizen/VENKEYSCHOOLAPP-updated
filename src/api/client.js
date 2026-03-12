@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { reportError, reportApiError } from '../services/errorReporter';
 
-const PRODUCTION_URL = 'https://venkeyschoolapp-updated.replit.app';
+const PRODUCTION_URL = 'https://vidyalayam.replit.app';
 const API_BASE = Platform.OS === 'web' ? '/api' : `${PRODUCTION_URL}/api`;
 
 export async function apiFetch(path, options = {}) {
