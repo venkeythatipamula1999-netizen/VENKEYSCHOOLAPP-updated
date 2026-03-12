@@ -254,6 +254,7 @@ app.use((req, res, next) => {
   next();
 });
 app.use('/api/', apiLimiter);
+app.use('/api/whatsapp', require('./routes/whatsapp'));
 
 // ── GLOBAL AUTH GUARD ──────────────────────────────────────────
 const PUBLIC_ROUTES = [
