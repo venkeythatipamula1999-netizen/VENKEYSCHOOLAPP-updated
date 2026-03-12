@@ -168,4 +168,54 @@ router.post('/test', async (req, res) => {
   }
 });
 
+router.get('/webhook', (req, res) => {
+  const mode        = req.query['hub.mode'];
+  const verifyToken = req.query['hub.verify_token'];
+  const challenge   = req.query['hub.challenge'];
+
+  if (mode === 'subscribe' && verifyToken === process.env.WHATSAPP_VERIFY_TOKEN) {
+    return res.status(200).send(challenge);
+  }
+  res.sendStatus(403);
+});
+
+router.post('/webhook', (req, res) => {
+  res.sendStatus(200);
+
+  (async () => {
+    try {
+      const db = getDb();
+      const entries = req.body?.entry || [];
+
+      for (const entry of entries) {
+        for (const change of (entry.changes || [])) {
+          for (const status of (change.value?.statuses || [])) {
+            const deliveryStatus = status.status;
+            const recipientPhone = status.recipient_id;
+
+            const snap = await db.collection('whatsapp_logs')
+              .where('recipient', '==', recipientPhone)
+              .orderBy('sentAt', 'desc')
+              .limit(1)
+              .get();
+
+            if (snap.empty) continue;
+
+            const docRef = snap.docs[0].ref;
+            const update = { status: deliveryStatus };
+
+            if (deliveryStatus === 'failed' && status.errors?.length) {
+              update.errorReason = status.errors[0].title;
+            }
+
+            await docRef.update(update);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[WhatsApp /webhook POST]', err.message);
+    }
+  })();
+});
+
 module.exports = router;
