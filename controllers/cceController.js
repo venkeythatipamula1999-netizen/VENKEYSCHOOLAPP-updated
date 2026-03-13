@@ -1,6 +1,7 @@
 'use strict';
 
 const admin = require('firebase-admin');
+const { sendAndLog } = require('../services/whatsappService');
 const {
   getFAGrade, getSAGrade, getFinalGrade,
   MAX_MARKS, VALID_EXAM_TYPES,
@@ -77,14 +78,43 @@ async function saveMarks(req, res) {
     const marksN  = Number(marks);
     const id      = docId(studentId, subjectId, examType, academicYear);
 
-    await cceColl(schoolId(req)).doc(id).set({
+    const sid = schoolId(req);
+    await cceColl(sid).doc(id).set({
       studentId, subjectId, examType,
       marks: marksN, maxMarks: maxM,
       academicYear, classId, section: section || '',
-      schoolId: schoolId(req),
+      schoolId: sid,
       enteredBy:  req.userId || '',
       updatedAt:  admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
+
+    try {
+      const studentQ = await db().collection('students').where('studentId', '==', studentId).limit(1).get();
+      if (!studentQ.empty) {
+        const stuData = studentQ.docs[0].data();
+        const parentPhone = stuData.parentPhone || '';
+        const marksStr = `${marksN}/${maxM}`;
+        const pct = Math.round(marksN * 100 / maxM);
+        await db().collection('parent_notifications').add({
+          studentId,
+          type: 'marks_updated',
+          title: `${subjectId} Marks Updated`,
+          message: `${examType} marks for ${subjectId}: ${marksStr} (${pct}%)`,
+          subjectId, examType, marks: marksN, maxMarks: maxM,
+          schoolId: sid,
+          read: false,
+          createdAt: new Date().toISOString(),
+        });
+        if (parentPhone) {
+          sendAndLog(sid, parentPhone, 'vl_exam_result',
+            [stuData.name || studentId, subjectId, examType, String(marksN), String(maxM), `${pct}%`],
+            { studentName: stuData.name || studentId }
+          ).catch(() => {});
+        }
+      }
+    } catch (notifErr) {
+      console.error('[cce/marks] parent notification error:', notifErr.message);
+    }
 
     res.json({ success: true, message: 'Marks saved' });
   } catch (e) {

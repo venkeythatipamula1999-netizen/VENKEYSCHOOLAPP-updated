@@ -95,6 +95,7 @@ const verifySuperAdmin = (req, res, next) => {
 };
 
 const admin = require('firebase-admin');
+const { sendAndLog } = require('./services/whatsappService');
 
 let adminAuth = null;
 try {
@@ -281,6 +282,7 @@ app.use((req, res, next) => {
   if (req.path.startsWith('/api/super/')) return next();
   if (req.method === 'GET' && req.path.startsWith('/api/school/info/')) return next();
   if (req.method === 'GET' && req.path.startsWith('/api/students/qr/')) return next();
+  if (req.method === 'GET' && req.path.startsWith('/api/students/verify/')) return next();
   if (req.method === 'GET' && req.path.startsWith('/api/whatsapp/webhook')) return next();
   if (req.method === 'POST' && req.path === '/api/whatsapp/webhook') return next();
   const isPublic = PUBLIC_ROUTES.some(
@@ -1280,11 +1282,19 @@ app.post('/api/fee/payment/cash', verifyAuth, async (req, res) => {
 
     const studentSnap = await adminDb.collection('students').where('studentId', '==', studentId).where('schoolId', '==', schoolId).limit(1).get();
     if (!studentSnap.empty) {
-      const parentId = studentSnap.docs[0].data().parentId;
+      const stuData = studentSnap.docs[0].data();
+      const parentId = stuData.parentId;
+      const parentPhone = stuData.parentPhone || '';
       if (parentId) {
         sendPushNotification(parentId, '\u2705 Fee Payment Received',
           `Fee payment of \u20B9${Number(amountPaid).toLocaleString('en-IN')} received for Q${quarter}. Receipt: ${receiptNumber}`,
           { type: 'fee_paid', receiptNumber, quarter: String(quarter) });
+      }
+      if (parentPhone) {
+        sendAndLog(schoolId, parentPhone, 'vl_fee_receipt',
+          [stuData.name || studentId, `₹${Number(amountPaid).toLocaleString('en-IN')}`, receiptNumber, new Date(paidAt).toLocaleDateString('en-IN')],
+          { studentName: stuData.name || studentId }
+        ).catch(() => {});
       }
     }
 
@@ -4270,6 +4280,12 @@ app.post('/api/attendance/save', async (req, res) => {
             });
             const parentId = studentDoc.exists() ? (studentDoc.data().parentId || studentDoc.data().parent_uid || '') : '';
             if (parentId) sendPushNotification(parentId, '📋 Attendance Alert', `${r.studentName} was marked absent today`, { type: 'attendance', studentId: r.studentId });
+            if (parentPhone) {
+              sendAndLog(req.schoolId || DEFAULT_SCHOOL_ID, parentPhone, 'vl_attendance',
+                ['Dear Parent', r.studentName, resolvedClassName, 'Absent', date, ''],
+                { studentName: r.studentName, classId: resolvedClassName }
+              ).catch(() => {});
+            }
           } catch (e) {
             console.error('Parent notif error for', r.studentId, e.message);
           }
@@ -5981,6 +5997,13 @@ app.post('/api/trip/scan', scanLimiter, async (req, res) => {
             read: false,
             createdAt: scanTime
           });
+          sendAndLog(
+            studentData.schoolId || (req.schoolId || DEFAULT_SCHOOL_ID),
+            parentPhone,
+            isBoarding ? 'vl_bus_board' : 'vl_bus_arrived',
+            [studentData.name, busData?.busNumber || busId, new Date(scanTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })],
+            { studentName: studentData.name }
+          ).catch(() => {});
         }
       } catch (notifErr) {
         console.error('[QR Scan] Parent notification error:', notifErr.message);
@@ -6093,6 +6116,30 @@ app.get('/api/school/info/:schoolId', async (req, res) => {
       primaryColor:  d.primaryColor || '#1a3c5e',
       tagline:       d.tagline || '',
       isActive:      d.status === 'active',
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/students/verify/:studentId', async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const studentData = await lookupStudentById(studentId.trim());
+    if (!studentData) return res.status(404).json({ error: 'Student not found. Please check the ID.' });
+    const sid = studentData.schoolId || DEFAULT_SCHOOL_ID;
+    let schoolName = '';
+    try {
+      const schoolSnap = await adminDb.collection('schools').doc(sid).get();
+      if (schoolSnap.exists) schoolName = schoolSnap.data().schoolName || '';
+    } catch (_) {}
+    res.json({
+      studentId: studentData.studentId,
+      studentName: studentData.name || studentData.studentName || '',
+      className: studentData.className || studentData.class || '',
+      admissionNumber: studentData.admissionNumber || studentData.studentId,
+      schoolId: sid,
+      schoolName,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -6700,6 +6747,33 @@ app.get('/api/duty/status', async (req, res) => {
   } catch (err) {
     console.error('Get duty status error:', err.message);
     res.status(500).json({ error: 'Failed to get status' });
+  }
+});
+
+app.post('/api/duty/mark-area-complete', verifyAuth, async (req, res) => {
+  try {
+    const { roleId, areaName, completedAt } = req.body;
+    if (!roleId || !areaName) return res.status(400).json({ error: 'roleId and areaName required' });
+    const today = new Date().toISOString().slice(0, 10);
+    const docId = `duty_${roleId}_${today}`;
+    const timestamp = completedAt || new Date().toISOString();
+    await db.collection('staff_duty').doc(docId).set({
+      areaCompletions: admin.firestore.FieldValue.arrayUnion({ area: areaName, completedAt: timestamp }),
+      updatedAt: timestamp,
+    }, { merge: true });
+    await db.collection('admin_notifications').add({
+      type: 'area_cleaned',
+      title: 'Area Cleaning Completed',
+      message: `${areaName} has been cleaned and marked complete by staff ${roleId}.`,
+      roleId, areaName,
+      schoolId: req.schoolId || DEFAULT_SCHOOL_ID,
+      read: false,
+      createdAt: timestamp,
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[mark-area-complete]', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 

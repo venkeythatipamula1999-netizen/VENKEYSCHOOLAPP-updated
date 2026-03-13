@@ -8,6 +8,15 @@ import { apiFetch } from '../../api/client';
 import { getFriendlyError } from '../../utils/errorMessages';
 import Toast from '../../components/Toast';
 
+const CLEANING_AREAS = [
+  { id: 'classroom',  label: 'Classrooms',     icon: '🏫' },
+  { id: 'corridor',   label: 'Corridors',      icon: '🚶' },
+  { id: 'toilets',    label: 'Toilets',        icon: '🚽' },
+  { id: 'canteen',    label: 'Canteen',        icon: '🍽️' },
+  { id: 'bus',        label: 'Bus Interior',   icon: '🚌' },
+  { id: 'compound',   label: 'Compound',       icon: '🌿' },
+];
+
 export default function CleanerDashboard({ onNavigate, currentUser, students }) {
   const [gpsOn, setGpsOn] = useState(false);
   const [gpsLoad, setGpsLoad] = useState(false);
@@ -22,6 +31,8 @@ export default function CleanerDashboard({ onNavigate, currentUser, students }) 
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
   const [crew, setCrew] = useState(null);
   const [morningRun, setMorningRun] = useState(null);
+  const [areaCompletions, setAreaCompletions] = useState({});
+  const [areaLoading, setAreaLoading] = useState({});
   const showToast = (msg, type = 'success') => setToast({ visible: true, message: msg, type });
 
   const cleanerName = currentUser?.full_name || CLEANER_DEFAULT.name;
@@ -119,6 +130,28 @@ export default function CleanerDashboard({ onNavigate, currentUser, students }) 
     } catch (e) { showToast(getFriendlyError(e, 'Failed to toggle duty status'), 'error'); }
     setDutyLoading(false);
   }, [onDuty, currentUser, cleanerName, cleanerId]);
+
+  const markAreaComplete = useCallback(async (areaId, areaLabel) => {
+    if (areaCompletions[areaId]) return;
+    setAreaLoading(prev => ({ ...prev, [areaId]: true }));
+    try {
+      const res = await apiFetch('/duty/mark-area-complete', {
+        method: 'POST',
+        body: JSON.stringify({ roleId: cleanerId, areaName: areaLabel, completedAt: new Date().toISOString() }),
+      });
+      if (res.ok) {
+        setAreaCompletions(prev => ({ ...prev, [areaId]: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) }));
+        showToast(`${areaLabel} marked clean ✓`, 'success');
+      } else {
+        const d = await res.json();
+        showToast(d.error || 'Failed to mark area', 'error');
+      }
+    } catch (e) {
+      showToast(getFriendlyError(e, 'Failed to mark area'), 'error');
+    } finally {
+      setAreaLoading(prev => ({ ...prev, [areaId]: false }));
+    }
+  }, [cleanerId, areaCompletions]);
 
   const toggleGPS = () => {
     if (!gpsOn) {
@@ -360,6 +393,41 @@ export default function CleanerDashboard({ onNavigate, currentUser, students }) 
             );
           })
         )}
+      </View>
+
+      <View style={{ padding: 14, paddingHorizontal: 20, paddingBottom: 0 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <Text style={{ fontSize: 16, fontWeight: '600', color: C.white }}>Cleaning Areas</Text>
+          <Text style={{ fontSize: 12, color: C.muted }}>{Object.keys(areaCompletions).length}/{CLEANING_AREAS.length} done</Text>
+        </View>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+          {CLEANING_AREAS.map(area => {
+            const done = !!areaCompletions[area.id];
+            const loading = !!areaLoading[area.id];
+            return (
+              <View key={area.id} style={{ width: '47%', backgroundColor: done ? '#34D399' + '1A' : C.card, borderWidth: 1.5, borderColor: done ? '#34D399' + '55' : C.border, borderRadius: 16, padding: 14 }}>
+                <Text style={{ fontSize: 22, marginBottom: 8 }}>{area.icon}</Text>
+                <Text style={{ fontWeight: '700', fontSize: 13, color: C.white, marginBottom: 2 }}>{area.label}</Text>
+                {done ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 }}>
+                    <Text style={{ fontSize: 11, color: '#34D399', fontWeight: '700' }}>✓ Cleaned</Text>
+                    <Text style={{ fontSize: 10, color: C.muted }}>{areaCompletions[area.id]}</Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    onPress={() => markAreaComplete(area.id, area.label)}
+                    disabled={loading || !onDuty}
+                    style={{ marginTop: 6, backgroundColor: onDuty ? C.teal : C.border, borderRadius: 10, paddingVertical: 8, alignItems: 'center', opacity: loading ? 0.6 : 1 }}
+                  >
+                    {loading
+                      ? <Text style={{ fontSize: 11, fontWeight: '700', color: C.white }}>...</Text>
+                      : <Text style={{ fontSize: 11, fontWeight: '700', color: onDuty ? C.white : C.muted }}>{onDuty ? 'Mark Done' : 'Clock In First'}</Text>}
+                  </TouchableOpacity>
+                )}
+              </View>
+            );
+          })}
+        </View>
       </View>
 
       <View style={{ padding: 14, paddingHorizontal: 20, paddingBottom: 0 }}>

@@ -39,6 +39,12 @@ export default function ParentLoginScreen({ onLoginSuccess, onBack, onNavigate }
   const [confirmData, setConfirmData]     = useState(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
 
+  const [showIdModal, setShowIdModal]     = useState(false);
+  const [studentIdInput, setStudentIdInput] = useState('');
+  const [idLookupLoading, setIdLookupLoading] = useState(false);
+  const [idLookupError, setIdLookupError] = useState('');
+  const [idStudentData, setIdStudentData] = useState(null);
+
   useEffect(() => {
     AsyncStorage.multiGet(['schoolName', 'schoolLogoUrl']).then(vals => {
       const name = vals[0][1] || '';
@@ -168,6 +174,45 @@ export default function ParentLoginScreen({ onLoginSuccess, onBack, onNavigate }
     setScanned(false);
   };
 
+  const openIdModal = () => {
+    setStudentIdInput('');
+    setIdLookupError('');
+    setIdStudentData(null);
+    setShowIdModal(true);
+  };
+
+  const handleVerifyStudentId = async () => {
+    const sid = studentIdInput.trim().toUpperCase();
+    if (!sid) { setIdLookupError('Please enter a Student ID'); return; }
+    setIdLookupError('');
+    setIdStudentData(null);
+    setIdLookupLoading(true);
+    try {
+      const res = await fetch(`${PRODUCTION_URL}/api/students/verify/${encodeURIComponent(sid)}`);
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setIdLookupError(data.error || 'Student not found. Please check the ID.');
+      } else {
+        setIdStudentData(data);
+      }
+    } catch {
+      setIdLookupError('Network error. Please try again.');
+    } finally {
+      setIdLookupLoading(false);
+    }
+  };
+
+  const handleIdRegisterConfirm = async () => {
+    if (!idStudentData) return;
+    await AsyncStorage.multiSet([
+      ['parentStudentId',   idStudentData.studentId   || ''],
+      ['parentStudentName', idStudentData.studentName || ''],
+      ['parentClassName',   idStudentData.className   || ''],
+    ]);
+    setShowIdModal(false);
+    if (onNavigate) onNavigate('parent-portal');
+  };
+
   if (scanning) {
     if (hasPermission === false) {
       return (
@@ -238,11 +283,19 @@ export default function ParentLoginScreen({ onLoginSuccess, onBack, onNavigate }
           </View>
 
           <TouchableOpacity
-            style={{ backgroundColor: C.teal, borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginBottom: 20, flexDirection: 'row', justifyContent: 'center', gap: 10 }}
+            style={{ backgroundColor: C.teal, borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginBottom: 10, flexDirection: 'row', justifyContent: 'center', gap: 10 }}
             onPress={openScanner}
           >
             <Text style={{ fontSize: 18 }}>📷</Text>
             <Text style={{ color: C.white, fontWeight: '700', fontSize: 15 }}>Scan Student QR</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={{ borderWidth: 1.5, borderColor: C.teal, borderRadius: 14, paddingVertical: 13, alignItems: 'center', marginBottom: 20, flexDirection: 'row', justifyContent: 'center', gap: 10 }}
+            onPress={openIdModal}
+          >
+            <Text style={{ fontSize: 16 }}>🪪</Text>
+            <Text style={{ color: C.teal, fontWeight: '700', fontSize: 14 }}>Enter Student ID Instead</Text>
           </TouchableOpacity>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
@@ -370,6 +423,74 @@ export default function ParentLoginScreen({ onLoginSuccess, onBack, onNavigate }
                     : <Text style={{ color: C.navy, fontWeight: '700', fontSize: 14 }}>Send Reset Link</Text>
                   }
                 </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showIdModal} transparent animationType="slide" onRequestClose={() => setShowIdModal(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: C.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 28, borderWidth: 1, borderColor: C.border }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <Text style={{ fontWeight: '800', fontSize: 18, color: C.white }}>Register as Parent</Text>
+              <TouchableOpacity onPress={() => setShowIdModal(false)} style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: C.navyMid, alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name="x" size={16} color={C.muted} />
+              </TouchableOpacity>
+            </View>
+            <Text style={{ color: C.muted, fontSize: 13, lineHeight: 20, marginBottom: 16 }}>
+              Enter your child's Student ID (found on their school ID card or admission letter).
+            </Text>
+            <Text style={{ fontSize: 12, fontWeight: '500', color: C.muted, marginBottom: 6 }}>Student ID</Text>
+            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 4 }}>
+              <TextInput
+                style={{ flex: 1, padding: 14, paddingHorizontal: 16, borderRadius: 12, backgroundColor: C.navyMid, borderWidth: 1.5, borderColor: C.border, color: C.white, fontSize: 14 }}
+                placeholder="e.g. SPGOPA-0042"
+                placeholderTextColor={C.muted}
+                value={studentIdInput}
+                onChangeText={t => { setStudentIdInput(t); setIdLookupError(''); setIdStudentData(null); }}
+                autoCapitalize="characters"
+                autoCorrect={false}
+              />
+              <TouchableOpacity
+                onPress={handleVerifyStudentId}
+                disabled={idLookupLoading}
+                style={{ backgroundColor: C.teal, borderRadius: 12, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center', opacity: idLookupLoading ? 0.6 : 1 }}
+              >
+                {idLookupLoading
+                  ? <ActivityIndicator size="small" color={C.white} />
+                  : <Text style={{ color: C.white, fontWeight: '700', fontSize: 13 }}>Verify</Text>}
+              </TouchableOpacity>
+            </View>
+            {idLookupError ? (
+              <View style={{ backgroundColor: C.coral + '22', borderWidth: 1, borderColor: C.coral + '44', borderRadius: 10, padding: 10, marginTop: 8 }}>
+                <Text style={{ color: C.coral, fontSize: 12, fontWeight: '600' }}>{idLookupError}</Text>
+              </View>
+            ) : null}
+            {idStudentData && (
+              <View style={{ marginTop: 16 }}>
+                <View style={{ backgroundColor: C.navyMid, borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: C.teal + '44' }}>
+                  <Text style={{ fontSize: 28, marginBottom: 6 }}>👦</Text>
+                  <Text style={{ color: C.white, fontSize: 20, fontWeight: '800', marginBottom: 3 }}>{idStudentData.studentName}</Text>
+                  <Text style={{ color: C.muted, fontSize: 13, marginBottom: 2 }}>Class {idStudentData.className}</Text>
+                  <Text style={{ color: C.muted, fontSize: 12 }}>ID: {idStudentData.studentId}</Text>
+                  {idStudentData.schoolName ? <Text style={{ color: C.muted, fontSize: 12, marginTop: 2 }}>🏫 {idStudentData.schoolName}</Text> : null}
+                </View>
+                <Text style={{ color: C.white, fontSize: 14, textAlign: 'center', marginBottom: 16 }}>Is this your child?</Text>
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <TouchableOpacity
+                    onPress={() => { setIdStudentData(null); setStudentIdInput(''); }}
+                    style={{ flex: 1, borderWidth: 1.5, borderColor: C.muted, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}
+                  >
+                    <Text style={{ color: C.muted, fontWeight: '700', fontSize: 14 }}>No, Re-enter</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleIdRegisterConfirm}
+                    style={{ flex: 1, backgroundColor: C.teal, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}
+                  >
+                    <Text style={{ color: C.white, fontWeight: '700', fontSize: 14 }}>Yes, Register ✓</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
           </View>
