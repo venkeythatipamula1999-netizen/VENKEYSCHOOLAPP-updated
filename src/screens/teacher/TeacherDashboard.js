@@ -201,7 +201,8 @@ export default function TeacherDashboard({ onNavigate, currentUser, onLogout, cu
   const displayName = currentUser?.full_name || 'Teacher';
   const teacherId = currentUser?.role_id || '';
 
-  const timetable = freshTimetable !== null ? freshTimetable : (currentUser?.timetable || []);
+  const rawTimetable = freshTimetable !== null ? freshTimetable : currentUser?.timetable;
+  const timetable = Array.isArray(rawTimetable) ? rawTimetable : [];
   const todayDay = getTodayDay();
   const todayClasses = timetable
     .filter(e => (e.days || []).includes(todayDay))

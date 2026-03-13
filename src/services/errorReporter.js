@@ -23,6 +23,11 @@ export async function reportError({
   source = 'auto'
 }) {
   try {
+    if (!db) {
+      console.warn('[ErrorReporter] Firebase not initialized, skipping error report:', message);
+      return;
+    }
+
     const errorDoc = {
       type,
       severity,
