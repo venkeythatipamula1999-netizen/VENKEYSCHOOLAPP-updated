@@ -11,7 +11,7 @@ const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error('[FATAL] JWT_SECRET environment variable is not set');
 
 function signToken(payload) {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '30d' });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '8h' });
 }
 function verifyToken(token) {
   try { return jwt.verify(token, JWT_SECRET); }
@@ -142,7 +142,7 @@ const checkSchoolActive = async (req, res, next) => {
 
 const multer = require('multer');
 const csvParser = require('csv-parser');
-const xlsx = require('xlsx');
+const ExcelJS = require('exceljs');
 const { Readable } = require('stream');
 const { syncAttendance, syncMarks, syncUserDirectory, updateUserDirectoryOnRegistration, syncLogisticsStaff, updateUserDirectoryClasses, updateProfileInSheets, markUserInactiveInSheets, syncMasterTimetable, removeMasterTimetableEntries, syncStudentFile, syncBusTripHistory, syncStudentStop, syncStaffAttendance, syncStudent, syncTeacher, syncLeaveRequest, syncParentAccount, syncPayroll, syncNotification, resetDocCache } = require('./src/services/googleSheets');
 
@@ -250,6 +250,9 @@ app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; object-src 'none'; frame-ancestors 'none'");
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
   res.removeHeader('X-Powered-By');
   next();
 });
@@ -621,6 +624,10 @@ app.post('/api/complete-profile', async (req, res) => {
       return res.status(400).json({ error: 'All profile fields are required' });
     }
 
+    if (req.user && req.user.userId !== docId && req.user.uid !== uid) {
+      return res.status(403).json({ error: 'You can only update your own profile' });
+    }
+
     if (!/^[6-9]\d{9}$/.test(mobile)) {
       return res.status(400).json({ error: 'Invalid mobile number' });
     }
@@ -732,6 +739,9 @@ app.post('/api/check-timetable-conflict', async (req, res) => {
 
 app.post('/api/set-class-teacher', async (req, res) => {
   try {
+    if (req.userRole !== 'principal' && req.userRole !== 'admin') {
+      return res.status(403).json({ error: 'Only admin or principal can assign class teachers' });
+    }
     const { roleId, grade } = req.body;
     if (!roleId) return res.status(400).json({ error: 'roleId required' });
 
@@ -1915,6 +1925,9 @@ app.post('/api/classes/add', verifyAuth, async (req, res) => {
 
 app.delete('/api/classes/:id', async (req, res) => {
   try {
+    if (req.userRole !== 'principal' && req.userRole !== 'admin') {
+      return res.status(403).json({ error: 'Only admin or principal can delete classes' });
+    }
     const { id } = req.params;
     if (!id) return res.status(400).json({ error: 'Class ID required' });
     await db.collection('classes').doc(id).delete();
@@ -1950,6 +1963,9 @@ app.post('/api/classes/delete', verifyAuth, async (req, res) => {
 
 app.post('/api/students', async (req, res) => {
   try {
+    if (req.userRole !== 'principal' && req.userRole !== 'admin') {
+      return res.status(403).json({ error: 'Only admin or principal can add students' });
+    }
     const { name, rollNumber, classId, className, parentPhone, busId, routeId } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Student name is required' });
     if (!classId) return res.status(400).json({ error: 'classId is required' });
@@ -2181,6 +2197,9 @@ app.get('/api/students/:classId', async (req, res) => {
 
 app.delete('/api/students/:id', async (req, res) => {
   try {
+    if (req.userRole !== 'principal' && req.userRole !== 'admin') {
+      return res.status(403).json({ error: 'Only admin or principal can delete students' });
+    }
     const { id } = req.params;
     await db.collection('students').doc(id).delete();
     res.json({ success: true });
@@ -2192,6 +2211,9 @@ app.delete('/api/students/:id', async (req, res) => {
 
 app.post('/api/students/bulk-upload/:classId', upload.single('file'), async (req, res) => {
   try {
+    if (req.userRole !== 'principal' && req.userRole !== 'admin') {
+      return res.status(403).json({ error: 'Only admin or principal can bulk upload students' });
+    }
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
     const { classId } = req.params;
@@ -2216,9 +2238,27 @@ app.post('/api/students/bulk-upload/:classId', upload.single('file'), async (req
           .on('error', reject);
       });
     } else if (ext === 'xlsx' || ext === 'xls') {
-      const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      rows = xlsx.utils.sheet_to_json(sheet, { defval: '' });
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(req.file.buffer);
+      const worksheet = workbook.worksheets[0];
+      if (worksheet) {
+        const headers = [];
+        worksheet.getRow(1).eachCell((cell, colNumber) => {
+          headers[colNumber - 1] = String(cell.value !== null && cell.value !== undefined ? cell.value : '');
+        });
+        worksheet.eachRow((row, rowNumber) => {
+          if (rowNumber === 1) return;
+          const obj = {};
+          row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+            const header = headers[colNumber - 1];
+            if (header) {
+              const val = cell.value;
+              obj[header] = (val !== null && val !== undefined) ? String(val) : '';
+            }
+          });
+          if (Object.keys(obj).length > 0) rows.push(obj);
+        });
+      }
     } else {
       return res.status(400).json({ error: 'Only .csv and .xlsx files are supported' });
     }
@@ -2336,6 +2376,9 @@ app.post('/api/students/bulk-upload/:classId', upload.single('file'), async (req
 
 app.post('/api/assign-classes', async (req, res) => {
   try {
+    if (req.userRole !== 'principal' && req.userRole !== 'admin') {
+      return res.status(403).json({ error: 'Only admin or principal can assign classes' });
+    }
     const { roleId, classes } = req.body;
     console.log('Assign classes request:', { roleId, classes });
 
@@ -2483,6 +2526,9 @@ app.get('/api/teacher/permissions', async (req, res) => {
 
 app.post('/api/save-timetable', async (req, res) => {
   try {
+    if (req.userRole !== 'principal' && req.userRole !== 'admin') {
+      return res.status(403).json({ error: 'Only admin or principal can save timetables' });
+    }
     const { roleId, teacherName, timetable } = req.body;
     if (!roleId || !Array.isArray(timetable)) {
       return res.status(400).json({ error: 'roleId and timetable array required' });
@@ -3744,6 +3790,9 @@ app.post('/api/admin/promotion/execute', verifyAuth, async (req, res) => {
 
 app.get('/api/onboarded-users', async (req, res) => {
   try {
+    if (req.userRole !== 'principal' && req.userRole !== 'admin') {
+      return res.status(403).json({ error: 'Only admin or principal can view staff directory' });
+    }
     const usersRef = db.collection('users');
     const q = usersRef.where('onboarded_by', '==', 'principal');
     const snapshot = await q.get();
@@ -3780,6 +3829,9 @@ app.get('/api/onboarded-users', async (req, res) => {
 
 app.post('/api/onboard-teacher', async (req, res) => {
   try {
+    if (req.userRole !== 'principal' && req.userRole !== 'admin') {
+      return res.status(403).json({ error: 'Only admin or principal can onboard staff' });
+    }
     const { fullName, role, subject, email, phone, joinDate } = req.body;
     console.log('Onboard teacher request:', { fullName, role, subject });
 
@@ -3875,6 +3927,9 @@ app.post('/api/onboard-teacher', async (req, res) => {
 
 app.post('/api/add-logistics-staff', async (req, res) => {
   try {
+    if (req.userRole !== 'principal' && req.userRole !== 'admin') {
+      return res.status(403).json({ error: 'Only admin or principal can add logistics staff' });
+    }
     const { fullName, type, busNumber, route, assignedArea, phone, license, experience, email, joinDate } = req.body;
     console.log('Add logistics staff request:', { fullName, type });
 
@@ -4011,6 +4066,9 @@ app.get('/api/logistics-staff', async (req, res) => {
 
 app.post('/api/delete-user', async (req, res) => {
   try {
+    if (req.userRole !== 'principal' && req.userRole !== 'admin') {
+      return res.status(403).json({ error: 'Only admin or principal can deactivate users' });
+    }
     const { roleId, collection: collName } = req.body;
     if (!roleId) return res.status(400).json({ error: 'roleId is required' });
 

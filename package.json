@@ -20,6 +20,7 @@
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
     "csv-parser": "^3.2.0",
+    "exceljs": "^4.4.0",
     "expo": "~52.0.46",
     "expo-camera": "~16.0.18",
     "expo-device": "~7.0.3",
@@ -51,8 +52,7 @@
     "react-native-svg": "^15.8.0",
     "react-native-view-shot": "~4.0.3",
     "react-native-web": "^0.19.13",
-    "react-native-webview": "^13.12.5",
-    "xlsx": "^0.18.5"
+    "react-native-webview": "^13.12.5"
   },
   "devDependencies": {
     "@expo/ngrok": "^4.1.0"
