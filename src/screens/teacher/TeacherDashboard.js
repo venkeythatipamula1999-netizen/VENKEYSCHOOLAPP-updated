@@ -187,6 +187,7 @@ function normalizeGrade(s) {
 }
 
 export default function TeacherDashboard({ onNavigate, currentUser, onLogout, currentScreen }) {
+  console.log('[TeacherDashboard] mounting, user:', currentUser?.role_id || 'no-id');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [showTodaySheet, setShowTodaySheet] = useState(false);
   const [onDuty, setOnDuty] = useState(false);
@@ -517,7 +518,7 @@ export default function TeacherDashboard({ onNavigate, currentUser, onLogout, cu
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                 <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
                   <View style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: color + '22', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <Text style={{ fontWeight: '800', fontSize: 13, color }}>{entry.className.replace('-', '')}</Text>
+                    <Text style={{ fontWeight: '800', fontSize: 13, color }}>{(entry.className || '').replace('-', '')}</Text>
                   </View>
                   <View>
                     <Text style={{ fontWeight: '700', fontSize: 15, color: C.white }}>Grade {entry.className}</Text>

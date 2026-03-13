@@ -345,7 +345,11 @@ export default function App() {
         return <SignupScreen onSignup={handleSignupSuccess} onBack={() => navigate(role === 'teacher' ? 'teacher-login' : 'parent-login')} />;
       case 'complete-profile':
         return <CompleteProfileScreen currentUser={currentUser} onComplete={handleProfileComplete} />;
-      case 'parent-home': return <ParentDashboard onNavigate={navigate} currentUser={currentUser} onLogout={handleLogout} onUpdateUser={(u) => setCurrentUser(u)} />;
+      case 'parent-home': return (
+        <ErrorBoundary onReset={() => navigate('parent-home')}>
+          <ParentDashboard onNavigate={navigate} currentUser={currentUser} onLogout={handleLogout} onUpdateUser={(u) => setCurrentUser(u)} />
+        </ErrorBoundary>
+      );
       case 'attendance': return <AttendanceScreen onBack={() => navigate('parent-home')} currentUser={currentUser} />;
       case 'marks': return <MarksScreen onBack={() => navigate('parent-home')} currentUser={currentUser} />;
       case 'bus': return <BusScreen onBack={() => navigate('parent-home')} />;
@@ -354,7 +358,11 @@ export default function App() {
       case 'fee': return <FeeScreen onBack={() => navigate('parent-home')} currentUser={currentUser} />;
       case 'leave': return <LeaveScreen onBack={() => navigate('parent-home')} currentUser={currentUser} />;
       case 'digital-folder': return <DigitalFolder onBack={() => navigate('parent-home')} currentUser={currentUser} />;
-      case 'teacher-home': return <TeacherDashboard onNavigate={navigate} currentUser={currentUser} onLogout={handleLogout} currentScreen={screen} />;
+      case 'teacher-home': return (
+        <ErrorBoundary onReset={() => navigate('teacher-home')}>
+          <TeacherDashboard onNavigate={navigate} currentUser={currentUser} onLogout={handleLogout} currentScreen={screen} />
+        </ErrorBoundary>
+      );
       case 'teacher-attendance': return <TeacherAttendance onBack={() => navigate('teacher-home')} currentUser={currentUser} />;
       case 'teacher-marks': return <CCEHomeScreen onBack={() => navigate('teacher-home')} onNavigate={navigate} currentUser={currentUser} />;
       case 'teacher-schedule': return <TeacherScheduleScreen onBack={() => navigate('teacher-home')} currentUser={currentUser} />;
@@ -369,20 +377,32 @@ export default function App() {
       case 'cce-final': return <CCEFinalReportScreen onBack={() => navigate('cce-home')} params={navParams} />;
       case 'explore': return <ExploreScreen onBack={() => navigate('splash')} />;
       case 'contact': return <ContactScreen onBack={() => navigate('splash')} />;
-      case 'driver-home': return <DriverDashboard onNavigate={navigate} currentUser={currentUser} />;
+      case 'driver-home': return (
+        <ErrorBoundary onReset={() => navigate('driver-home')}>
+          <DriverDashboard onNavigate={navigate} currentUser={currentUser} />
+        </ErrorBoundary>
+      );
       case 'driver-scans': return <DriverScans onBack={() => navigate('driver-home')} />;
       case 'driver-locations': return <DriverStudentLocations onBack={() => navigate('driver-home')} currentUser={currentUser} />;
       case 'driver-duration': return <DriverDuration onBack={() => navigate('driver-home')} currentUser={currentUser} />;
       case 'driver-profile': return <DriverProfile onBack={() => navigate('driver-home')} currentUser={currentUser} onLogout={handleLogout} />;
       case 'driver-leave': return <DriverLeave onBack={() => navigate('driver-home')} currentUser={currentUser} />;
       case 'driver-proximity': return <DriverProximityAlerts onBack={() => navigate('driver-home')} currentUser={currentUser} />;
-      case 'cleaner-home': return <CleanerDashboard onNavigate={navigate} currentUser={currentUser} students={cleanerStudents} />;
+      case 'cleaner-home': return (
+        <ErrorBoundary onReset={() => navigate('cleaner-home')}>
+          <CleanerDashboard onNavigate={navigate} currentUser={currentUser} students={cleanerStudents} />
+        </ErrorBoundary>
+      );
       case 'cleaner-scanner': return <CleanerScanner currentUser={currentUser} onBack={() => navigate('cleaner-home')} />;
       case 'cleaner-duration': return <CleanerDuration onBack={() => navigate('cleaner-home')} currentUser={currentUser} />;
       case 'cleaner-alerts': return <CleanerAlerts onBack={() => navigate('cleaner-home')} notifs={cleanerNotifs} setNotifs={setCleanerNotifs} />;
       case 'cleaner-profile': return <CleanerProfile onBack={() => navigate('cleaner-home')} currentUser={currentUser} onLogout={handleLogout} />;
       case 'cleaner-leave': return <CleanerLeave onBack={() => navigate('cleaner-home')} currentUser={currentUser} />;
-      case 'admin-home': return <AdminOverview onNavigate={navigate} currentUser={currentUser} onLogout={handleLogout} currentScreen={screen} />;
+      case 'admin-home': return (
+        <ErrorBoundary onReset={() => navigate('admin-home')}>
+          <AdminOverview onNavigate={navigate} currentUser={currentUser} onLogout={handleLogout} currentScreen={screen} />
+        </ErrorBoundary>
+      );
       case 'admin-users': return <AdminUsers onBack={() => navigate('admin-home')} onNavigate={navigate} />;
       case 'student-import': return <StudentImport onBack={() => navigate('admin-users')} onNavigate={navigate} />;
       case 'student-list': return <StudentList onBack={() => navigate('admin-users')} />;
