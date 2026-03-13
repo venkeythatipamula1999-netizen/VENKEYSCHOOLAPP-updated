@@ -2,23 +2,104 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, FlatList, TouchableOpacity,
   StyleSheet, ActivityIndicator, KeyboardAvoidingView,
-  Platform,
+  Platform, ScrollView,
 } from 'react-native';
 import { C } from '../../theme/colors';
 import { apiFetch } from '../../api/client';
 import {
   getFAGrade, isSAExam, isFAExam, getPrecedingFAs,
-  calcHalfYear, MAX_MARKS,
+  calcHalfYear, MAX_MARKS, SUBJECTS,
 } from '../../helpers/cceGradingMobile';
 
 const GRADE_BG = { A1:'#059669', A2:'#10b981', B1:'#3b82f6', B2:'#6366f1', C1:'#f59e0b', C2:'#f97316', D:'#ef4444', E:'#dc2626' };
+const EXAM_TYPES_ALL = ['FA1', 'FA2', 'FA3', 'FA4', 'SA1', 'SA2'];
+
+function ViewOnlySubjectCard({ subjectId, academicYear, classId, section, students }) {
+  const [expanded, setExpanded]   = useState(false);
+  const [subMarks, setSubMarks]   = useState({});
+  const [loading, setLoading]     = useState(false);
+  const [loaded, setLoaded]       = useState(false);
+
+  const load = async () => {
+    if (loaded) { setExpanded(e => !e); return; }
+    setExpanded(true);
+    setLoading(true);
+    try {
+      const results = await Promise.all(
+        EXAM_TYPES_ALL.map(et =>
+          apiFetch(`/cce/marks?academicYear=${encodeURIComponent(academicYear)}&classId=${encodeURIComponent(classId)}&section=${encodeURIComponent(section || '')}&subjectId=${encodeURIComponent(subjectId)}&examType=${et}`)
+            .then(r => r.json())
+            .then(d => ({ et, marks: d.marks || [] }))
+            .catch(() => ({ et, marks: [] }))
+        )
+      );
+      const map = {};
+      for (const { et, marks } of results) {
+        for (const m of marks) {
+          map[m.studentId] = map[m.studentId] || {};
+          map[m.studentId][et] = m.marks;
+        }
+      }
+      setSubMarks(map);
+      setLoaded(true);
+    } catch (_) {}
+    finally { setLoading(false); }
+  };
+
+  return (
+    <View style={vst.card}>
+      <TouchableOpacity style={vst.header} onPress={load} activeOpacity={0.7}>
+        <View style={{ flex: 1 }}>
+          <Text style={vst.icon}>👁 View Only</Text>
+          <Text style={vst.title}>{subjectId}</Text>
+        </View>
+        {loading
+          ? <ActivityIndicator size="small" color={C.muted} />
+          : <Text style={{ color: C.muted, fontSize: 16 }}>{expanded ? '▲' : '▼'}</Text>
+        }
+      </TouchableOpacity>
+
+      {expanded && !loading && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View>
+            <View style={vst.tableHead}>
+              <Text style={[vst.th, vst.nameW]}>Student</Text>
+              {EXAM_TYPES_ALL.map(et => (
+                <Text key={et} style={vst.th}>{et}</Text>
+              ))}
+            </View>
+            {students.map((s, i) => {
+              const sid = s.studentId || s.id;
+              const row = subMarks[sid] || {};
+              return (
+                <View key={sid} style={[vst.row, i % 2 === 0 && vst.rowEven]}>
+                  <Text style={[vst.td, vst.nameW]} numberOfLines={1}>{s.studentName || s.name}</Text>
+                  {EXAM_TYPES_ALL.map(et => (
+                    <Text key={et} style={[vst.td, { color: row[et] !== undefined ? C.white : C.muted }]}>
+                      {row[et] !== undefined ? row[et] : '—'}
+                    </Text>
+                  ))}
+                </View>
+              );
+            })}
+          </View>
+        </ScrollView>
+      )}
+    </View>
+  );
+}
 
 export default function CCEMarkEntryScreen({ onBack, params = {} }) {
-  const { academicYear, classId, className, section, subjectId, examType } = params;
+  const { academicYear, classId, className, section, subjectId, examType, assignedSubjects } = params;
   const maxM = MAX_MARKS[examType] || 20;
   const isSA = isSAExam(examType);
   const precedingFAs = getPrecedingFAs(examType);
   const isSA1 = examType === 'SA1';
+
+  const otherSubjects = SUBJECTS.filter(s => {
+    if (!assignedSubjects || assignedSubjects.length === 0) return false;
+    return s !== subjectId && !assignedSubjects.includes(s);
+  });
 
   const [students, setStudents] = useState([]);
   const [marks, setMarks]       = useState({});
@@ -164,7 +245,7 @@ export default function CCEMarkEntryScreen({ onBack, params = {} }) {
     );
   };
 
-  const header = (
+  const tableHeader = (
     <View>
       <View style={st.tableHeader}>
         <Text style={[st.th, { width: 28 }]}>#</Text>
@@ -177,6 +258,26 @@ export default function CCEMarkEntryScreen({ onBack, params = {} }) {
       </View>
     </View>
   );
+
+  const listFooter = otherSubjects.length > 0 ? (
+    <View style={{ padding: 16, paddingTop: 24 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <View style={{ flex: 1, height: 1, backgroundColor: C.border }} />
+        <Text style={{ color: C.muted, fontSize: 12, fontWeight: '700' }}>OTHER SUBJECTS (VIEW ONLY)</Text>
+        <View style={{ flex: 1, height: 1, backgroundColor: C.border }} />
+      </View>
+      {otherSubjects.map(sub => (
+        <ViewOnlySubjectCard
+          key={sub}
+          subjectId={sub}
+          academicYear={academicYear}
+          classId={classId}
+          section={section}
+          students={students}
+        />
+      ))}
+    </View>
+  ) : null;
 
   return (
     <KeyboardAvoidingView style={st.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -209,7 +310,8 @@ export default function CCEMarkEntryScreen({ onBack, params = {} }) {
           data={students}
           keyExtractor={(s, i) => s.studentId || s.id || String(i)}
           renderItem={renderStudent}
-          ListHeaderComponent={header}
+          ListHeaderComponent={tableHeader}
+          ListFooterComponent={listFooter}
           stickyHeaderIndices={[0]}
           contentContainerStyle={{ paddingBottom: 40 }}
           keyboardShouldPersistTaps="handled"
@@ -252,4 +354,17 @@ const st = StyleSheet.create({
   badgeText:   { color: '#fff', fontSize: 10, fontWeight: '800' },
   hyPrev:      { width: 44, fontSize: 12, fontWeight: '700', textAlign: 'center' },
   footer:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, paddingHorizontal: 16, backgroundColor: C.navyMid, borderTopWidth: 1, borderColor: C.border },
+});
+
+const vst = StyleSheet.create({
+  card:    { backgroundColor: C.navyMid + 'CC', borderRadius: 14, marginBottom: 10, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
+  header:  { flexDirection: 'row', alignItems: 'center', padding: 14 },
+  icon:    { fontSize: 10, color: C.muted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  title:   { fontSize: 14, color: C.white, fontWeight: '700', marginTop: 2 },
+  tableHead: { flexDirection: 'row', backgroundColor: C.navy, paddingVertical: 8, paddingHorizontal: 10 },
+  th:      { width: 52, fontSize: 10, fontWeight: '700', color: C.muted, textAlign: 'center' },
+  nameW:   { width: 120, textAlign: 'left' },
+  row:     { flexDirection: 'row', paddingVertical: 8, paddingHorizontal: 10, borderTopWidth: 1, borderColor: C.border + '44' },
+  rowEven: { backgroundColor: C.navy + '88' },
+  td:      { width: 52, fontSize: 12, color: C.white, textAlign: 'center' },
 });

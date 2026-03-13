@@ -58,5 +58,6 @@ function getFinalGrade(score) {
 const MAX_MARKS        = { FA1: 20, FA2: 20, FA3: 20, FA4: 20, SA1: 80, SA2: 80 };
 const VALID_EXAM_TYPES = ['FA1', 'FA2', 'FA3', 'FA4', 'SA1', 'SA2'];
 const SECOND_LANG      = ['Hindi'];
+const SUBJECTS         = ['Telugu', 'English', 'Mathematics', 'Science', 'Social Studies', 'Hindi'];
 
-module.exports = { getFAGrade, getSAGrade, getFinalGrade, MAX_MARKS, VALID_EXAM_TYPES, SECOND_LANG };
+module.exports = { getFAGrade, getSAGrade, getFinalGrade, MAX_MARKS, VALID_EXAM_TYPES, SECOND_LANG, SUBJECTS };

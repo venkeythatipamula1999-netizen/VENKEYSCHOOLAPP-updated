@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView,
   StyleSheet, ActivityIndicator, Modal,
@@ -10,14 +10,16 @@ import { SUBJECTS, VALID_EXAM_TYPES, ACADEMIC_YEARS } from '../../helpers/cceGra
 const SECTION_FROM_NAME = (name) => name.replace(/[^A-Za-z]/g, '').toUpperCase() || 'A';
 
 export default function CCEHomeScreen({ onBack, onNavigate }) {
-  const [classes, setClasses]       = useState([]);
-  const [loadingClasses, setLoading] = useState(true);
-  const [academicYear, setAcY]      = useState('2025-26');
-  const [selectedClass, setClass]   = useState(null);
-  const [subject, setSubject]       = useState(SUBJECTS[0]);
-  const [examType, setExamType]     = useState('FA1');
-  const [picker, setPicker]         = useState(null);
-  const [showReport, setShowReport] = useState(false);
+  const [classes, setClasses]             = useState([]);
+  const [loadingClasses, setLoadingClass] = useState(true);
+  const [academicYear, setAcY]            = useState('2025-26');
+  const [selectedClass, setClass]         = useState(null);
+  const [assignedSubjects, setAssigned]   = useState([]);
+  const [loadingSubs, setLoadingSubs]     = useState(false);
+  const [subject, setSubject]             = useState('');
+  const [examType, setExamType]           = useState('FA1');
+  const [picker, setPicker]               = useState(null);
+  const [showReport, setShowReport]       = useState(false);
 
   useEffect(() => {
     apiFetch('/classes')
@@ -28,24 +30,57 @@ export default function CCEHomeScreen({ onBack, onNavigate }) {
         if (list.length) setClass(list[0]);
       })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => setLoadingClass(false));
   }, []);
+
+  const fetchAssignedSubjects = useCallback((cls, year) => {
+    if (!cls) return;
+    const section = SECTION_FROM_NAME(cls.name);
+    const q = new URLSearchParams({ academicYear: year, classId: cls.id, section }).toString();
+    setLoadingSubs(true);
+    apiFetch(`/cce/my-assigned-subjects?${q}`)
+      .then(r => r.json())
+      .then(d => {
+        const subs = d.subjects && d.subjects.length > 0 ? d.subjects : SUBJECTS;
+        setAssigned(subs);
+        setSubject(subs.length === 1 ? subs[0] : (subs.includes(subject) ? subject : subs[0]));
+      })
+      .catch(() => {
+        setAssigned(SUBJECTS);
+        if (!subject) setSubject(SUBJECTS[0]);
+      })
+      .finally(() => setLoadingSubs(false));
+  }, [subject]);
+
+  useEffect(() => {
+    if (selectedClass) fetchAssignedSubjects(selectedClass, academicYear);
+  }, [selectedClass, academicYear]);
 
   const buildParams = () => ({
     academicYear,
-    classId:   selectedClass?.id   || '',
-    className: selectedClass?.name || '',
-    section:   SECTION_FROM_NAME(selectedClass?.name || ''),
-    subjectId: subject,
+    classId:          selectedClass?.id   || '',
+    className:        selectedClass?.name || '',
+    section:          SECTION_FROM_NAME(selectedClass?.name || ''),
+    subjectId:        subject,
     examType,
+    assignedSubjects,
   });
 
-  const DropPicker = ({ title, options, value, onSelect, display }) => (
-    <TouchableOpacity style={st.picker} onPress={() => setPicker({ title, options, onSelect, display, value })}>
+  const DropPicker = ({ title, options, value, onSelect, display, loading: pickerLoading }) => (
+    <TouchableOpacity
+      style={st.picker}
+      onPress={() => !pickerLoading && setPicker({ title, options, onSelect, display, value })}
+    >
       <Text style={st.pickerLabel}>{title}</Text>
       <View style={st.pickerRow}>
-        <Text style={st.pickerVal}>{display ? display(value) : value}</Text>
-        <Text style={{ color: C.muted }}>▾</Text>
+        {pickerLoading ? (
+          <ActivityIndicator size="small" color={C.teal} />
+        ) : (
+          <>
+            <Text style={st.pickerVal}>{display ? display(value) : (value || '—')}</Text>
+            <Text style={{ color: C.muted }}>▾</Text>
+          </>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -87,12 +122,25 @@ export default function CCEHomeScreen({ onBack, onNavigate }) {
             />
           )}
 
-          <DropPicker
-            title="Subject"
-            options={SUBJECTS}
-            value={subject}
-            onSelect={setSubject}
-          />
+          {assignedSubjects.length === 1 ? (
+            <View style={[st.picker, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
+              <View>
+                <Text style={st.pickerLabel}>Subject</Text>
+                <Text style={st.pickerVal}>{assignedSubjects[0]}</Text>
+              </View>
+              <View style={st.assignedBadge}>
+                <Text style={{ color: C.teal, fontSize: 10, fontWeight: '700' }}>AUTO-SELECTED</Text>
+              </View>
+            </View>
+          ) : (
+            <DropPicker
+              title={`Subject${assignedSubjects.length < SUBJECTS.length ? ` (${assignedSubjects.length} assigned)` : ''}`}
+              options={assignedSubjects}
+              value={subject}
+              onSelect={setSubject}
+              loading={loadingSubs}
+            />
+          )}
 
           <DropPicker
             title="Exam Type"
@@ -105,7 +153,7 @@ export default function CCEHomeScreen({ onBack, onNavigate }) {
         <View style={st.infoCard}>
           <Text style={{ color: C.muted, fontSize: 12, fontWeight: '700', marginBottom: 6 }}>Selected:</Text>
           <Text style={{ color: C.white, fontSize: 14 }}>
-            {selectedClass?.name || '—'} · {subject} · {examType} · {academicYear}
+            {selectedClass?.name || '—'} · {subject || '—'} · {examType} · {academicYear}
           </Text>
           <Text style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>
             Max marks: {examType.startsWith('FA') ? 20 : 80}
@@ -113,15 +161,15 @@ export default function CCEHomeScreen({ onBack, onNavigate }) {
         </View>
 
         <TouchableOpacity
-          style={[st.btn, { backgroundColor: C.teal, marginBottom: 12 }]}
-          onPress={() => selectedClass && onNavigate('cce-mark-entry', buildParams())}
-          disabled={!selectedClass}
+          style={[st.btn, { backgroundColor: C.teal, marginBottom: 12, opacity: (!selectedClass || !subject) ? 0.5 : 1 }]}
+          onPress={() => selectedClass && subject && onNavigate('cce-mark-entry', buildParams())}
+          disabled={!selectedClass || !subject}
         >
           <Text style={st.btnText}>✏️  Enter Marks</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[st.btn, { backgroundColor: C.purple }]}
+          style={[st.btn, { backgroundColor: C.purple, opacity: !selectedClass ? 0.5 : 1 }]}
           onPress={() => setShowReport(true)}
           disabled={!selectedClass}
         >
@@ -171,7 +219,11 @@ export default function CCEHomeScreen({ onBack, onNavigate }) {
                 style={[st.reportBtn, { backgroundColor: C.teal }]}
                 onPress={() => {
                   setShowReport(false);
-                  onNavigate('cce-halfyear', { academicYear, classId: selectedClass.id, className: selectedClass.name, section: SECTION_FROM_NAME(selectedClass.name) });
+                  onNavigate('cce-halfyear', {
+                    academicYear, classId: selectedClass.id,
+                    className: selectedClass.name,
+                    section: SECTION_FROM_NAME(selectedClass.name),
+                  });
                 }}
               >
                 <Text style={{ color: C.white, fontWeight: '700', fontSize: 15 }}>📄 Half-Year Report</Text>
@@ -181,7 +233,11 @@ export default function CCEHomeScreen({ onBack, onNavigate }) {
                 style={[st.reportBtn, { backgroundColor: C.purple, marginTop: 12 }]}
                 onPress={() => {
                   setShowReport(false);
-                  onNavigate('cce-final', { academicYear, classId: selectedClass.id, className: selectedClass.name, section: SECTION_FROM_NAME(selectedClass.name) });
+                  onNavigate('cce-final', {
+                    academicYear, classId: selectedClass.id,
+                    className: selectedClass.name,
+                    section: SECTION_FROM_NAME(selectedClass.name),
+                  });
                 }}
               >
                 <Text style={{ color: C.white, fontWeight: '700', fontSize: 15 }}>📊 Final Annual Report</Text>
@@ -206,6 +262,7 @@ const st = StyleSheet.create({
   pickerLabel:  { fontSize: 11, color: C.muted, fontWeight: '700', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
   pickerRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   pickerVal:    { fontSize: 15, color: C.white, fontWeight: '600' },
+  assignedBadge: { backgroundColor: C.teal + '22', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: C.teal + '55' },
   infoCard:     { backgroundColor: C.teal + '18', borderRadius: 12, padding: 14, marginBottom: 20, borderWidth: 1, borderColor: C.teal + '44' },
   btn:          { borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   btnText:      { color: C.white, fontWeight: '700', fontSize: 16 },

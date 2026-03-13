@@ -7,11 +7,16 @@ const {
 } = require('../helpers/cceGrading');
 
 const DEFAULT_SCHOOL_ID = process.env.DEFAULT_SCHOOL_ID || 'school_001';
+const ADMIN_ROLES = ['principal', 'admin', 'staff'];
 
 function db() { return admin.firestore(); }
 
 function cceColl(schoolId) {
   return db().collection('schools').doc(schoolId).collection('cce_marks');
+}
+
+function teacherSubjectsColl(schoolId) {
+  return db().collection('schools').doc(schoolId).collection('teacher_subjects');
 }
 
 function docId(studentId, subjectId, examType, academicYear) {
@@ -30,6 +35,29 @@ function validateEntry(examType, marks) {
   return null;
 }
 
+async function checkTeacherAssignment(req, subjectId, classId, section, academicYear) {
+  const role = req.userRole || '';
+  if (ADMIN_ROLES.includes(role)) return true;
+
+  const snap = await teacherSubjectsColl(schoolId(req))
+    .where('teacherId',    '==', req.userId || '')
+    .where('subjectId',    '==', subjectId)
+    .where('classId',      '==', classId)
+    .where('academicYear', '==', academicYear)
+    .get();
+
+  if (snap.empty) return false;
+
+  if (section) {
+    const matchSection = snap.docs.some(d => {
+      const s = d.data().section;
+      return !s || s === section;
+    });
+    return matchSection;
+  }
+  return true;
+}
+
 // ── POST /api/cce/marks ──────────────────────────────────────────────────────
 async function saveMarks(req, res) {
   try {
@@ -39,6 +67,11 @@ async function saveMarks(req, res) {
     }
     const err = validateEntry(examType, marks);
     if (err) return res.status(400).json({ error: err });
+
+    const allowed = await checkTeacherAssignment(req, subjectId, classId, section || '', academicYear);
+    if (!allowed) {
+      return res.status(403).json({ error: 'You are not assigned to teach this subject for this class' });
+    }
 
     const maxM    = MAX_MARKS[examType];
     const marksN  = Number(marks);
@@ -72,6 +105,11 @@ async function saveBulkMarks(req, res) {
     }
     if (entries.length > 500) {
       return res.status(400).json({ error: 'Maximum 500 entries per bulk operation' });
+    }
+
+    const allowed = await checkTeacherAssignment(req, subjectId, classId, section || '', academicYear);
+    if (!allowed) {
+      return res.status(403).json({ error: 'You are not assigned to teach this subject for this class' });
     }
 
     const maxM  = MAX_MARKS[examType];
@@ -135,6 +173,111 @@ async function getMarks(req, res) {
     res.json({ success: true, marks });
   } catch (e) {
     console.error('[cce/marks GET]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+// ── GET /api/cce/my-assigned-subjects ────────────────────────────────────────
+async function getMyAssignedSubjects(req, res) {
+  try {
+    const { academicYear, classId, section } = req.query;
+
+    const role = req.userRole || '';
+    if (ADMIN_ROLES.includes(role)) {
+      const { SUBJECTS } = require('../helpers/cceGrading');
+      return res.json({ success: true, subjects: SUBJECTS || [], isAdmin: true });
+    }
+
+    if (!academicYear || !classId) {
+      return res.status(400).json({ error: 'academicYear and classId are required' });
+    }
+
+    let q = teacherSubjectsColl(schoolId(req))
+      .where('teacherId',    '==', req.userId || '')
+      .where('classId',      '==', classId)
+      .where('academicYear', '==', academicYear);
+
+    const snap = await q.get();
+
+    let docs = snap.docs.map(d => d.data());
+    if (section) {
+      docs = docs.filter(d => !d.section || d.section === section);
+    }
+
+    const subjects = [...new Set(docs.map(d => d.subjectId).filter(Boolean))];
+    res.json({ success: true, subjects });
+  } catch (e) {
+    console.error('[cce/my-assigned-subjects]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+// ── POST /api/cce/admin/assign-subject ───────────────────────────────────────
+async function assignTeacherSubject(req, res) {
+  try {
+    const role = req.userRole || '';
+    if (!ADMIN_ROLES.includes(role)) {
+      return res.status(403).json({ error: 'Only admin/principal can assign subjects' });
+    }
+    const { teacherId, subjectId, classId, section, academicYear } = req.body;
+    if (!teacherId || !subjectId || !classId || !academicYear) {
+      return res.status(400).json({ error: 'teacherId, subjectId, classId, academicYear are required' });
+    }
+    const sid = schoolId(req);
+    const docRef = teacherSubjectsColl(sid).doc(`${teacherId}_${subjectId}_${classId}_${section || 'ALL'}_${academicYear}`);
+    await docRef.set({
+      teacherId, subjectId, classId,
+      section: section || '',
+      academicYear,
+      schoolId: sid,
+      assignedBy: req.userId || '',
+      assignedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    res.json({ success: true, message: 'Teacher subject assignment saved' });
+  } catch (e) {
+    console.error('[cce/admin/assign-subject]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+// ── DELETE /api/cce/admin/assign-subject ─────────────────────────────────────
+async function removeTeacherSubject(req, res) {
+  try {
+    const role = req.userRole || '';
+    if (!ADMIN_ROLES.includes(role)) {
+      return res.status(403).json({ error: 'Only admin/principal can remove subject assignments' });
+    }
+    const { teacherId, subjectId, classId, section, academicYear } = req.body;
+    if (!teacherId || !subjectId || !classId || !academicYear) {
+      return res.status(400).json({ error: 'teacherId, subjectId, classId, academicYear are required' });
+    }
+    const docRef = teacherSubjectsColl(schoolId(req))
+      .doc(`${teacherId}_${subjectId}_${classId}_${section || 'ALL'}_${academicYear}`);
+    await docRef.delete();
+    res.json({ success: true, message: 'Assignment removed' });
+  } catch (e) {
+    console.error('[cce/admin/remove-subject]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+// ── GET /api/cce/admin/teacher-subjects ─────────────────────────────────────
+async function getTeacherSubjects(req, res) {
+  try {
+    const role = req.userRole || '';
+    if (!ADMIN_ROLES.includes(role)) {
+      return res.status(403).json({ error: 'Only admin/principal can view assignments' });
+    }
+    const { academicYear, classId, teacherId } = req.query;
+    let q = teacherSubjectsColl(schoolId(req));
+    if (academicYear) q = q.where('academicYear', '==', academicYear);
+    if (classId)      q = q.where('classId',      '==', classId);
+    if (teacherId)    q = q.where('teacherId',    '==', teacherId);
+    const snap = await q.get();
+    const assignments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    res.json({ success: true, assignments });
+  } catch (e) {
+    console.error('[cce/admin/teacher-subjects]', e.message);
     res.status(500).json({ error: e.message });
   }
 }
@@ -341,4 +484,8 @@ async function getStudentReport(req, res) {
   }
 }
 
-module.exports = { saveMarks, saveBulkMarks, getMarks, getHalfYearResults, getFinalResults, getStudentReport };
+module.exports = {
+  saveMarks, saveBulkMarks, getMarks,
+  getMyAssignedSubjects, assignTeacherSubject, removeTeacherSubject, getTeacherSubjects,
+  getHalfYearResults, getFinalResults, getStudentReport,
+};
