@@ -3,6 +3,10 @@ const path = require('path');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize');
+const { body } = require('express-validator');
+const validate = require('./middleware/validate');
 const jwt = require('jsonwebtoken');
 const PDFDocument = require('pdfkit');
 const cron = require('node-cron');
@@ -210,16 +214,26 @@ app.get('/_health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
-const allowedOrigins = [
+const productionOrigins = [
+  'https://superadminfinaldeploy.vercel.app',
   'https://super-admin-with-error-tracking-8b9.vercel.app',
   'https://venkeyschoolapp-updated.replit.app',
   'https://vidyalayam.replit.app',
   process.env.APP_URL,
   process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null,
+].filter(Boolean);
+
+const developmentOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
   'http://localhost:5000',
   'http://localhost:8081',
   'http://localhost:19006',
-].filter(Boolean);
+];
+
+const allowedOrigins = process.env.NODE_ENV === 'production'
+  ? productionOrigins
+  : [...productionOrigins, ...developmentOrigins];
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -235,6 +249,8 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(mongoSanitize());
 app.use((req, res, next) => {
   if (
     req.path.startsWith('/api/super') ||
@@ -325,7 +341,13 @@ async function safeSync(operation, syncFn, payload) {
   }
 }
 
-app.post('/api/register', registerLimiter, async (req, res) => {
+app.post('/api/register', registerLimiter, validate([
+  body('fullName').notEmpty().trim().withMessage('fullName is required'),
+  body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+  body('role').isIn(['teacher', 'parent', 'staff', 'student', 'driver', 'cleaner']).withMessage('Invalid role'),
+  body('roleId').notEmpty().trim().withMessage('roleId is required'),
+]), async (req, res) => {
   try {
     const { fullName, email: rawEmail, password, role, roleId } = req.body;
     const email = (rawEmail || '').trim().toLowerCase();
@@ -1242,7 +1264,12 @@ async function generateReceiptNumber(schoolId) {
   return `RCP-${initials}-${year}-${String(seq).padStart(4, '0')}`;
 }
 
-app.post('/api/fee/payment/cash', verifyAuth, async (req, res) => {
+app.post('/api/fee/payment/cash', verifyAuth, validate([
+  body('studentId').notEmpty().trim().withMessage('studentId is required'),
+  body('academicYear').notEmpty().trim().withMessage('academicYear is required'),
+  body('quarter').notEmpty().withMessage('quarter is required'),
+  body('amountPaid').isNumeric().isFloat({ min: 1 }).withMessage('amountPaid must be a positive number'),
+]), async (req, res) => {
   try {
     if (req.userRole !== 'admin' && req.userRole !== 'principal') {
       return res.status(403).json({ error: 'Access denied' });
@@ -2780,7 +2807,11 @@ function normalizeSubjectName(name) {
   return map[key] || name;
 }
 
-app.post('/api/marks/save', async (req, res) => {
+app.post('/api/marks/save', validate([
+  body('records').isArray({ min: 1 }).withMessage('records must be a non-empty array'),
+  body('subject').notEmpty().trim().withMessage('subject is required'),
+  body('examType').notEmpty().trim().withMessage('examType is required'),
+]), async (req, res) => {
   // DEPRECATED — remove after CCE migration confirmed
   res.set('X-Deprecated', 'Use /api/cce/marks routes instead');
   console.warn('[DEPRECATED] Old marks route called:', req.path);
@@ -4119,7 +4150,12 @@ app.post('/api/delete-user', async (req, res) => {
   }
 });
 
-app.post('/api/attendance/save', async (req, res) => {
+app.post('/api/attendance/save', validate([
+  body('records').isArray({ min: 1 }).withMessage('records must be a non-empty array'),
+  body('date').notEmpty().matches(/^\d{4}-\d{2}-\d{2}$/).withMessage('date must be in YYYY-MM-DD format'),
+  body('records.*.studentId').notEmpty().withMessage('Each record must have a studentId'),
+  body('records.*.status').isIn(['Present', 'Absent']).withMessage('Each record status must be Present or Absent'),
+]), async (req, res) => {
   try {
     const { records, date, teacherName, className } = req.body;
     console.log('Attendance save request:', { date, recordCount: records?.length, markedBy: records?.[0]?.markedBy || 'NOT SET' });
@@ -5793,7 +5829,17 @@ app.get('/api/trip/scans', async (req, res) => {
 
 const recentScans = {};
 
-app.post('/api/trip/scan', scanLimiter, async (req, res) => {
+app.post('/api/trip/scan', scanLimiter, validate([
+  body().custom((value, { req: r }) => {
+    if (!r.body.qrData && !r.body.studentId) {
+      throw new Error('Either qrData or studentId is required');
+    }
+    return true;
+  }),
+  body('qrData').optional().isString().trim(),
+  body('studentId').optional().isString().trim(),
+  body('busId').optional().isString().trim(),
+]), async (req, res) => {
   try {
     const { qrData, studentId: legacyStudentId, driverId, busId, scannedBy, role, timestamp } = req.body;
     const scanTime = timestamp || new Date().toISOString();
@@ -6750,7 +6796,10 @@ app.get('/api/duty/status', async (req, res) => {
   }
 });
 
-app.post('/api/duty/mark-area-complete', verifyAuth, async (req, res) => {
+app.post('/api/duty/mark-area-complete', verifyAuth, validate([
+  body('roleId').notEmpty().trim().withMessage('roleId is required'),
+  body('areaName').notEmpty().trim().withMessage('areaName is required'),
+]), async (req, res) => {
   try {
     const { roleId, areaName, completedAt } = req.body;
     if (!roleId || !areaName) return res.status(400).json({ error: 'roleId and areaName required' });
@@ -9531,6 +9580,11 @@ app.listen(PORT, '0.0.0.0', async () => {
   console.log(`Vidyalayam server running on port ${PORT}`);
   console.log('Database: Firebase Firestore (project: ' + firebaseConfig.projectId + ')');
   console.log('Auth: Firebase Authentication (Email/Password) — NO FALLBACK');
+  console.log('✅ CORS configured for ' + (process.env.NODE_ENV === 'production' ? 'production (no localhost)' : 'development (localhost allowed)'));
+  console.log('✅ Validation middleware ready');
+  console.log('✅ WhatsApp webhook token ' + (process.env.WHATSAPP_VERIFY_TOKEN ? 'loaded' : 'NOT SET — set WHATSAPP_VERIFY_TOKEN in secrets'));
+  console.log('✅ Rate limiting active');
+  console.log('✅ Security headers enabled (helmet + manual headers)');
   scheduleAutoClockout();
   console.log('Auto clock-out scheduled: 7:00 PM daily');
   scheduleDailyBackup();
