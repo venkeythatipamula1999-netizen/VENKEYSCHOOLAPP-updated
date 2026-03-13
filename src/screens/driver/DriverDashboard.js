@@ -32,6 +32,7 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
   const [unreadNotifs, setUnreadNotifs] = useState(0);
   const [recentScans, setRecentScans] = useState([]);
   const [crew, setCrew] = useState(null);
+  const [assignedBus, setAssignedBus] = useState(null);
   const watchRef = useRef(null);
   const intervalRef = useRef(null);
   const elapsedRef = useRef(null);
@@ -44,8 +45,12 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
 
   const driverName = currentUser?.full_name || DRIVER_DEFAULT.name;
   const driverId = currentUser?.role_id || DRIVER_DEFAULT.id;
-  const busNumber = currentUser?.bus_number || DRIVER_DEFAULT.bus.number;
-  const busRoute = currentUser?.route || DRIVER_DEFAULT.bus.route;
+  const busNumber = currentUser?.bus_number || assignedBus?.busNumber || DRIVER_DEFAULT.bus.number;
+  const busRoute = assignedBus
+    ? (assignedBus.routeId && assignedBus.routeName
+        ? `${assignedBus.routeId} – ${assignedBus.routeName}`
+        : assignedBus.routeName || assignedBus.routeId || currentUser?.route || '')
+    : (currentUser?.route || '');
   const initials = driverName.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
 
   const getRouteKey = () => {
@@ -124,6 +129,21 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
   useEffect(() => {
     loadTodaySummary();
   }, [loadTodaySummary]);
+
+  useEffect(() => {
+    const fetchMyBus = async () => {
+      try {
+        const res = await apiFetch('/driver/my-bus');
+        const data = await res.json();
+        if (data.success && data.bus) {
+          setAssignedBus(data.bus);
+        }
+      } catch (e) {
+        console.error('[DriverDashboard] fetchMyBus error:', e.message);
+      }
+    };
+    fetchMyBus();
+  }, [driverId]);
 
   useEffect(() => {
     return () => {
@@ -320,7 +340,7 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
 
       const res = await apiFetch('/bus/start-trip', {
         method: 'POST',
-        body: JSON.stringify({ driverId, driverName, busNumber, route: busRoute, tripType: 'school', lat: startLat, lng: startLng }),
+        body: JSON.stringify({ driverId, driverName, busNumber, busId: assignedBus?.busId || '', route: busRoute, tripType: 'school', lat: startLat, lng: startLng }),
       });
       const data = await res.json();
       if (data.success) {
@@ -351,7 +371,7 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
       const totalDistanceKm = parseFloat((distanceRef.current / 1000).toFixed(2));
       const res = await apiFetch('/bus/end-trip', {
         method: 'POST',
-        body: JSON.stringify({ tripId, driverId, driverName, busNumber, route: busRoute, totalDistance: totalDistanceKm, studentsBoarded: boardedCount }),
+        body: JSON.stringify({ tripId, driverId, driverName, busNumber, busId: assignedBus?.busId || '', route: busRoute, totalDistance: totalDistanceKm, studentsBoarded: boardedCount }),
       });
       const data = await res.json();
       if (data.success) {
@@ -516,7 +536,7 @@ export default function DriverDashboard({ onNavigate, currentUser }) {
               <Text style={{ fontWeight: '700', fontSize: 15, color: C.white }}>
                 {tripActive ? 'Trip In Progress' : 'Start a Trip'}
               </Text>
-              <Text style={{ color: C.muted, fontSize: 12 }}>{busRoute}</Text>
+              <Text style={{ color: C.muted, fontSize: 12 }}>{busRoute || 'No route assigned yet'}</Text>
             </View>
             {tripActive && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>

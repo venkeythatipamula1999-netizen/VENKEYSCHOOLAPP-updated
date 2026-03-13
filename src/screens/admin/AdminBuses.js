@@ -138,7 +138,7 @@ export default function AdminBuses({ onBack, currentUser }) {
 
   const openAssignModal = async (bus) => {
     setSelectedBus(bus);
-    setSelectedStudentIds(bus.studentIds || []);
+    setSelectedStudentIds(bus.assignedStudents || bus.studentIds || []);
     setShowAssignModal(true);
     setStudentsLoading(true);
     try {
@@ -174,6 +174,7 @@ export default function AdminBuses({ onBack, currentUser }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to assign students');
       setShowAssignModal(false);
+      showToast(`${data.count} students assigned`, 'success');
       fetchBuses();
     } catch (err) {
       showToast(getFriendlyError(err, 'Failed to assign students.'), 'error');
@@ -261,7 +262,7 @@ export default function AdminBuses({ onBack, currentUser }) {
                   {bus.route ? <Text style={{ color: C.muted, fontSize: 12 }}>Route: {bus.route}</Text> : null}
                   {bus.driverName ? <Text style={{ color: C.muted, fontSize: 12 }}>Driver: {bus.driverName}</Text> : null}
                   <Text style={{ color: C.teal, fontSize: 12, marginTop: 4 }}>
-                    {(bus.studentIds || []).length} students assigned
+                    {(bus.assignedStudents || bus.studentIds || []).length} students assigned
                   </Text>
                 </View>
                 <View style={{ backgroundColor: bus.status === 'active' ? C.teal + '22' : C.muted + '22', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99 }}>

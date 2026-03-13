@@ -5719,29 +5719,40 @@ app.post('/api/admin/buses/assign-students', verifyAuth, async (req, res) => {
       return res.status(403).json({ error: 'Admin access required' });
     }
     const { busId, studentIds } = req.body;
-    if (!busId || !studentIds) return res.status(400).json({ error: 'busId and studentIds required' });
+    if (!busId || !Array.isArray(studentIds)) {
+      return res.status(400).json({ error: 'busId and studentIds array required' });
+    }
     const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
 
     const busSnap = await db.collection('buses').doc(busId).get();
-    if (!busSnap.exists() || busSnap.data().schoolId !== schoolId) {
+    if (!busSnap.exists()) {
+      return res.status(404).json({ error: 'Bus not found' });
+    }
+    const busData = busSnap.data();
+    if (busData.schoolId && busData.schoolId !== schoolId) {
       return res.status(403).json({ error: 'Bus not found in your school' });
     }
 
     await db.collection('buses').doc(busId).update({
+      assignedStudents: studentIds,
       studentIds,
       updatedAt: new Date().toISOString()
     });
 
     for (const sid of studentIds) {
-      const studentQ = db.collection('students').where('studentId', '==', sid).where('schoolId', '==', schoolId);
-      const studentSnap = await studentQ.get();
-      if (!studentSnap.empty) {
-        await studentSnap.docs[0].ref.update({ busId, updatedAt: new Date().toISOString() });
+      try {
+        const studentQ = db.collection('students').where('studentId', '==', sid).where('schoolId', '==', schoolId);
+        const studentSnap = await studentQ.get();
+        if (!studentSnap.empty) {
+          await studentSnap.docs[0].ref.update({ busId, updatedAt: new Date().toISOString() });
+        }
+      } catch (studentErr) {
+        console.warn(`[assign-students] Could not update student ${sid}:`, studentErr.message);
       }
     }
 
     console.log(`Assigned ${studentIds.length} students to bus ${busId}`);
-    res.json({ success: true, assigned: studentIds.length });
+    res.json({ success: true, count: studentIds.length });
   } catch (err) {
     console.error('Assign students to bus error:', err.message);
     res.status(500).json({ error: err.message });
@@ -6376,7 +6387,7 @@ app.get('/api/bus/route-students', async (req, res) => {
         busId = busSnap.docs[0].id;
         busNumber = busData.busNumber || busNumber;
         busRoute = busData.route || busRoute;
-        assignedStudentIds = busData.studentIds || [];
+        assignedStudentIds = busData.assignedStudents || busData.studentIds || [];
       }
     }
 
@@ -9538,6 +9549,68 @@ app.get('/api/bus/crew', verifyAuth, async (req, res) => {
   } catch (err) {
     console.error('Bus crew error:', err.message);
     res.status(500).json({ error: 'Failed to fetch bus crew' });
+  }
+});
+
+app.get('/api/driver/my-bus', verifyAuth, async (req, res) => {
+  try {
+    const driverId = req.userId || req.query.driverId;
+    if (!driverId) return res.status(400).json({ error: 'driverId required' });
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+
+    let bus = null;
+
+    const byDriverId = db.collection('buses').where('driverId', '==', driverId);
+    const snap1 = await byDriverId.get();
+    if (!snap1.empty) {
+      const doc = snap1.docs[0];
+      bus = { busId: doc.id, ...doc.data() };
+    }
+
+    if (!bus) {
+      const userQ = db.collection('users').where('role_id', '==', driverId);
+      const userSnap = await userQ.get();
+      if (!userSnap.empty) {
+        const userData = userSnap.docs[0].data();
+        const driverName = userData.full_name || '';
+        if (driverName) {
+          const byName = db.collection('buses').where('driverName', '==', driverName);
+          const snap2 = await byName.get();
+          if (!snap2.empty) {
+            const doc = snap2.docs[0];
+            bus = { busId: doc.id, ...doc.data() };
+          }
+        }
+        if (!bus && userData.bus_number) {
+          const byNum = db.collection('buses').where('busNumber', '==', userData.bus_number);
+          const snap3 = await byNum.get();
+          if (!snap3.empty) {
+            const doc = snap3.docs[0];
+            bus = { busId: doc.id, ...doc.data() };
+          }
+        }
+      }
+    }
+
+    if (!bus) return res.json({ success: true, bus: null });
+
+    res.json({
+      success: true,
+      bus: {
+        busId: bus.busId,
+        busNumber: bus.busNumber || '',
+        routeId: bus.routeId || bus.routeNumber || '',
+        routeName: bus.routeName || bus.route || '',
+        driverName: bus.driverName || '',
+        driverId: bus.driverId || '',
+        capacity: bus.capacity || 0,
+        assignedStudents: bus.assignedStudents || bus.studentIds || [],
+        status: bus.status || 'active',
+      }
+    });
+  } catch (err) {
+    console.error('Driver my-bus error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch bus assignment' });
   }
 });
 
