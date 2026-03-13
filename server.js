@@ -268,8 +268,8 @@ app.use((req, res, next) => {
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; object-src 'none'; frame-ancestors 'none'");
-  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' blob:; style-src 'self' 'unsafe-inline'; worker-src blob:; font-src 'self' data:; img-src 'self' data: https:; connect-src 'self' https:; object-src 'none'; frame-ancestors 'none'");
+  res.setHeader('Permissions-Policy', 'geolocation=(self), microphone=(), camera=(self)');
   res.removeHeader('X-Powered-By');
   next();
 });
