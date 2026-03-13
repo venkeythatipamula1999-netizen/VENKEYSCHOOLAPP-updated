@@ -349,7 +349,7 @@ export default function App() {
       case 'digital-folder': return <DigitalFolder onBack={() => navigate('parent-home')} currentUser={currentUser} />;
       case 'teacher-home': return <TeacherDashboard onNavigate={navigate} currentUser={currentUser} onLogout={handleLogout} currentScreen={screen} />;
       case 'teacher-attendance': return <TeacherAttendance onBack={() => navigate('teacher-home')} currentUser={currentUser} />;
-      case 'teacher-marks': return <CCEHomeScreen onBack={() => navigate('teacher-home')} currentUser={currentUser} />;
+      case 'teacher-marks': return <CCEHomeScreen onBack={() => navigate('teacher-home')} onNavigate={navigate} currentUser={currentUser} />;
       case 'teacher-schedule': return <TeacherScheduleScreen onBack={() => navigate('teacher-home')} currentUser={currentUser} />;
       case 'teacher-bus': return <TeacherBusMonitor onBack={() => navigate('teacher-home')} currentUser={currentUser} />;
       case 'teacher-alerts': return <TeacherAlertsScreen onBack={() => navigate('teacher-home')} requests={leaveRequests} setRequests={setLeaveRequests} currentUser={currentUser} />;

@@ -455,7 +455,7 @@ export default function TeacherDashboard({ onNavigate, currentUser, onLogout, cu
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 }}>
           {[
             { label: 'Mark Attendance', icon: 'check', color: C.teal, screen: 'teacher-attendance' },
-            { label: 'Enter Marks', icon: 'chart', color: C.gold, screen: 'teacher-marks' },
+            { label: 'Enter Marks', icon: 'chart', color: C.gold, screen: 'cce-home' },
             { label: 'My Schedule', icon: 'book', color: C.purple, screen: 'teacher-schedule' },
             { label: 'Bus Monitor', icon: 'bus', color: C.coral, screen: 'teacher-bus' },
           ].map(a => (
