@@ -129,16 +129,21 @@ export default function App() {
         }
 
         try {
-          const payload = JSON.parse(atob(token.split('.')[1]));
-          if (payload.exp * 1000 < Date.now()) {
-            await AsyncStorage.multiRemove(['authToken', 'userData']);
-            setScreen('school-splash');
-            return;
+          const base64Part = token.split('.')[1];
+          if (base64Part) {
+            const padded = base64Part.replace(/-/g, '+').replace(/_/g, '/');
+            const decoded = typeof atob === 'function' ? atob(padded) : null;
+            if (decoded) {
+              const payload = JSON.parse(decoded);
+              if (payload.exp && payload.exp * 1000 < Date.now()) {
+                await AsyncStorage.multiRemove(['authToken', 'userData']);
+                setScreen('school-splash');
+                return;
+              }
+            }
           }
         } catch {
-          await AsyncStorage.multiRemove(['authToken', 'userData']);
-          setScreen('school-splash');
-          return;
+          console.warn('[Auth] JWT decode failed, proceeding with stored session');
         }
 
         const userData = JSON.parse(storedUser);
