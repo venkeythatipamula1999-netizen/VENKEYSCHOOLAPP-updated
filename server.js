@@ -288,6 +288,8 @@ app.use((req, res, next) => {
 });
 // ── END GLOBAL AUTH GUARD ───────────────────────────────────────
 
+app.use('/api/cce', require('./routes/cce'));
+
 app.use((req, res, next) => {
   res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.set("Pragma", "no-cache");

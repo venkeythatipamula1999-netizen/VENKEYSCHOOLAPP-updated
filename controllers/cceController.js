@@ -1,0 +1,344 @@
+'use strict';
+
+const admin = require('firebase-admin');
+const {
+  getFAGrade, getSAGrade, getFinalGrade,
+  MAX_MARKS, VALID_EXAM_TYPES,
+} = require('../helpers/cceGrading');
+
+const DEFAULT_SCHOOL_ID = process.env.DEFAULT_SCHOOL_ID || 'school_001';
+
+function db() { return admin.firestore(); }
+
+function cceColl(schoolId) {
+  return db().collection('schools').doc(schoolId).collection('cce_marks');
+}
+
+function docId(studentId, subjectId, examType, academicYear) {
+  return `${studentId}_${subjectId}_${examType}_${academicYear}`;
+}
+
+function schoolId(req) { return req.schoolId || DEFAULT_SCHOOL_ID; }
+
+function validateEntry(examType, marks) {
+  if (!VALID_EXAM_TYPES.includes(examType)) {
+    return `Invalid examType. Must be one of: ${VALID_EXAM_TYPES.join(', ')}`;
+  }
+  const n = Number(marks);
+  if (isNaN(n) || n < 0) return 'marks must be a number >= 0';
+  if (n > MAX_MARKS[examType])  return `marks cannot exceed ${MAX_MARKS[examType]} for ${examType}`;
+  return null;
+}
+
+// ── POST /api/cce/marks ──────────────────────────────────────────────────────
+async function saveMarks(req, res) {
+  try {
+    const { studentId, subjectId, examType, marks, academicYear, classId, section } = req.body;
+    if (!studentId || !subjectId || !academicYear || !classId) {
+      return res.status(400).json({ error: 'studentId, subjectId, academicYear, classId are required' });
+    }
+    const err = validateEntry(examType, marks);
+    if (err) return res.status(400).json({ error: err });
+
+    const maxM    = MAX_MARKS[examType];
+    const marksN  = Number(marks);
+    const id      = docId(studentId, subjectId, examType, academicYear);
+
+    await cceColl(schoolId(req)).doc(id).set({
+      studentId, subjectId, examType,
+      marks: marksN, maxMarks: maxM,
+      academicYear, classId, section: section || '',
+      schoolId: schoolId(req),
+      enteredBy:  req.userId || '',
+      updatedAt:  admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    res.json({ success: true, message: 'Marks saved' });
+  } catch (e) {
+    console.error('[cce/marks POST]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+// ── POST /api/cce/marks/bulk ─────────────────────────────────────────────────
+async function saveBulkMarks(req, res) {
+  try {
+    const { entries, subjectId, examType, academicYear, classId, section } = req.body;
+    if (!VALID_EXAM_TYPES.includes(examType)) {
+      return res.status(400).json({ error: `Invalid examType: ${examType}` });
+    }
+    if (!Array.isArray(entries) || entries.length === 0) {
+      return res.status(400).json({ error: 'entries must be a non-empty array' });
+    }
+    if (entries.length > 500) {
+      return res.status(400).json({ error: 'Maximum 500 entries per bulk operation' });
+    }
+
+    const maxM  = MAX_MARKS[examType];
+    const sid   = schoolId(req);
+    const coll  = cceColl(sid);
+    const batch = db().batch();
+    let count   = 0;
+
+    for (const entry of entries) {
+      const { studentId, marks } = entry;
+      if (!studentId) continue;
+      const n = Number(marks);
+      if (isNaN(n) || n < 0 || n > maxM) continue;
+
+      const id  = docId(studentId, subjectId, examType, academicYear);
+      const ref = coll.doc(id);
+      batch.set(ref, {
+        studentId, subjectId, examType,
+        marks: n, maxMarks: maxM,
+        academicYear, classId, section: section || '',
+        schoolId: sid,
+        enteredBy:  req.userId || '',
+        updatedAt:  admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+      count++;
+    }
+
+    await batch.commit();
+    res.json({ success: true, count });
+  } catch (e) {
+    console.error('[cce/marks/bulk]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+// ── GET /api/cce/marks ───────────────────────────────────────────────────────
+async function getMarks(req, res) {
+  try {
+    const { academicYear, classId, section, subjectId, examType } = req.query;
+    if (!academicYear || !classId || !subjectId || !examType) {
+      return res.status(400).json({ error: 'academicYear, classId, subjectId, examType are required' });
+    }
+
+    const snap = await cceColl(schoolId(req))
+      .where('academicYear', '==', academicYear)
+      .where('classId',      '==', classId)
+      .where('subjectId',    '==', subjectId)
+      .where('examType',     '==', examType)
+      .get();
+
+    let marks = snap.docs.map(d => {
+      const m = d.data();
+      return { studentId: m.studentId, marks: m.marks, maxMarks: m.maxMarks, updatedAt: m.updatedAt };
+    });
+
+    if (section) marks = marks.filter(m => {
+      const raw = snap.docs.find(d => d.data().studentId === m.studentId)?.data();
+      return raw?.section === section;
+    });
+
+    res.json({ success: true, marks });
+  } catch (e) {
+    console.error('[cce/marks GET]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+// ── Shared helpers ───────────────────────────────────────────────────────────
+async function fetchClassMarks(sid, academicYear, classId, section) {
+  const snap = await cceColl(sid)
+    .where('academicYear', '==', academicYear)
+    .where('classId',      '==', classId)
+    .get();
+  const docs = snap.docs.map(d => d.data());
+  return section ? docs.filter(d => d.section === section) : docs;
+}
+
+function groupByStudentSubjectExam(rows) {
+  const map = {};
+  for (const r of rows) {
+    map[r.studentId]                          = map[r.studentId]                          || {};
+    map[r.studentId][r.subjectId]             = map[r.studentId][r.subjectId]             || {};
+    map[r.studentId][r.subjectId][r.examType] = r.marks;
+  }
+  return map;
+}
+
+function n(v, fallback = 0) { return v !== undefined && v !== null ? Number(v) : fallback; }
+
+// ── GET /api/cce/results/halfyear ────────────────────────────────────────────
+async function getHalfYearResults(req, res) {
+  try {
+    const { academicYear, classId, section } = req.query;
+    if (!academicYear || !classId) {
+      return res.status(400).json({ error: 'academicYear and classId are required' });
+    }
+
+    const rows    = await fetchClassMarks(schoolId(req), academicYear, classId, section);
+    const grouped = groupByStudentSubjectExam(rows);
+
+    const results = Object.entries(grouped).map(([studentId, subjects]) => {
+      const subjectResults = {};
+      for (const [subjectId, exams] of Object.entries(subjects)) {
+        const fa1 = exams['FA1'] !== undefined ? n(exams['FA1']) : null;
+        const fa2 = exams['FA2'] !== undefined ? n(exams['FA2']) : null;
+        const sa1 = exams['SA1'] !== undefined ? n(exams['SA1']) : null;
+
+        const faTotal  = n(fa1) + n(fa2);
+        const faWeight = parseFloat(((faTotal / 40) * 20).toFixed(2));
+        const halfYear = sa1 !== null ? parseFloat((faWeight + sa1).toFixed(2)) : null;
+
+        const halfYearGrade = halfYear !== null ? getFinalGrade(halfYear) : null;
+
+        subjectResults[subjectId] = {
+          fa1, fa2,
+          faTotal, faWeight, sa1,
+          halfYear,
+          grade:       halfYearGrade?.grade  || null,
+          gradePoints: halfYearGrade?.points || null,
+        };
+      }
+      return { studentId, subjects: subjectResults };
+    });
+
+    res.json({ success: true, results });
+  } catch (e) {
+    console.error('[cce/results/halfyear]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+// ── GET /api/cce/results/final ───────────────────────────────────────────────
+async function getFinalResults(req, res) {
+  try {
+    const { academicYear, classId, section } = req.query;
+    if (!academicYear || !classId) {
+      return res.status(400).json({ error: 'academicYear and classId are required' });
+    }
+
+    const rows    = await fetchClassMarks(schoolId(req), academicYear, classId, section);
+    const grouped = groupByStudentSubjectExam(rows);
+
+    const results = Object.entries(grouped).map(([studentId, subjects]) => {
+      let totalFinalScore = 0;
+      let subjectCount    = 0;
+      const subjectResults = {};
+
+      for (const [subjectId, exams] of Object.entries(subjects)) {
+        const fa1 = n(exams['FA1']);
+        const fa2 = n(exams['FA2']);
+        const fa3 = n(exams['FA3']);
+        const fa4 = n(exams['FA4']);
+        const sa1 = n(exams['SA1']);
+        const sa2 = n(exams['SA2']);
+
+        const faTotal  = fa1 + fa2 + fa3 + fa4;
+        const faWeight = parseFloat(((faTotal / 80) * 40).toFixed(2));
+        const saTotal  = sa1 + sa2;
+        const saWeight = parseFloat(((saTotal / 160) * 60).toFixed(2));
+        const final    = parseFloat((faWeight + saWeight).toFixed(2));
+
+        const grade = getFinalGrade(final);
+        totalFinalScore += final;
+        subjectCount++;
+
+        subjectResults[subjectId] = {
+          fa1, fa2, fa3, fa4, faTotal, faWeight,
+          sa1, sa2, saTotal, saWeight,
+          finalScore:  final,
+          grade:       grade.grade,
+          gradePoints: grade.points,
+        };
+      }
+
+      const avgFinal    = subjectCount > 0 ? parseFloat((totalFinalScore / subjectCount).toFixed(2)) : 0;
+      const totalPoints = Object.values(subjectResults).reduce((s, r) => s + r.gradePoints, 0);
+      const overallGrade = getFinalGrade(avgFinal);
+
+      return { studentId, subjects: subjectResults, totalPoints, overallGrade: overallGrade.grade };
+    });
+
+    res.json({ success: true, results });
+  } catch (e) {
+    console.error('[cce/results/final]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+// ── GET /api/cce/report/:studentId ───────────────────────────────────────────
+async function getStudentReport(req, res) {
+  try {
+    const { studentId } = req.params;
+    const { academicYear, classId, section, type } = req.query;
+    if (!academicYear || !classId) {
+      return res.status(400).json({ error: 'academicYear and classId are required' });
+    }
+
+    const snap = await cceColl(schoolId(req))
+      .where('studentId',    '==', studentId)
+      .where('academicYear', '==', academicYear)
+      .where('classId',      '==', classId)
+      .get();
+
+    let rows = snap.docs.map(d => d.data());
+    if (section) rows = rows.filter(r => r.section === section);
+
+    let studentName = '';
+    try {
+      const stu = await db().collection('students').doc(studentId).get();
+      if (stu.exists) { const sd = stu.data(); studentName = sd.studentName || sd.name || ''; }
+    } catch (_) {}
+
+    const subjectMap = {};
+    for (const r of rows) {
+      subjectMap[r.subjectId]             = subjectMap[r.subjectId] || {};
+      subjectMap[r.subjectId][r.examType] = r.marks;
+    }
+
+    const isFinal   = type === 'final';
+    const calcResults = {};
+
+    for (const [subjectId, exams] of Object.entries(subjectMap)) {
+      if (isFinal) {
+        const fa1 = n(exams['FA1']); const fa2 = n(exams['FA2']);
+        const fa3 = n(exams['FA3']); const fa4 = n(exams['FA4']);
+        const sa1 = n(exams['SA1']); const sa2 = n(exams['SA2']);
+
+        const faTotal  = fa1 + fa2 + fa3 + fa4;
+        const faWeight = parseFloat(((faTotal / 80) * 40).toFixed(2));
+        const saTotal  = sa1 + sa2;
+        const saWeight = parseFloat(((saTotal / 160) * 60).toFixed(2));
+        const final    = parseFloat((faWeight + saWeight).toFixed(2));
+        const grade    = getFinalGrade(final);
+
+        calcResults[subjectId] = {
+          fa1, fa2, fa3, fa4, faTotal, faWeight,
+          sa1, sa2, saTotal, saWeight,
+          finalScore: final, grade: grade.grade, gradePoints: grade.points,
+        };
+      } else {
+        const fa1 = exams['FA1'] !== undefined ? n(exams['FA1']) : null;
+        const fa2 = exams['FA2'] !== undefined ? n(exams['FA2']) : null;
+        const sa1 = exams['SA1'] !== undefined ? n(exams['SA1']) : null;
+
+        const faTotal  = n(fa1) + n(fa2);
+        const faWeight = parseFloat(((faTotal / 40) * 20).toFixed(2));
+        const halfYear = sa1 !== null ? parseFloat((faWeight + sa1).toFixed(2)) : null;
+        const grade    = halfYear !== null ? getFinalGrade(halfYear) : null;
+
+        calcResults[subjectId] = {
+          fa1, fa2, faTotal, faWeight, sa1, halfYear,
+          grade:       grade?.grade  || null,
+          gradePoints: grade?.points || null,
+        };
+      }
+    }
+
+    res.json({
+      success: true,
+      student: { studentId, name: studentName },
+      results: calcResults,
+      type:    type || 'halfyear',
+    });
+  } catch (e) {
+    console.error('[cce/report]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+module.exports = { saveMarks, saveBulkMarks, getMarks, getHalfYearResults, getFinalResults, getStudentReport };
