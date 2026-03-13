@@ -39,6 +39,10 @@ import TeacherAlertsScreen from './src/screens/teacher/TeacherAlertsScreen';
 import TeacherPersonalScreen from './src/screens/teacher/TeacherPersonalScreen';
 import TeacherProfile from './src/screens/teacher/TeacherProfile';
 import TeacherSendDocument from './src/screens/teacher/TeacherSendDocument';
+import CCEHomeScreen from './src/screens/cce/CCEHomeScreen';
+import CCEMarkEntryScreen from './src/screens/cce/CCEMarkEntryScreen';
+import CCEHalfYearReportScreen from './src/screens/cce/CCEHalfYearReportScreen';
+import CCEFinalReportScreen from './src/screens/cce/CCEFinalReportScreen';
 import AdminOverview from './src/screens/admin/AdminOverview';
 import AdminSendDocument from './src/screens/admin/AdminSendDocument';
 import AdminStudents from './src/screens/admin/AdminStudents';
@@ -205,7 +209,7 @@ export default function App() {
   const driverScreens = ['driver-home', 'driver-scans', 'driver-locations', 'driver-duration', 'driver-profile', 'driver-leave', 'driver-proximity'];
   const cleanerScreens = ['cleaner-home', 'cleaner-scanner', 'cleaner-duration', 'cleaner-alerts', 'cleaner-profile', 'cleaner-leave'];
   const isParentHome = ['parent-home', 'attendance', 'marks', 'bus', 'notifications', 'activities', 'fee', 'leave', 'digital-folder'].includes(screen);
-  const isTeacherHome = ['teacher-home', 'teacher-attendance', 'teacher-marks', 'teacher-schedule', 'teacher-bus', 'teacher-alerts', 'teacher-personal', 'teacher-profile', 'teacher-send-document'].includes(screen);
+  const isTeacherHome = ['teacher-home', 'teacher-attendance', 'teacher-marks', 'teacher-schedule', 'teacher-bus', 'teacher-alerts', 'teacher-personal', 'teacher-profile', 'teacher-send-document', 'cce-home', 'cce-mark-entry', 'cce-halfyear', 'cce-final'].includes(screen);
   const isDriverHome = driverScreens.includes(screen);
   const isCleanerHome = cleanerScreens.includes(screen);
   const isAdminHome = adminScreens.includes(screen);
@@ -275,6 +279,7 @@ export default function App() {
     { id: 'home', label: 'Dashboard', icon: 'home', screen: 'teacher-home' },
     { id: 'attend', label: 'Attendance', icon: 'check', screen: 'teacher-attendance' },
     { id: 'marks', label: 'Marks', icon: 'chart', screen: 'teacher-marks' },
+    { id: 'cce', label: 'CCE', icon: 'star', screen: 'cce-home' },
     { id: 'alerts', label: 'Alerts', icon: 'bell', screen: 'teacher-alerts' },
     { id: 'personal', label: 'My Leave', icon: 'star', screen: 'teacher-personal' },
     { id: 'profile', label: 'Profile', icon: 'user', screen: 'teacher-profile' },
@@ -353,6 +358,10 @@ export default function App() {
       case 'teacher-personal': return <TeacherPersonalScreen onBack={() => navigate('teacher-home')} currentUser={currentUser} />;
       case 'teacher-profile': return <TeacherProfile onBack={() => navigate('teacher-home')} currentUser={currentUser} onLogout={handleLogout} />;
       case 'teacher-send-document': return <TeacherSendDocument onBack={() => navigate('teacher-home')} currentUser={currentUser} isAdmin={false} />;
+      case 'cce-home': return <CCEHomeScreen onBack={() => navigate('teacher-home')} onNavigate={navigate} />;
+      case 'cce-mark-entry': return <CCEMarkEntryScreen onBack={() => navigate('cce-home')} params={navParams} />;
+      case 'cce-halfyear': return <CCEHalfYearReportScreen onBack={() => navigate('cce-home')} params={navParams} />;
+      case 'cce-final': return <CCEFinalReportScreen onBack={() => navigate('cce-home')} params={navParams} />;
       case 'explore': return <ExploreScreen onBack={() => navigate('splash')} />;
       case 'contact': return <ContactScreen onBack={() => navigate('splash')} />;
       case 'driver-home': return <DriverDashboard onNavigate={navigate} currentUser={currentUser} />;
