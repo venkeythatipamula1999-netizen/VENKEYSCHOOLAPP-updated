@@ -2561,6 +2561,60 @@ app.get('/api/teacher/permissions', async (req, res) => {
   }
 });
 
+app.get('/api/teacher/classes', async (req, res) => {
+  try {
+    const { roleId } = req.query;
+    if (!roleId) return res.status(400).json({ error: 'roleId is required' });
+
+    const usersRef = db.collection('users');
+    const q = usersRef.where('role_id', '==', roleId);
+    const snap = await q.get();
+    if (snap.empty) return res.status(404).json({ error: 'Teacher not found' });
+
+    const data = snap.docs[0].data();
+    const timetable = data.timetable || [];
+    const assignedClasses = data.assignedClasses || [];
+
+    const uniqueClassNames = [...new Set([
+      ...assignedClasses,
+      ...timetable.map(e => e.className).filter(Boolean),
+    ])];
+
+    const classesRef = db.collection('classes');
+    const classDetails = await Promise.all(uniqueClassNames.map(async (className) => {
+      try {
+        const classSnap = await classesRef.where('name', '==', className).limit(1).get();
+        if (!classSnap.empty) {
+          const classData = classSnap.docs[0].data();
+          return {
+            id: classSnap.docs[0].id,
+            name: className,
+            studentCount: classData.studentCount || 0,
+            section: classData.section || '',
+          };
+        }
+        const studentsSnap = await db.collection('students').where('classId', '==', className).get();
+        return { id: className, name: className, studentCount: studentsSnap.size, section: '' };
+      } catch {
+        return { id: className, name: className, studentCount: 0, section: '' };
+      }
+    }));
+
+    const subjects = [...new Set(timetable.map(e => e.subject).filter(Boolean))];
+
+    res.json({
+      classes: classDetails,
+      timetable,
+      assignedClasses: uniqueClassNames,
+      subjects,
+      classTeacherOf: data.classTeacherOf || null,
+    });
+  } catch (err) {
+    console.error('Teacher classes error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch teacher classes' });
+  }
+});
+
 app.post('/api/save-timetable', async (req, res) => {
   try {
     if (req.userRole !== 'principal' && req.userRole !== 'admin') {
@@ -3008,6 +3062,7 @@ app.post('/api/marks/save', validate([
         createdAt: new Date().toISOString(),
       });
       console.log(`[marks] Admin notification sent: ${subject} ${examType} for class ${classId}`);
+      sendPushToAdmins(req.schoolId || DEFAULT_SCHOOL_ID, '📝 Marks Submitted', `${teacherId || 'Teacher'} submitted ${subject} marks for ${examType} — Class ${className || classId}`, { type: 'marks_submitted', classId, subject, examType });
     } catch (notifErr) {
       console.error('[marks] Admin notification error:', notifErr.message);
     }
@@ -3193,8 +3248,37 @@ app.post('/api/marks/edit', async (req, res) => {
         isRead: false,
         createdAt: editedAt,
       });
+      sendPushToAdmins(req.schoolId || DEFAULT_SCHOOL_ID, '✏️ Marks Edit', `${editedBy || 'Teacher'} changed ${studentName}'s ${subject} marks from ${oldMarks ?? '?'} to ${newMarks}. Reason: ${reason.trim()}`, { type: 'marks_edited', studentId, subject, examType });
     } catch (notifErr) {
       console.error('[marks/edit] Admin notification error:', notifErr.message);
+    }
+
+    try {
+      const studentQuery = db.collection('students').where('studentId', '==', studentId);
+      const studentSnap = await studentQuery.get();
+      const parentId = !studentSnap.empty ? (studentSnap.docs[0].data().parentId || studentSnap.docs[0].data().parent_uid || '') : '';
+      if (parentId) {
+        sendPushNotification(parentId, '📝 Marks Updated', `${studentName}'s ${subject} marks changed to ${newMarks}/${Number(maxMarks) || 20}. Reason: ${reason.trim()}`, { type: 'marks_edit', studentId, subject, examType });
+      }
+      await db.collection('parent_notifications').add({
+        studentId,
+        studentName: studentName || '',
+        type: 'marks_edited',
+        title: 'Marks Updated',
+        message: `Dear Parent, ${studentName}'s ${subject} marks (${normalizeExamType(examType)}) were updated to ${newMarks}/${Number(maxMarks) || 20}. Previous: ${oldMarks ?? '?'}. Reason: ${reason.trim()}`,
+        subject,
+        examType: normalizeExamType(examType),
+        classId,
+        oldMarks: oldMarks !== null ? Number(oldMarks) : null,
+        newMarks: Number(newMarks),
+        maxMarks: Number(maxMarks) || 20,
+        reason: reason.trim(),
+        schoolId: (req.schoolId || DEFAULT_SCHOOL_ID),
+        read: false,
+        createdAt: editedAt,
+      });
+    } catch (parentMarkErr) {
+      console.error('[marks/edit] Parent notification error:', parentMarkErr.message);
     }
 
     res.json({ success: true, message: 'Marks updated successfully.', oldMarks, newMarks: Number(newMarks) });
@@ -4289,6 +4373,7 @@ app.post('/api/attendance/save', validate([
         read: false,
         createdAt: submittedAt,
       });
+      sendPushToAdmins(req.schoolId || DEFAULT_SCHOOL_ID, '✅ Attendance Submitted', `${teacherName || markedBy} marked attendance for Grade ${resolvedClassName} on ${date}. Present: ${presentCount} | Absent: ${absentCount}`, { type: 'attendance_submitted', classId, date });
     } catch (notifErr) {
       console.error('Admin notification error:', notifErr.message);
     }
@@ -4496,8 +4581,37 @@ app.post('/api/attendance/edit', async (req, res) => {
         read: false,
         createdAt: editedAt,
       });
+      sendPushToAdmins(req.schoolId || DEFAULT_SCHOOL_ID, '✏️ Attendance Edit', `${teacherName || editedBy} changed ${studentName} from ${oldStatus} to ${newStatus} on ${date}. Reason: ${reason.trim()}`, { type: 'attendance_edited', studentId, classId, date });
     } catch (notifErr) {
       console.error('Admin edit notification error:', notifErr.message);
+    }
+
+    if (newStatus === 'Absent') {
+      try {
+        const studentDoc = await db.collection('students').doc(studentId).get();
+        const parentId = studentDoc.exists() ? (studentDoc.data().parentId || studentDoc.data().parent_uid || '') : '';
+        if (parentId) {
+          sendPushNotification(parentId, '📋 Attendance Updated', `${studentName} was marked Absent on ${date}. Reason: ${reason.trim()}`, { type: 'attendance_edit_absent', studentId, date });
+        }
+        await db.collection('parent_notifications').add({
+          studentId,
+          studentName: studentName || '',
+          type: 'attendance_edit_absent',
+          title: 'Attendance Updated',
+          message: `Dear Parent, ${studentName}'s attendance was updated to Absent on ${date} in Grade ${className}. Reason: ${reason.trim()}`,
+          className,
+          classId,
+          date,
+          oldStatus,
+          newStatus,
+          reason: reason.trim(),
+          schoolId: (req.schoolId || DEFAULT_SCHOOL_ID),
+          read: false,
+          createdAt: editedAt,
+        });
+      } catch (parentEditErr) {
+        console.error('Parent edit notification error:', parentEditErr.message);
+      }
     }
 
     let sheetSync = { success: false };
@@ -7604,6 +7718,22 @@ async function sendPushNotification(userId, title, body, data = {}) {
     });
   } catch (err) {
     console.error('Push notification error:', err.message);
+  }
+}
+
+async function sendPushToAdmins(schoolId, title, body, data = {}) {
+  try {
+    const effSchoolId = schoolId || DEFAULT_SCHOOL_ID;
+    const adminSnap = await db.collection('users')
+      .where('schoolId', '==', effSchoolId)
+      .where('role', 'in', ['admin', 'principal'])
+      .get();
+    await Promise.all(adminSnap.docs.map(async d => {
+      const uid = d.data().uid || d.data().role_id || '';
+      if (uid) sendPushNotification(uid, title, body, data);
+    }));
+  } catch (e) {
+    console.error('[sendPushToAdmins] Error:', e.message);
   }
 }
 
