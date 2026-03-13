@@ -4,7 +4,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { C } from './src/theme/colors';
 import { S } from './src/theme/styles';
 import Icon from './src/components/Icon';
-import { INITIAL_LEAVE_REQS } from './src/data/teacher';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { useGlobalErrorListener } from './src/hooks/useGlobalErrorListener';
 import { setErrorReporterUser, clearErrorReporterUser } from './src/services/errorReporter';
@@ -83,7 +82,7 @@ export default function App() {
   const [screen, setScreen] = useState('loading');
   const [role, setRole] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
-  const [leaveRequests, setLeaveRequests] = useState(INITIAL_LEAVE_REQS);
+  const [leaveRequests, setLeaveRequests] = useState([]);
   const [cleanerStudents, setCleanerStudents] = useState(STUDENTS_INIT_CLEANER);
   const [cleanerNotifs, setCleanerNotifs] = useState([]);
   const scrollRef = useRef(null);
@@ -438,18 +437,26 @@ export default function App() {
   const content = (
     <View style={isWeb ? webContainerStyle : { flex: 1, backgroundColor: C.navy }}>
 
-      <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1 }}>
-        <React.Fragment key={screen}>
-          {renderScreen()}
-        </React.Fragment>
-      </ScrollView>
+      {Platform.OS === 'web' ? (
+        <View style={{ flex: 1 }}>
+          <React.Fragment key={screen}>
+            {renderScreen()}
+          </React.Fragment>
+        </View>
+      ) : (
+        <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1 }}>
+          <React.Fragment key={screen}>
+            {renderScreen()}
+          </React.Fragment>
+        </ScrollView>
+      )}
 
       {showNav && (
         <View style={[S.bottomNav, { flexShrink: 0 }]}>
           {tabs.map(t => {
             const isActive = screen === t.screen;
             const pendingLeaveCount = isTeacherHome && t.id === 'alerts'
-              ? leaveRequests.filter(r => r.status === 'Pending').length
+              ? (leaveRequests || []).filter(r => r.status === 'Pending').length
               : 0;
             return (
               <TouchableOpacity key={t.id} style={[S.navItem, { position: 'relative' }]} onPress={() => navigate(t.screen)}>

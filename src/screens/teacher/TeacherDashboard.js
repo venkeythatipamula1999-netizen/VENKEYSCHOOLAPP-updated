@@ -331,7 +331,8 @@ export default function TeacherDashboard({ onNavigate, currentUser, onLogout, cu
   }, 0);
 
   return (
-    <View style={{ backgroundColor: C.navy }}>
+    <View style={{ flex: 1, backgroundColor: C.navy }}>
+      <ScrollView style={{ flex: 1 }}>
 
       <View style={{ padding: 20, paddingTop: 8, paddingBottom: 16 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -559,6 +560,7 @@ export default function TeacherDashboard({ onNavigate, currentUser, onLogout, cu
           );
         })}
       </View>
+      </ScrollView>
     {showTodaySheet && (
       <TodayClassesSheet
         onClose={() => setShowTodaySheet(false)}

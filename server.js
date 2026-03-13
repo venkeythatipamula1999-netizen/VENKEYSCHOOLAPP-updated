@@ -8653,9 +8653,10 @@ app.use(express.static(path.join(__dirname, 'dist'), {
 app.get(/^(?!\/api\/).*$/, (req, res) => {
   const indexPath = path.join(__dirname, 'dist', 'index.html');
   if (require('fs').existsSync(indexPath)) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.sendFile(indexPath);
   } else {
-    res.status(200).json({ status: 'Vidyalayam API running', version: '2.0.0' });
+    res.status(200).json({ status: 'Vidyalayam API running', version: '2.1.0' });
   }
 });
 
