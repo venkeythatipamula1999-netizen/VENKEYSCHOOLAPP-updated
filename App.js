@@ -338,7 +338,9 @@ export default function App() {
       case 'teacher-login':
         return <LoginScreen role="teacher" onLoginSuccess={handleLoginSuccess} onBack={() => navigate('splash')} onNavigate={navigate} />;
       case 'driver-login':
-        return <LoginScreen role="driver" onLoginSuccess={handleLoginSuccess} onBack={() => navigate('parent-portal')} onNavigate={navigate} />;
+        return <LoginScreen role="driver" onLoginSuccess={handleLoginSuccess} onBack={() => navigate('splash')} onNavigate={navigate} />;
+      case 'cleaner-login':
+        return <LoginScreen role="cleaner" onLoginSuccess={handleLoginSuccess} onBack={() => navigate('splash')} onNavigate={navigate} />;
       case 'signup':
         return <SignupScreen onSignup={handleSignupSuccess} onBack={() => navigate(role === 'teacher' ? 'teacher-login' : 'parent-login')} />;
       case 'complete-profile':
@@ -361,7 +363,7 @@ export default function App() {
       case 'teacher-personal': return <TeacherPersonalScreen onBack={() => navigate('teacher-home')} currentUser={currentUser} />;
       case 'teacher-profile': return <TeacherProfile onBack={() => navigate('teacher-home')} currentUser={currentUser} onLogout={handleLogout} />;
       case 'teacher-send-document': return <TeacherSendDocument onBack={() => navigate('teacher-home')} currentUser={currentUser} isAdmin={false} />;
-      case 'cce-home': return <CCEHomeScreen onBack={() => navigate('teacher-home')} onNavigate={navigate} />;
+      case 'cce-home': return <CCEHomeScreen onBack={() => navigate('teacher-home')} onNavigate={navigate} currentUser={currentUser} />;
       case 'cce-mark-entry': return <CCEMarkEntryScreen onBack={() => navigate('cce-home')} params={navParams} />;
       case 'cce-halfyear': return <CCEHalfYearReportScreen onBack={() => navigate('cce-home')} params={navParams} />;
       case 'cce-final': return <CCEFinalReportScreen onBack={() => navigate('cce-home')} params={navParams} />;

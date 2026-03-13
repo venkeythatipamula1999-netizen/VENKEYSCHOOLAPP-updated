@@ -21,6 +21,7 @@ export default function LoginScreen({ role, onLoginSuccess, onBack, onNavigate }
   const [resetSent, setResetSent] = useState(false);
   const isParent = role === 'parent';
   const isDriver = role === 'driver';
+  const isCleaner = role === 'cleaner';
 
   const [schoolName, setSchoolName] = useState('');
   const [schoolLogoUrl, setSchoolLogoUrl] = useState('');
@@ -123,8 +124,8 @@ export default function LoginScreen({ role, onLoginSuccess, onBack, onNavigate }
           ) : null}
           <View style={{ marginBottom: 36 }}>
             <View style={[S.chip, isParent ? S.chipGold : S.chipTeal, { marginBottom: 16, alignSelf: 'flex-start' }]}>
-              <Text style={[S.chipText, { color: isParent ? C.gold : isDriver ? '#A78BFA' : C.teal }]}>
-                {isParent ? '👨‍👩‍👧 Parent Portal' : isDriver ? '🚌 Driver Portal' : '👩‍🏫 Teacher / Staff Portal'}
+              <Text style={[S.chipText, { color: isParent ? C.gold : isDriver ? '#A78BFA' : isCleaner ? C.gold : C.teal }]}>
+                {isParent ? '👨‍👩‍👧 Parent Portal' : isDriver ? '🚌 Driver Portal' : isCleaner ? '🧹 Cleaner / Attender Portal' : '👩‍🏫 Teacher / Staff Portal'}
               </Text>
             </View>
             <Text style={{ fontSize: 30, fontWeight: '700', color: C.white, marginBottom: 8 }}>

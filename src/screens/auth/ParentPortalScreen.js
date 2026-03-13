@@ -36,6 +36,16 @@ const ROLES = [
     idHint: 'Found on your appointment letter from admin',
     apiRole: 'driver',
   },
+  {
+    id: 'cleaner',
+    label: 'Cleaner / Attender',
+    icon: '🧹',
+    accent: C.gold,
+    idLabel: 'Cleaner Staff ID',
+    idPlaceholder: 'e.g. CLN-1234',
+    idHint: 'Found on your appointment letter from admin',
+    apiRole: 'cleaner',
+  },
 ];
 
 function StrengthBar({ password }) {
@@ -263,7 +273,7 @@ export default function ParentPortalScreen({ onBack, onLoginSuccess, onNavigate,
 
           <TouchableOpacity
             onPress={() => {
-              const dest = selectedRole === 'teacher' ? 'teacher-login' : selectedRole === 'driver' ? 'driver-login' : 'parent-login';
+              const dest = selectedRole === 'teacher' ? 'teacher-login' : selectedRole === 'driver' ? 'driver-login' : selectedRole === 'cleaner' ? 'cleaner-login' : 'parent-login';
               onNavigate && onNavigate(dest);
             }}
             style={{ alignItems: 'center', paddingVertical: 4 }}

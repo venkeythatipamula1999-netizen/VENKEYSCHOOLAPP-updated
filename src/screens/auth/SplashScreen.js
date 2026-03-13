@@ -59,6 +59,15 @@ export default function SplashScreen({ onSelect }) {
             </TouchableOpacity>
 
             <TouchableOpacity
+              style={[styles.btn, styles.btnPurple]}
+              onPress={() => onSelect('driver-login')}
+              activeOpacity={0.82}
+            >
+              <Ionicons name="bus" size={20} color="#fff" style={styles.btnIcon} />
+              <Text style={styles.btnText}>Driver / Cleaner Login</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
               style={[styles.btn, styles.btnOutline]}
               onPress={() => onSelect('explore')}
               activeOpacity={0.82}
@@ -179,6 +188,9 @@ const styles = StyleSheet.create({
   },
   btnTeal: {
     backgroundColor: '#00bfa5',
+  },
+  btnPurple: {
+    backgroundColor: '#7C3AED',
   },
   btnOutline: {
     backgroundColor: 'transparent',
