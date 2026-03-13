@@ -17,6 +17,92 @@ const subShort = (name) => (name || '').slice(0, 4);
 
 const BUS_DATA = [];
 
+function getCurrentAcademicYear() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  if (m >= 5) return `${y}-${String(y + 1).slice(2)}`;
+  return `${y - 1}-${String(y).slice(2)}`;
+}
+
+function adaptCCEHalfYearToClassData(results, nameMap = {}) {
+  const subjectSet = new Set();
+  results.forEach(r => Object.keys(r.subjects || {}).forEach(s => subjectSet.add(s)));
+  const subjectList = [...subjectSet];
+
+  const students = results.map(r => {
+    const subs = r.subjects || {};
+    const totalPoints = Object.values(subs).reduce((s, v) => s + (v.gradePoints || 0), 0);
+    const maxPoints = subjectList.length * 10;
+    const overallPct = maxPoints > 0 ? Math.round((totalPoints / maxPoints) * 100) : 0;
+    return {
+      name: nameMap[r.studentId] || r.studentId,
+      studentId: r.studentId,
+      rollNumber: '',
+      overallPct,
+      bySubject: subjectList.map(sub => ({
+        subject: sub,
+        avg: subs[sub]?.halfYear || 0,
+        pct: Math.round((subs[sub]?.gradePoints || 0) * 10),
+      })),
+    };
+  }).sort((a, b) => b.overallPct - a.overallPct);
+
+  const classAvgBySubject = subjectList.map(sub => {
+    const vals = results.map(r => r.subjects?.[sub]?.gradePoints || 0);
+    const avg = vals.length > 0 ? vals.reduce((s, v) => s + v, 0) / vals.length : 0;
+    return { subject: sub, avg: parseFloat(avg.toFixed(1)), pct: Math.round(avg * 10) };
+  });
+
+  const classOverallPct = students.length > 0
+    ? Math.round(students.reduce((s, st) => s + st.overallPct, 0) / students.length)
+    : 0;
+
+  return { success: true, students, classAvgBySubject, classAvgByExam: [], classOverallPct, total: students.length };
+}
+
+function adaptCCEStudentSummaryToMarksData(summary) {
+  const entries = Object.entries(summary.subjects || {});
+
+  const faExam = {
+    examType: 'FA1 + FA2 (Formative)',
+    subjects: entries.map(([sub, d]) => ({ subject: sub, marks: d.faTotal || 0, maxMarks: 40 })),
+    total: entries.reduce((s, [, d]) => s + (d.faTotal || 0), 0),
+    maxTotal: entries.length * 40,
+  };
+  faExam.pct = faExam.maxTotal > 0 ? Math.round((faExam.total / faExam.maxTotal) * 100) : 0;
+  faExam.avg = entries.length > 0 ? Math.round(faExam.total / entries.length) : 0;
+
+  const saEntries = entries.filter(([, d]) => d.sa1 !== null);
+  const saExam = {
+    examType: 'SA1 (Summative)',
+    subjects: saEntries.map(([sub, d]) => ({ subject: sub, marks: d.sa1 || 0, maxMarks: 80 })),
+    total: saEntries.reduce((s, [, d]) => s + (d.sa1 || 0), 0),
+    maxTotal: saEntries.length * 80,
+  };
+  saExam.pct = saExam.maxTotal > 0 ? Math.round((saExam.total / saExam.maxTotal) * 100) : 0;
+  saExam.avg = saEntries.length > 0 ? Math.round(saExam.total / saEntries.length) : 0;
+
+  const byExam = [faExam, ...(saEntries.length > 0 ? [saExam] : [])];
+
+  const bySubject = entries.map(([sub, d]) => ({
+    subject: sub,
+    avg: d.halfYear !== null ? d.halfYear : (d.faWeight || 0),
+    pct: Math.round((d.gradePoints || 0) * 10),
+  }));
+
+  const totalPoints = entries.reduce((s, [, d]) => s + (d.gradePoints || 0), 0);
+  const overallPct = entries.length > 0 ? Math.round((totalPoints / (entries.length * 10)) * 100) : 0;
+
+  return {
+    success: true,
+    byExam,
+    bySubject,
+    overallPct,
+    total: byExam.reduce((s, e) => s + e.subjects.length, 0),
+  };
+}
+
 export default function AdminReports({ onBack }) {
   const [tab, setTab] = useState("attendance");
   const [marksView, setMarksView] = useState("classes");
@@ -56,15 +142,6 @@ export default function AdminReports({ onBack }) {
       .then(d => { if (d.success && Array.isArray(d.classes)) setClassAttData(d.classes); })
       .catch(() => {})
       .finally(() => setAttLoading(false));
-    apiFetch('/marks/summary')
-      .then(r => r.json())
-      .then(d => {
-        console.log('STEP 1 - marks summary response success:', d.success, 'subjects:', d.subjects?.length);
-        console.log('STEP 3 - Raw marks summary data:', JSON.stringify(d.subjects));
-        console.log('STEP 5 - Computed averages:', d.subjects?.map(s => s.subject + '=' + s.pct + '%'));
-        if (d.success) setSchoolSubjectAvgs(d.subjects);
-      })
-      .catch(e => console.error('Marks summary fetch error:', getFriendlyError(e, 'Could not load marks summary')));
   }, []);
 
   useEffect(() => {
@@ -72,28 +149,34 @@ export default function AdminReports({ onBack }) {
     setMarksLoading(true);
     setClassMarksData(null);
     setStudentMarksData(null);
-    apiFetch(`/marks/class/${selectedClass.id}`)
-      .then(r => r.json())
-      .then(d => {
-        console.log('STEP 2 - Class marks query: /api/marks/class/' + selectedClass.id);
-        console.log('STEP 3 - Raw class marks data:', d.total, 'records,', d.students?.length, 'students');
-        console.log('STEP 4 - Students data:', d.students?.map(s => s.name + ':' + s.overallPct + '%'));
-        if (d.success) setClassMarksData(d);
+    const academicYear = getCurrentAcademicYear();
+    Promise.all([
+      apiFetch(`/cce/results/halfyear?classId=${selectedClass.id}&academicYear=${academicYear}`).then(r => r.json()),
+      apiFetch(`/students/list?classId=${selectedClass.id}`).then(r => r.json()).catch(() => ({ students: [] })),
+    ])
+      .then(([cceData, studData]) => {
+        if (cceData.success) {
+          const nameMap = {};
+          (studData.students || []).forEach(s => {
+            nameMap[s.studentId || s.id] = s.studentName || s.name || s.id;
+          });
+          setClassMarksData(adaptCCEHalfYearToClassData(cceData.results || [], nameMap));
+        }
       })
-      .catch(e => console.error('Class marks fetch error:', getFriendlyError(e, 'Could not load class marks')))
+      .catch(e => console.error('Class CCE marks fetch error:', getFriendlyError(e, 'Could not load class marks')))
       .finally(() => setMarksLoading(false));
   }, [selectedClass, marksView]);
 
   useEffect(() => {
     if (!selectedStudent) return;
     setStudentMarksData(null);
-    apiFetch(`/marks/student/${selectedStudent.studentId}`)
+    const academicYear = getCurrentAcademicYear();
+    apiFetch(`/cce/student-summary/${selectedStudent.studentId}?academicYear=${academicYear}&type=halfyear`)
       .then(r => r.json())
       .then(d => {
-        console.log('STEP 3 - Student marks raw:', d.total, 'records, byExam:', d.byExam?.length, 'bySubject:', d.bySubject?.length);
-        if (d.success) setStudentMarksData(d);
+        if (d.success) setStudentMarksData(adaptCCEStudentSummaryToMarksData(d));
       })
-      .catch(e => console.error('Student marks fetch error:', getFriendlyError(e, 'Could not load student marks')));
+      .catch(e => console.error('Student CCE marks fetch error:', getFriendlyError(e, 'Could not load student marks')));
   }, [selectedStudent]);
 
   if (selectedStudent && openUnit && studentMarksData) {

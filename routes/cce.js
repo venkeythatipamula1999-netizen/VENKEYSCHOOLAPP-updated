@@ -13,5 +13,6 @@ router.get('/admin/teacher-subjects',     ctrl.getTeacherSubjects);
 router.get('/results/halfyear',           ctrl.getHalfYearResults);
 router.get('/results/final',              ctrl.getFinalResults);
 router.get('/report/:studentId',          ctrl.getStudentReport);
+router.get('/student-summary/:studentId', ctrl.getStudentSummary);
 
 module.exports = router;

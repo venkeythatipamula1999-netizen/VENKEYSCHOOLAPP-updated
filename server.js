@@ -2725,6 +2725,9 @@ function normalizeSubjectName(name) {
 }
 
 app.post('/api/marks/save', async (req, res) => {
+  // DEPRECATED — remove after CCE migration confirmed
+  res.set('X-Deprecated', 'Use /api/cce/marks routes instead');
+  console.warn('[DEPRECATED] Old marks route called:', req.path);
   try {
     const { records, subject: rawSubject, examType, teacherId, classId, className } = req.body;
     const subject = normalizeSubjectName(rawSubject);
@@ -2979,6 +2982,9 @@ app.post('/api/marks/save', async (req, res) => {
 });
 
 app.get('/api/marks/submitted-exams', async (req, res) => {
+  // DEPRECATED — remove after CCE migration confirmed
+  res.set('X-Deprecated', 'Use /api/cce/marks routes instead');
+  console.warn('[DEPRECATED] Old marks route called:', req.path);
   try {
     const { classId, subject } = req.query;
     if (!classId || !subject) return res.status(400).json({ error: 'classId and subject required' });
@@ -2999,6 +3005,9 @@ app.get('/api/marks/submitted-exams', async (req, res) => {
 });
 
 app.post('/api/marks/edit', async (req, res) => {
+  // DEPRECATED — remove after CCE migration confirmed
+  res.set('X-Deprecated', 'Use /api/cce/marks routes instead');
+  console.warn('[DEPRECATED] Old marks route called:', req.path);
   try {
     const { studentId, studentName, classId, className, subject: rawSubject, examType, newMarks, maxMarks, reason, editedBy, version: submittedVersion } = req.body;
     if (!studentId || !classId || !rawSubject || !examType || newMarks === undefined || !reason?.trim()) {
@@ -3109,6 +3118,9 @@ app.post('/api/marks/edit', async (req, res) => {
 });
 
 app.get('/api/marks/view', async (req, res) => {
+  // DEPRECATED — remove after CCE migration confirmed
+  res.set('X-Deprecated', 'Use /api/cce/marks routes instead');
+  console.warn('[DEPRECATED] Old marks route called:', req.path);
   try {
     const { examType, classId } = req.query;
     console.log('Marks view request:', { examType, classId });
@@ -3159,6 +3171,9 @@ app.get('/api/marks/view', async (req, res) => {
 });
 
 app.get('/api/marks/summary', async (req, res) => {
+  // DEPRECATED — remove after CCE migration confirmed
+  res.set('X-Deprecated', 'Use /api/cce routes instead');
+  console.warn('[DEPRECATED] Old marks route called:', req.path);
   try {
     const snapshot = await db.collection('student_marks').where('schoolId', '==', (req.schoolId || DEFAULT_SCHOOL_ID)).get();
     const subjectMap = {};
@@ -3188,6 +3203,9 @@ app.get('/api/marks/summary', async (req, res) => {
 });
 
 app.get('/api/marks/class/:classId', async (req, res) => {
+  // DEPRECATED — remove after CCE migration confirmed
+  res.set('X-Deprecated', 'Use /api/cce/results/halfyear routes instead');
+  console.warn('[DEPRECATED] Old marks route called:', req.path);
   try {
     const { classId } = req.params;
     const [marksSnap, studentsSnap] = await Promise.all([
@@ -3288,6 +3306,9 @@ app.get('/api/marks/class/:classId', async (req, res) => {
 const FIXED_SUBJECTS = ['English', 'Mathematics', 'Science', 'Social Studies', 'Telugu'];
 
 app.get('/api/marks/student/:studentId', async (req, res) => {
+  // DEPRECATED — remove after CCE migration confirmed
+  res.set('X-Deprecated', 'Use /api/cce/student-summary routes instead');
+  console.warn('[DEPRECATED] Old marks route called:', req.path);
   try {
     const { studentId } = req.params;
     const snapshot = await db.collection('student_marks').where('studentId', '==', studentId).get();
@@ -3359,6 +3380,9 @@ function getGrade(pct) {
 }
 
 app.post('/api/reports/report-card/:studentId', verifyAuth, async (req, res) => {
+  // DEPRECATED — remove after CCE migration confirmed
+  res.set('X-Deprecated', 'Use /api/cce/student-summary routes instead');
+  console.warn('[DEPRECATED] Old report-card route called:', req.path);
   try {
     const { studentId } = req.params;
     const { examName, academicYear } = req.body;

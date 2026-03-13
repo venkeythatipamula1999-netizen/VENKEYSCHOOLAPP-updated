@@ -484,8 +484,133 @@ async function getStudentReport(req, res) {
   }
 }
 
+// ── GET /api/cce/student-summary/:studentId ───────────────────────────────────
+function getCurrentAcademicYear() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  if (m >= 5) return `${y}-${String(y + 1).slice(2)}`;
+  return `${y - 1}-${String(y).slice(2)}`;
+}
+
+const GRADE_COLORS = {
+  A1: '#059669', A2: '#10b981', B1: '#3b82f6', B2: '#6366f1',
+  C1: '#f59e0b', C2: '#f97316', D: '#ef4444', E: '#dc2626',
+};
+
+async function getStudentSummary(req, res) {
+  try {
+    const { studentId } = req.params;
+    const { academicYear, type = 'halfyear' } = req.query;
+    const year = academicYear || getCurrentAcademicYear();
+    const sId  = schoolId(req);
+
+    let classId = '', section = '', studentName = '';
+    try {
+      const stu = await db().collection('students').doc(studentId).get();
+      if (stu.exists) {
+        const sd = stu.data();
+        classId     = sd.classId || sd.class || '';
+        section     = sd.section || '';
+        studentName = sd.studentName || sd.name || '';
+      }
+    } catch (_) {}
+
+    const snap = await cceColl(sId)
+      .where('studentId',    '==', studentId)
+      .where('academicYear', '==', year)
+      .get();
+
+    const examMap = {};
+    snap.docs.forEach(d => {
+      const data = d.data();
+      if (!examMap[data.subjectId]) examMap[data.subjectId] = {};
+      examMap[data.subjectId][data.examType] = data.marks;
+      if (!classId && data.classId) classId = data.classId;
+      if (!section && data.section) section = data.section;
+    });
+
+    const isFinal = type === 'final';
+    const subjects = {};
+    let totalPoints  = 0;
+    let subjectCount = 0;
+
+    for (const [subjectId, exams] of Object.entries(examMap)) {
+      if (isFinal) {
+        const fa1 = n(exams['FA1']); const fa2 = n(exams['FA2']);
+        const fa3 = n(exams['FA3']); const fa4 = n(exams['FA4']);
+        const sa1 = exams['SA1'] !== undefined ? n(exams['SA1']) : null;
+        const sa2 = exams['SA2'] !== undefined ? n(exams['SA2']) : null;
+
+        const faTotal  = fa1 + fa2 + fa3 + fa4;
+        const faWeight = parseFloat(((faTotal / 80) * 40).toFixed(2));
+        const saTotal  = n(sa1) + n(sa2);
+        const saWeight = parseFloat(((saTotal / 160) * 60).toFixed(2));
+        const finalScore = parseFloat((faWeight + saWeight).toFixed(2));
+        const gradeObj   = getFinalGrade(finalScore);
+
+        subjects[subjectId] = {
+          fa1, fa2, fa3, fa4,
+          sa1, sa2,
+          faTotal, faWeight,
+          saTotal, saWeight,
+          halfYear: null,
+          final: finalScore,
+          grade:       gradeObj.grade,
+          gradePoints: gradeObj.points,
+          gradeColor:  GRADE_COLORS[gradeObj.grade] || '#6b7280',
+        };
+        totalPoints += gradeObj.points || 0;
+      } else {
+        const fa1 = exams['FA1'] !== undefined ? n(exams['FA1']) : null;
+        const fa2 = exams['FA2'] !== undefined ? n(exams['FA2']) : null;
+        const sa1 = exams['SA1'] !== undefined ? n(exams['SA1']) : null;
+
+        const faTotal  = n(fa1) + n(fa2);
+        const faWeight = parseFloat(((faTotal / 40) * 20).toFixed(2));
+        const halfYear = sa1 !== null ? parseFloat((faWeight + sa1).toFixed(2)) : null;
+        const gradeObj = halfYear !== null ? getFinalGrade(halfYear) : null;
+
+        subjects[subjectId] = {
+          fa1, fa2, fa3: null, fa4: null,
+          sa1, sa2: null,
+          faTotal, faWeight,
+          saTotal: null, saWeight: null,
+          halfYear, final: null,
+          grade:       gradeObj?.grade  || null,
+          gradePoints: gradeObj?.points || null,
+          gradeColor:  gradeObj ? (GRADE_COLORS[gradeObj.grade] || '#6b7280') : '#6b7280',
+        };
+        totalPoints += gradeObj?.points || 0;
+      }
+      subjectCount++;
+    }
+
+    const avgPoints      = subjectCount > 0 ? totalPoints / subjectCount : 0;
+    const overallGradeObj = getFinalGrade(avgPoints * 10);
+
+    res.json({
+      success: true,
+      studentId,
+      studentName,
+      classId,
+      section,
+      academicYear: year,
+      type,
+      subjects,
+      totalPoints,
+      overallGrade: overallGradeObj.grade,
+      overallColor: GRADE_COLORS[overallGradeObj.grade] || '#6b7280',
+    });
+  } catch (e) {
+    console.error('[cce/student-summary]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
 module.exports = {
   saveMarks, saveBulkMarks, getMarks,
   getMyAssignedSubjects, assignTeacherSubject, removeTeacherSubject, getTeacherSubjects,
   getHalfYearResults, getFinalResults, getStudentReport,
+  getStudentSummary,
 };
