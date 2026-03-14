@@ -8,7 +8,8 @@
     "build": "npx expo export --platform web --output-dir dist",
     "dev": "npx expo start --web --port 5000",
     "android": "expo run:android",
-    "ios": "expo run:ios"
+    "ios": "expo run:ios",
+    "test": "node tests/runAll.js"
   },
   "private": true,
   "dependencies": {
@@ -16,6 +17,7 @@
     "@google-cloud/firestore": "^8.3.0",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/netinfo": "11.4.1",
+    "axios": "^1.13.6",
     "babel-preset-expo": "~54.0.10",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
