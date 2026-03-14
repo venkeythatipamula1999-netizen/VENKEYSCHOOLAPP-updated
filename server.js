@@ -910,7 +910,7 @@ app.post('/api/fee-reminder/acknowledge', async (req, res) => {
     });
 
     const reminderSnap = await db.collection('fee_reminders').doc(reminderId).get();
-    if (reminderSnap.exists()) {
+    if (reminderSnap.exists) {
       const data = reminderSnap.data();
       await db.collection('parent_notifications').add({
         studentId: data.studentId,
@@ -1050,7 +1050,7 @@ app.post('/api/admin/fees/send-reminder', verifyAuth, async (req, res) => {
         const studentName = rec ? (rec.name || '') : '';
         const balance = rec ? Math.max((Number(rec.totalFee) || 0) - (Number(rec.discount) || 0) + (Number(rec.fine) || 0) - (rec.history || []).reduce((a, h) => a + (Number(h.amount) || 0), 0), 0) : 0;
 
-        const notifRef = doc(db.collection('parent_notifications'));
+        const notifRef = db.collection('parent_notifications').doc();
         batch.set(notifRef, {
           studentId: sid,
           studentName,
@@ -2257,7 +2257,7 @@ app.post('/api/students/bulk-upload/:classId', upload.single('file'), async (req
     const { className } = req.body;
 
     const classSnap = await db.collection('classes').doc(classId).get();
-    const resolvedClassName = className || (classSnap.exists() ? classSnap.data().name : classId);
+    const resolvedClassName = className || (classSnap.exists ? classSnap.data().name : classId);
 
     const existingQ = db.collection('students').where('schoolId', '==', (req.schoolId || DEFAULT_SCHOOL_ID)).where('classId', '==', classId);
     const existingSnap = await existingQ.get();
@@ -2969,7 +2969,7 @@ app.post('/api/marks/save', validate([
         for (let i = 0; i < records.length; i++) {
           const record = records[i];
           const existing = existingDocs[i];
-          if (existing.exists() && record.version !== undefined) {
+          if (existing.exists && record.version !== undefined) {
             const currentVersion = existing.data().version || 1;
             if (Number(record.version) !== currentVersion) {
               conflictsFound.push({
@@ -2993,7 +2993,7 @@ app.post('/api/marks/save', validate([
           const record = records[i];
           const { ref } = docEntries[i];
           const existing = existingDocs[i];
-          const currentVersion = existing.exists() ? (existing.data().version || 1) : 0;
+          const currentVersion = existing.exists ? (existing.data().version || 1) : 0;
           transaction.set(ref, {
             studentId: record.studentId,
             studentName: record.studentName,
@@ -3166,10 +3166,10 @@ app.post('/api/marks/edit', async (req, res) => {
     try {
       await db.runTransaction(async (transaction) => {
         const existing = await transaction.get(docRef);
-        oldMarks = existing.exists() ? existing.data().marksObtained : null;
-        existingVersion = existing.exists() ? (existing.data().version || 1) : null;
+        oldMarks = existing.exists ? existing.data().marksObtained : null;
+        existingVersion = existing.exists ? (existing.data().version || 1) : null;
 
-        if (existing.exists() && submittedVersion !== undefined) {
+        if (existing.exists && submittedVersion !== undefined) {
           const currentVersion = existing.data().version || 1;
           if (Number(submittedVersion) !== currentVersion) {
             const err = new Error('VERSION_CONFLICT');
@@ -3178,8 +3178,8 @@ app.post('/api/marks/edit', async (req, res) => {
           }
         }
 
-        const currentVersion = existing.exists() ? (existing.data().version || 1) : 0;
-        const existingData = existing.exists() ? existing.data() : {};
+        const currentVersion = existing.exists ? (existing.data().version || 1) : 0;
+        const existingData = existing.exists ? existing.data() : {};
         transaction.set(docRef, {
           ...existingData,
           marksObtained: Number(newMarks),
@@ -3573,14 +3573,14 @@ app.post('/api/reports/report-card/:studentId', verifyAuth, async (req, res) => 
       student = studentSnap.docs[0].data();
     } else {
       const studentDocById = await db.collection('students').doc(studentId).get();
-      if (!studentDocById.exists() || (studentDocById.data().schoolId && studentDocById.data().schoolId !== schoolId)) {
+      if (!studentDocById.exists || (studentDocById.data().schoolId && studentDocById.data().schoolId !== schoolId)) {
         return res.status(404).json({ error: 'Student not found' });
       }
       student = studentDocById.data();
     }
 
     const settingsDoc = await db.collection('settings').doc(schoolId).get();
-    const schoolInfo = settingsDoc.exists() ? settingsDoc.data() : {};
+    const schoolInfo = settingsDoc.exists ? settingsDoc.data() : {};
     const schoolName = schoolInfo.school_name || schoolInfo.schoolName || 'Sree Pragathi High School';
 
     const marksSnap = await db.collection('student_marks').where('studentId', '==', studentId).where('schoolId', '==', schoolId).where('examType', '==', examName).get();
@@ -3848,7 +3848,7 @@ app.post('/api/admin/promotion/execute', verifyAuth, async (req, res) => {
           studentData = byFieldSnap.docs[0].data();
         } else {
           const directDoc = await db.collection('students').doc(studentId).get();
-          if (!directDoc.exists()) {
+          if (!directDoc.exists) {
             results.errors.push({ studentId, error: 'Student not found' });
             continue;
           }
@@ -3883,7 +3883,7 @@ app.post('/api/admin/promotion/execute', verifyAuth, async (req, res) => {
         batch.update(studentDocRef, updates);
         opCount++;
 
-        const historyRef = doc(db.collection('promotionHistory'));
+        const historyRef = db.collection('promotionHistory').doc();
         batch.set(historyRef, {
           studentId,
           studentName: studentData.full_name || studentData.name || '',
@@ -4274,7 +4274,7 @@ app.post('/api/attendance/save', validate([
 
     for (const record of records) {
       const docId = `${record.studentId}_${record.date}`;
-      const docRef = doc(attendanceRef, docId);
+      const docRef = attendanceRef.doc(docId);
       batch.set(docRef, {
         studentId: record.studentId,
         studentName: record.studentName,
@@ -4384,7 +4384,7 @@ app.post('/api/attendance/save', validate([
         await Promise.all(absentRecords.map(async r => {
           try {
             const studentDoc = await db.collection('students').doc(r.studentId).get();
-            const parentPhone = studentDoc.exists() ? studentDoc.data().parentPhone : null;
+            const parentPhone = studentDoc.exists ? studentDoc.data().parentPhone : null;
             await db.collection('parent_notifications').add({
               studentId: r.studentId,
               studentName: r.studentName,
@@ -4399,7 +4399,7 @@ app.post('/api/attendance/save', validate([
               read: false,
               createdAt: submittedAt,
             });
-            const parentId = studentDoc.exists() ? (studentDoc.data().parentId || studentDoc.data().parent_uid || '') : '';
+            const parentId = studentDoc.exists ? (studentDoc.data().parentId || studentDoc.data().parent_uid || '') : '';
             if (parentId) sendPushNotification(parentId, '📋 Attendance Alert', `${r.studentName} was marked absent today`, { type: 'attendance', studentId: r.studentId });
             if (parentPhone) {
               sendAndLog(req.schoolId || DEFAULT_SCHOOL_ID, parentPhone, 'vl_attendance',
@@ -4442,7 +4442,7 @@ app.get('/api/attendance/submission-status', async (req, res) => {
     if (!classId || !date) return res.status(400).json({ error: 'classId and date required' });
     const submissionDocId = `${classId}_${date}`;
     const snap = await db.collection('attendance_submissions').doc(submissionDocId).get();
-    if (!snap.exists()) return res.json({ submitted: false });
+    if (!snap.exists) return res.json({ submitted: false });
     const data = snap.data();
     res.json({
       submitted: true,
@@ -4589,7 +4589,7 @@ app.post('/api/attendance/edit', async (req, res) => {
     if (newStatus === 'Absent') {
       try {
         const studentDoc = await db.collection('students').doc(studentId).get();
-        const parentId = studentDoc.exists() ? (studentDoc.data().parentId || studentDoc.data().parent_uid || '') : '';
+        const parentId = studentDoc.exists ? (studentDoc.data().parentId || studentDoc.data().parent_uid || '') : '';
         if (parentId) {
           sendPushNotification(parentId, '📋 Attendance Updated', `${studentName} was marked Absent on ${date}. Reason: ${reason.trim()}`, { type: 'attendance_edit_absent', studentId, date });
         }
@@ -4876,11 +4876,11 @@ app.post('/api/leave-request/update-status', async (req, res) => {
 
     let leaveDocRef = db.collection('leaveRequests').doc(requestId);
     let leaveSnap = await leaveDocRef.get();
-    if (!leaveSnap.exists()) {
-      leaveDocRef = doc(db).collection('leave_requests').doc(requestId);
+    if (!leaveSnap.exists) {
+      leaveDocRef = db.collection('leave_requests').doc(requestId);
       leaveSnap = await leaveDocRef.get();
     }
-    if (!leaveSnap.exists()) return res.status(404).json({ error: 'Leave request not found' });
+    if (!leaveSnap.exists) return res.status(404).json({ error: 'Leave request not found' });
     const leaveData = leaveSnap.data();
 
     const updatePayload = { status, updatedAt: approvedAt, approvedBy: resolvedAdmin, approvedByRole: resolvedActorRole, approvedAt };
@@ -4962,7 +4962,7 @@ app.post('/api/leave-request/update-status', async (req, res) => {
         try {
           const balRef = db.collection('leave_balance').doc(leaveData.staffId);
           const balSnap = await balRef.get();
-          const bal = balSnap.exists() ? balSnap.data() : { casual: 12, sick: 12, earned: 6 };
+          const bal = balSnap.exists ? balSnap.data() : { casual: 12, sick: 12, earned: 6 };
           const lt = (leaveData.leaveType || 'casual').toLowerCase();
           const field = lt === 'sick' ? 'sick' : lt === 'earned' ? 'earned' : 'casual';
           const current = bal[field] || 0;
@@ -5627,7 +5627,7 @@ app.post('/api/bus/end-trip', async (req, res) => {
     if (!tripId) return res.status(400).json({ error: 'tripId required' });
 
     const tripSnap = await db.collection('bus_trips').doc(tripId).get();
-    if (!tripSnap.exists()) return res.status(404).json({ error: 'Trip not found' });
+    if (!tripSnap.exists) return res.status(404).json({ error: 'Trip not found' });
     const tripData = tripSnap.data();
 
     const endTime = new Date().toISOString();
@@ -5665,7 +5665,7 @@ app.post('/api/bus/end-trip', async (req, res) => {
     const summaryDocId = `${finalDriverId}_${tripDate}`;
     const summaryRef = db.collection('trip_summaries').doc(summaryDocId);
     const summarySnap = await summaryRef.get();
-    const summaryData = summarySnap.exists() ? summarySnap.data() : {};
+    const summaryData = summarySnap.exists ? summarySnap.data() : {};
     const updateData = {
       driverId: finalDriverId,
       driverName: finalDriverName,
@@ -5680,7 +5680,7 @@ app.post('/api/bus/end-trip', async (req, res) => {
     };
     if (totalDistance) updateData[`${tripType}Distance`] = totalDistance;
     if (studentsBoarded) updateData[`${tripType}StudentsBoarded`] = studentsBoarded;
-    if (summarySnap.exists()) {
+    if (summarySnap.exists) {
       await summaryRef.update(updateData);
     } else {
       await summaryRef.set(updateData);
@@ -5839,7 +5839,7 @@ app.post('/api/admin/buses/assign-students', verifyAuth, async (req, res) => {
     const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
 
     const busSnap = await db.collection('buses').doc(busId).get();
-    if (!busSnap.exists()) {
+    if (!busSnap.exists) {
       return res.status(404).json({ error: 'Bus not found' });
     }
     const busData = busSnap.data();
@@ -6519,7 +6519,7 @@ app.get('/api/bus/route-students', async (req, res) => {
       for (const studentId of assignedStudentIds) {
         try {
           const studentSnap = await db.collection('students').doc(studentId).get();
-          if (studentSnap.exists()) {
+          if (studentSnap.exists) {
             const sData = studentSnap.data();
             students.push({
               id: studentId,
@@ -6576,7 +6576,7 @@ app.post('/api/bus/set-stop', async (req, res) => {
     const stopRef = db.collection('student_stops').doc(docId);
     const existing = await stopRef.get();
 
-    if (existing.exists()) {
+    if (existing.exists) {
       const existingData = existing.data();
       if (existingData.locked) return res.status(403).json({ error: 'This stop is locked by admin and cannot be changed' });
       await stopRef.update({
@@ -6615,7 +6615,7 @@ app.post('/api/bus/lock-stop', async (req, res) => {
     const docId = `stop_${String(studentId)}`;
     const stopRef = db.collection('student_stops').doc(docId);
     const stopSnap = await stopRef.get();
-    if (!stopSnap.exists()) return res.status(404).json({ error: 'Stop not found for this student' });
+    if (!stopSnap.exists) return res.status(404).json({ error: 'Stop not found for this student' });
     await stopRef.update({ locked: locked !== false });
     res.json({ success: true, locked: locked !== false });
   } catch (err) {
@@ -6634,7 +6634,7 @@ app.post('/api/bus/request-location-change', async (req, res) => {
     const docId = `stop_${String(studentId)}`;
     const stopRef = db.collection('student_stops').doc(docId);
     const stopSnap = await stopRef.get();
-    if (stopSnap.exists()) {
+    if (stopSnap.exists) {
       const stopData = stopSnap.data();
       oldLat = stopData.lat || null;
       oldLng = stopData.lng || null;
@@ -6703,14 +6703,14 @@ app.post('/api/bus/approve-location-change', async (req, res) => {
 
     const requestRef = db.collection('location_change_requests').doc(requestId);
     const requestSnap = await requestRef.get();
-    if (!requestSnap.exists()) return res.status(404).json({ error: 'Request not found' });
+    if (!requestSnap.exists) return res.status(404).json({ error: 'Request not found' });
 
     const requestData = requestSnap.data();
     const docId = `stop_${String(requestData.studentId)}`;
-    const stopRef = doc(db).collection('student_stops').doc(docId);
+    const stopRef = db.collection('student_stops').doc(docId);
     const stopSnap = await stopRef.get();
 
-    if (stopSnap.exists()) {
+    if (stopSnap.exists) {
       await stopRef.update({ lat: requestData.newLat, lng: requestData.newLng, updatedAt: new Date().toISOString() });
     } else {
       await stopRef.set({
@@ -6767,7 +6767,7 @@ app.post('/api/bus/reject-location-change', async (req, res) => {
 
     const requestRef = db.collection('location_change_requests').doc(requestId);
     const requestSnap = await requestRef.get();
-    if (!requestSnap.exists()) return res.status(404).json({ error: 'Request not found' });
+    if (!requestSnap.exists) return res.status(404).json({ error: 'Request not found' });
 
     const requestData = requestSnap.data();
 
@@ -6839,7 +6839,7 @@ app.post('/api/duty/clock-in', async (req, res) => {
     const docId = `duty_${roleId}_${now.toISOString().slice(0, 10)}`;
     const dutyRef = db.collection('staff_duty').doc(docId);
     const existing = await dutyRef.get();
-    if (existing.exists() && existing.data().onDuty) {
+    if (existing.exists && existing.data().onDuty) {
       return res.json({ success: true, alreadyOn: true, clockIn: existing.data().clockIn, status: existing.data().currentStatus });
     }
     await dutyRef.set({
@@ -6869,7 +6869,7 @@ app.post('/api/duty/clock-out', async (req, res) => {
     const docId = `duty_${roleId}_${now.toISOString().slice(0, 10)}`;
     const dutyRef = db.collection('staff_duty').doc(docId);
     const existing = await dutyRef.get();
-    if (!existing.exists()) {
+    if (!existing.exists) {
       return res.status(404).json({ error: 'No active duty record found' });
     }
     const data = existing.data();
@@ -6896,7 +6896,7 @@ app.post('/api/duty/update-status', async (req, res) => {
     const docId = `duty_${roleId}_${now.toISOString().slice(0, 10)}`;
     const dutyRef = db.collection('staff_duty').doc(docId);
     const existing = await dutyRef.get();
-    if (!existing.exists()) return res.status(404).json({ error: 'No duty record' });
+    if (!existing.exists) return res.status(404).json({ error: 'No duty record' });
     await dutyRef.update({ currentStatus, updatedAt: now.toISOString() });
     res.json({ success: true });
   } catch (err) {
@@ -6913,7 +6913,7 @@ app.get('/api/duty/status', async (req, res) => {
     const docId = `duty_${roleId}_${now.toISOString().slice(0, 10)}`;
     const dutyRef = db.collection('staff_duty').doc(docId);
     const snap = await dutyRef.get();
-    if (!snap.exists()) return res.json({ onDuty: false, clockIn: null, clockOut: null, currentStatus: 'Off Duty' });
+    if (!snap.exists) return res.json({ onDuty: false, clockIn: null, clockOut: null, currentStatus: 'Off Duty' });
     res.json(snap.data());
   } catch (err) {
     console.error('Get duty status error:', err.message);
@@ -6957,7 +6957,7 @@ app.get('/api/duty/week-log', async (req, res) => {
     if (!roleId || !date) return res.status(400).json({ error: 'roleId and date required' });
     const docId = `duty_${roleId}_${date}`;
     const snap = await db.collection('staff_duty').doc(docId).get();
-    if (!snap.exists()) return res.json({ hoursWorked: 0, clockIn: null, clockOut: null, onDuty: false });
+    if (!snap.exists) return res.json({ hoursWorked: 0, clockIn: null, clockOut: null, onDuty: false });
     res.json(snap.data());
   } catch (err) {
     console.error('Duty week log error:', err.message);
@@ -7099,7 +7099,7 @@ app.get('/api/teacher/sendable-students', verifyAuth, async (req, res) => {
     }));
     if (role === 'teacher') {
       const userDoc = await db.collection('users').doc(req.userId).get();
-      const userData = userDoc.exists() ? userDoc.data() : {};
+      const userData = userDoc.exists ? userDoc.data() : {};
       const assignedClasses = userData.assignedClasses || [];
       const filtered = allStudents.filter(s => assignedClasses.includes(s.className));
       const grouped = {};
@@ -7144,7 +7144,7 @@ app.post('/api/student-files/send', verifyAuth, async (req, res) => {
     const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
     if (req.userRole === 'teacher') {
       const userDoc = await db.collection('users').doc(req.userId).get();
-      const userData = userDoc.exists() ? userDoc.data() : {};
+      const userData = userDoc.exists ? userDoc.data() : {};
       const assignedClasses = userData.assignedClasses || [];
       const studentsSnap = await db.collection('students').where('schoolId', '==', schoolId).get();
       const allowedIds = new Set(
@@ -7200,7 +7200,7 @@ async function lookupStudentById(studentId) {
 async function getParentAccount(uid) {
   const ref = db.collection('parent_accounts').doc(uid);
   const snap = await ref.get();
-  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+  return snap.exists ? { id: snap.id, ...snap.data() } : null;
 }
 async function buildParentSession(parentAccount, schoolId) {
   const studentIds = parentAccount.studentIds || [];
@@ -7246,7 +7246,7 @@ app.get('/api/student/bus-tracking', async (req, res) => {
 
     try {
       const studentSnap = await db.collection('users').doc(String(studentId).get());
-      if (studentSnap.exists()) {
+      if (studentSnap.exists) {
         studentData = studentSnap.data();
         busRoute = studentData.bus_route || '';
         busNumber = studentData.bus_number || '';
@@ -7854,7 +7854,7 @@ app.delete('/api/events/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const eventSnap = await db.collection('events').doc(id).get();
-    if (!eventSnap.exists()) return res.status(404).json({ error: 'Event not found' });
+    if (!eventSnap.exists) return res.status(404).json({ error: 'Event not found' });
     const ev = eventSnap.data();
     await sendEventNotifications(id, ev.title, ev.date, ev.time, ev.venue, ev.type, ev.forClasses, '', `Event Cancelled: ${ev.title} scheduled for ${ev.date} has been cancelled`, (req.schoolId || DEFAULT_SCHOOL_ID));
     await db.collection('events').doc(id).delete();
@@ -7869,7 +7869,7 @@ app.post('/api/events/:id/renotify', async (req, res) => {
   try {
     const { id } = req.params;
     const eventSnap = await db.collection('events').doc(id).get();
-    if (!eventSnap.exists()) return res.status(404).json({ error: 'Event not found' });
+    if (!eventSnap.exists) return res.status(404).json({ error: 'Event not found' });
     const ev = eventSnap.data();
     const notified = await sendEventNotifications(id, ev.title, ev.date, ev.time, ev.venue, ev.type, ev.forClasses, ev.description, 'Reminder', (req.schoolId || DEFAULT_SCHOOL_ID));
     res.json({ success: true, notified });
@@ -8861,9 +8861,9 @@ app.get('/api/payroll/my-salary', async (req, res) => {
       db.collection('onboarded_users').where('role_id', '==', roleId).get(),
       db.collection('leave_balance').doc(roleId).get(),
     ]);
-    const salary = salSnap.exists() ? salSnap.data() : {};
+    const salary = salSnap.exists ? salSnap.data() : {};
     const userData = !userSnap.empty ? userSnap.docs[0].data() : (!onbSnap.empty ? onbSnap.docs[0].data() : {});
-    const balance = balSnap.exists() ? balSnap.data() : { casual: 12, sick: 12, earned: 6 };
+    const balance = balSnap.exists ? balSnap.data() : { casual: 12, sick: 12, earned: 6 };
     res.json({ salary, user: userData, balance });
   } catch (err) {
     console.error('My salary error:', err.message);
@@ -8885,7 +8885,7 @@ app.get('/api/payroll/my-payslip', async (req, res) => {
       db.collection('attendance_overrides').where('roleId', '==', roleId).where('month', '==', month).get(),
       db.collection('salary_payments').where('roleId', '==', roleId).where('month', '==', month).get(),
     ]);
-    const salary = salSnap.exists() ? salSnap.data() : {};
+    const salary = salSnap.exists ? salSnap.data() : {};
     const dutyMap = {};
     dutySnap.docs.forEach(d => {
       const data = d.data();
@@ -8945,7 +8945,7 @@ app.get('/api/payroll/my-year', async (req, res) => {
       db.collection('staff_duty').where('roleId', '==', roleId).get(),
       db.collection('salary_payments').where('roleId', '==', roleId).get(),
     ]);
-    const salary = salSnap.exists() ? salSnap.data() : {};
+    const salary = salSnap.exists ? salSnap.data() : {};
     const allDuty = {};
     dutySnap.docs.forEach(d => { const data = d.data(); if (data.dateKey) allDuty[data.dateKey] = data; });
     const paymentMap = {};
@@ -9002,7 +9002,7 @@ app.get('/api/payroll/payslip-html', async (req, res) => {
       db.collection('attendance_overrides').where('roleId', '==', roleId).where('month', '==', month).get(),
       db.collection('salary_payments').where('roleId', '==', roleId).where('month', '==', month).get(),
     ]);
-    const salary = salSnap.exists() ? salSnap.data() : {};
+    const salary = salSnap.exists ? salSnap.data() : {};
     const userData = !userSnap.empty ? userSnap.docs[0].data() : (!onbSnap.empty ? onbSnap.docs[0].data() : {});
     const dutyMap = {}; dutySnap.docs.forEach(d => { const data = d.data(); if (data.dateKey >= startDate && data.dateKey <= endDate) dutyMap[data.dateKey] = data; });
     const overrideMap = {}; overrideSnap.docs.forEach(d => { const data = d.data(); overrideMap[data.date] = data; });
@@ -9124,7 +9124,7 @@ app.get('/api/leave-balance', async (req, res) => {
     const { roleId } = req.query;
     if (!roleId) return res.status(400).json({ error: 'roleId required' });
     const balSnap = await db.collection('leave_balance').doc(roleId).get();
-    const balance = balSnap.exists() ? balSnap.data() : { casual: 12, sick: 12, earned: 6 };
+    const balance = balSnap.exists ? balSnap.data() : { casual: 12, sick: 12, earned: 6 };
     res.json({ balance });
   } catch (err) {
     console.error('Leave balance error:', err.message);
@@ -9304,10 +9304,10 @@ app.post('/api/payroll/toggle', async (req, res) => {
     const existing = await dutyRef.get();
 
     if (action === 'in') {
-      if (existing.exists() && existing.data().onDuty) {
+      if (existing.exists && existing.data().onDuty) {
         return res.json({ success: true, alreadyOn: true, clockIn: existing.data().clockIn });
       }
-      const prevSessions = existing.exists() ? (existing.data().sessions || []) : [];
+      const prevSessions = existing.exists ? (existing.data().sessions || []) : [];
       await dutyRef.set({
         userId: roleId, name: employeeName || roleId, role: role || 'teacher', roleId,
         onDuty: true, clockIn: timeStr, clockOut: null,
@@ -9319,7 +9319,7 @@ app.post('/api/payroll/toggle', async (req, res) => {
     }
 
     if (action === 'out') {
-      if (!existing.exists()) return res.status(404).json({ error: 'No duty record for today' });
+      if (!existing.exists) return res.status(404).json({ error: 'No duty record for today' });
       const data = existing.data();
       if (!data.onDuty) return res.json({ success: true, alreadyOff: true, clockOut: data.clockOut });
       const clockInTime = data.clockIn || '08:00';
@@ -9428,7 +9428,7 @@ app.get('/api/bus/today-summary', async (req, res) => {
     const today = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);
     const summaryRef = db.collection('trip_summaries').doc(`${resolvedDriverId}_${today}`);
     const summarySnap = await summaryRef.get();
-    if (!summarySnap.exists()) return res.json({ summary: null });
+    if (!summarySnap.exists) return res.json({ summary: null });
     res.json({ summary: summarySnap.data() });
   } catch (err) {
     console.error('Today summary error:', err.message);
@@ -9462,7 +9462,7 @@ app.get('/api/bus/trip-duration-week', async (req, res) => {
 
     const days = weekDates.map((date, i) => {
       const isToday = date === todayStr;
-      const s = summarySnaps[i].exists() ? summarySnaps[i].data() : {};
+      const s = summarySnaps[i].exists ? summarySnaps[i].data() : {};
       return {
         date,
         label: isToday && offset === 0 ? 'Today' : DAY_LABELS[i],
