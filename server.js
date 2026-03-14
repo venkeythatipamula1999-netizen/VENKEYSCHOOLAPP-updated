@@ -9780,7 +9780,7 @@ function keepAlive() {
 
 keepAlive();
 
-app.listen(PORT, '0.0.0.0', async () => {
+const server = app.listen(PORT, '0.0.0.0', async () => {
   console.log(`Vidyalayam server running on port ${PORT}`);
   console.log('Database: Firebase Firestore (project: ' + firebaseConfig.projectId + ')');
   console.log('Auth: Firebase Authentication (Email/Password) — NO FALLBACK');
@@ -9812,5 +9812,17 @@ app.listen(PORT, '0.0.0.0', async () => {
     }
   } catch (err) {
     console.error('Principal role setup error:', err.message);
+  }
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use. Retrying in 3 seconds...`);
+    setTimeout(() => {
+      server.close();
+      server.listen(PORT, '0.0.0.0');
+    }, 3000);
+  } else {
+    console.error('Server error:', err.message);
   }
 });
