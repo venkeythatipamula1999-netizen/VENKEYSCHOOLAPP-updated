@@ -5,9 +5,11 @@ import {
 } from 'react-native';
 import { Camera, CameraView } from 'expo-camera';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { C } from '../../theme/colors';
 
 const PRODUCTION_URL = 'https://vidyalayam.replit.app';
+const API_BASE = Platform.OS === 'web' ? '' : PRODUCTION_URL;
 
 export default function WelcomeScreen({ onNavigate }) {
   const [mode, setMode]               = useState('home');
@@ -72,7 +74,7 @@ export default function WelcomeScreen({ onNavigate }) {
     setError('');
     setLoading(true);
     try {
-      const res = await fetch(`${PRODUCTION_URL}/api/school/info/${encodeURIComponent(id)}`);
+      const res = await fetch(`${API_BASE}/api/school/info/${encodeURIComponent(id)}`);
       const data = await res.json();
       if (!res.ok || data.error) {
         setError(data.error || 'School not found. Check ID and try again.');
