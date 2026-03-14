@@ -1,10 +1,11 @@
 'use strict';
 
-const router = require('express').Router();
-const ctrl   = require('../controllers/cceController');
+const router               = require('express').Router();
+const ctrl                 = require('../controllers/cceController');
+const teacherSubjectGuard  = require('../middleware/teacherSubjectGuard');
 
 router.post('/marks/bulk',                ctrl.saveBulkMarks);
-router.post('/marks',                     ctrl.saveMarks);
+router.post('/marks',                     teacherSubjectGuard, ctrl.saveMarks);
 router.get('/marks',                      ctrl.getMarks);
 router.get('/my-assigned-subjects',       ctrl.getMyAssignedSubjects);
 router.post('/admin/assign-subject',      ctrl.assignTeacherSubject);
