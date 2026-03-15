@@ -25,7 +25,7 @@ export default function AdminOverview({ onNavigate, currentUser, onLogout, curre
 
   useEffect(() => {
     const fetchUnread = () => {
-      apiFetch('/admin/notifications?unreadOnly=true&t=' + Date.now(), { cache: 'no-store' })
+      apiFetch('/school-notifications?unreadOnly=true&t=' + Date.now(), { cache: 'no-store' })
         .then(r => r.json())
         .then(data => setUnreadNotifCount(data.count || 0))
         .catch(() => {});
@@ -201,7 +201,7 @@ export default function AdminOverview({ onNavigate, currentUser, onLogout, curre
             </View>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <TouchableOpacity onPress={() => onNavigate('admin-alerts')} style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' }}>
+            <TouchableOpacity onPress={() => onNavigate('admin-notifications')} style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontSize: 20 }}>{'\uD83D\uDD14'}</Text>
               {unreadNotifCount > 0 && (
                 <View style={{ position: 'absolute', top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: C.coral, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3, borderWidth: 2, borderColor: C.navy }}>

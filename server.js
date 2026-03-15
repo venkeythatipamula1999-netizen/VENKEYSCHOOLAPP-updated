@@ -4685,6 +4685,52 @@ app.post('/api/admin/notifications/mark-read', async (req, res) => {
   }
 });
 
+// ── School-scoped notifications (marks submitted / edited) ───────────────────
+app.get('/api/school-notifications', verifyAuth, async (req, res) => {
+  try {
+    const sid = req.schoolId || DEFAULT_SCHOOL_ID;
+    const { unreadOnly } = req.query;
+    const colRef = db.collection('schools').doc(sid).collection('notifications');
+
+    if (unreadOnly === 'true') {
+      const snap = await colRef.where('read', '==', false).get();
+      return res.json({ count: snap.size });
+    }
+
+    const snap = await colRef.orderBy('createdAt', 'desc').limit(50).get();
+    const notifications = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const unreadCount   = notifications.filter(n => !n.read).length;
+    res.json({ notifications, unreadCount });
+  } catch (err) {
+    console.error('[school-notifications GET]', err.message);
+    res.status(500).json({ error: 'Failed to fetch notifications' });
+  }
+});
+
+app.post('/api/school-notifications/mark-read', verifyAuth, async (req, res) => {
+  try {
+    const sid    = req.schoolId || DEFAULT_SCHOOL_ID;
+    const { ids } = req.body;
+    const colRef = db.collection('schools').doc(sid).collection('notifications');
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      const snap  = await colRef.where('read', '==', false).get();
+      const batch = db.batch();
+      snap.docs.forEach(d => batch.update(d.ref, { read: true }));
+      await batch.commit();
+      return res.json({ success: true, updated: snap.size });
+    }
+
+    const batch = db.batch();
+    ids.forEach(id => batch.update(colRef.doc(id), { read: true }));
+    await batch.commit();
+    res.json({ success: true, updated: ids.length });
+  } catch (err) {
+    console.error('[school-notifications mark-read]', err.message);
+    res.status(500).json({ error: 'Failed to mark notifications as read' });
+  }
+});
+
 app.get('/api/attendance/records', async (req, res) => {
   try {
     const { classId, date } = req.query;

@@ -7,6 +7,7 @@ const teacherSubjectGuard  = require('../middleware/teacherSubjectGuard');
 router.post('/marks/bulk',                ctrl.saveBulkMarks);
 router.post('/marks',                     teacherSubjectGuard, ctrl.saveMarks);
 router.put('/marks',                      teacherSubjectGuard, ctrl.editMarks);
+router.get('/marks/class',                ctrl.getClassMarks);
 router.get('/marks',                      ctrl.getMarks);
 router.get('/my-assigned-subjects',       ctrl.getMyAssignedSubjects);
 router.post('/admin/assign-subject',      ctrl.assignTeacherSubject);

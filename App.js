@@ -37,6 +37,7 @@ import TeacherAlertsScreen from './src/screens/teacher/TeacherAlertsScreen';
 import TeacherPersonalScreen from './src/screens/teacher/TeacherPersonalScreen';
 import TeacherProfile from './src/screens/teacher/TeacherProfile';
 import TeacherSendDocument from './src/screens/teacher/TeacherSendDocument';
+import ClassMarksViewScreen from './src/screens/teacher/ClassMarksViewScreen';
 import CCEHomeScreen from './src/screens/cce/CCEHomeScreen';
 import CCEMarkEntryScreen from './src/screens/cce/CCEMarkEntryScreen';
 import CCEHalfYearReportScreen from './src/screens/cce/CCEHalfYearReportScreen';
@@ -51,6 +52,7 @@ import AdminClasses from './src/screens/admin/AdminClasses';
 import AdminBuses from './src/screens/admin/AdminBuses';
 import AdminReports from './src/screens/admin/AdminReports';
 import AdminAlerts from './src/screens/admin/AdminAlerts';
+import AdminNotificationsScreen from './src/screens/admin/AdminNotificationsScreen';
 import AdminActivities from './src/screens/admin/AdminActivities';
 import AdminSettings from './src/screens/admin/AdminSettings';
 import AdminStudentQR from './src/screens/admin/AdminStudentQR';
@@ -168,7 +170,7 @@ export default function App() {
     }
   };
 
-  const adminScreens = ['admin-home', 'admin-users', 'admin-classes', 'admin-buses', 'admin-reports', 'admin-alerts', 'admin-settings', 'admin-activities', 'admin-leaves', 'admin-fees', 'admin-salary', 'admin-profile', 'admin-promotion', 'admin-fee-status', 'admin-send-document'];
+  const adminScreens = ['admin-home', 'admin-users', 'admin-classes', 'admin-buses', 'admin-reports', 'admin-alerts', 'admin-notifications', 'admin-settings', 'admin-activities', 'admin-leaves', 'admin-fees', 'admin-salary', 'admin-profile', 'admin-promotion', 'admin-fee-status', 'admin-send-document'];
 
   const navigateToDashboard = (userRole) => {
     if (userRole === 'principal') navigate('admin-home');
@@ -212,7 +214,7 @@ export default function App() {
   const driverScreens = ['driver-home', 'driver-scans', 'driver-locations', 'driver-duration', 'driver-profile', 'driver-leave', 'driver-proximity'];
   const cleanerScreens = ['cleaner-home', 'cleaner-scanner', 'cleaner-duration', 'cleaner-alerts', 'cleaner-profile', 'cleaner-leave'];
   const isParentHome = ['parent-home', 'attendance', 'marks', 'bus', 'notifications', 'activities', 'fee', 'leave', 'digital-folder'].includes(screen);
-  const isTeacherHome = ['teacher-home', 'teacher-attendance', 'teacher-marks', 'teacher-schedule', 'teacher-bus', 'teacher-alerts', 'teacher-personal', 'teacher-profile', 'teacher-send-document', 'cce-home', 'cce-mark-entry', 'cce-halfyear', 'cce-final', 'marks-cce'].includes(screen);
+  const isTeacherHome = ['teacher-home', 'teacher-attendance', 'teacher-marks', 'teacher-class-marks', 'teacher-schedule', 'teacher-bus', 'teacher-alerts', 'teacher-personal', 'teacher-profile', 'teacher-send-document', 'cce-home', 'cce-mark-entry', 'cce-halfyear', 'cce-final', 'marks-cce'].includes(screen);
   const isDriverHome = driverScreens.includes(screen);
   const isCleanerHome = cleanerScreens.includes(screen);
   const isAdminHome = adminScreens.includes(screen);
@@ -370,6 +372,7 @@ export default function App() {
       case 'teacher-personal': return <TeacherPersonalScreen onBack={() => navigate('teacher-home')} currentUser={currentUser} />;
       case 'teacher-profile': return <TeacherProfile onBack={() => navigate('teacher-home')} currentUser={currentUser} onLogout={handleLogout} />;
       case 'teacher-send-document': return <TeacherSendDocument onBack={() => navigate('teacher-home')} currentUser={currentUser} isAdmin={false} />;
+      case 'teacher-class-marks': return <ClassMarksViewScreen onBack={() => navigate('teacher-home')} currentUser={currentUser} />;
       case 'cce-home': return <CCEHomeScreen onBack={() => navigate('teacher-home')} onNavigate={navigate} currentUser={currentUser} />;
       case 'cce-mark-entry': return <CCEMarkEntryScreen onBack={() => navigate('cce-home')} params={navParams} />;
       case 'cce-halfyear': return <CCEHalfYearReportScreen onBack={() => navigate('cce-home')} params={navParams} />;
@@ -410,6 +413,7 @@ export default function App() {
       case 'admin-buses': return <AdminBuses onBack={() => navigate('admin-home')} currentUser={currentUser} />;
       case 'admin-reports': return <AdminReports onBack={() => navigate('admin-home')} />;
       case 'admin-alerts': return <AdminAlerts onBack={() => navigate('admin-home')} />;
+      case 'admin-notifications': return <AdminNotificationsScreen onBack={() => navigate('admin-home')} />;
       case 'admin-activities': return <AdminActivities onBack={() => navigate('admin-home')} currentUser={currentUser} />;
       case 'admin-settings': return <AdminSettings onBack={() => navigate('admin-home')} currentUser={currentUser} />;
       case 'admin-leaves': return <AdminLeaveScreen onBack={() => navigate('admin-home')} currentUser={currentUser} />;

@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, FlatList, TouchableOpacity,
   StyleSheet, ActivityIndicator, KeyboardAvoidingView,
-  Platform, ScrollView, Modal,
+  Platform, ScrollView, Modal, Alert,
 } from 'react-native';
 import { C } from '../../theme/colors';
+import Toast from '../../components/Toast';
 import { apiFetch } from '../../api/client';
 import {
   getFAGrade, isSAExam, isFAExam, getPrecedingFAs,
@@ -106,7 +107,13 @@ export default function CCEMarkEntryScreen({ onBack, params = {} }) {
   const [marks, setMarks]           = useState({});
   const [faMarks, setFaMarks]       = useState({});
   const [loading, setLoading]       = useState(true);
-  const [saveStatus, setSaveStatus] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+
+  // Toast state
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
+  const showToast = (message, type = 'success') => {
+    setToast({ visible: true, message, type });
+  };
 
   // Edit-reason modal state
   const [editModal, setEditModal]   = useState({ visible: false, studentId: null, pendingValue: null, previousValue: null });
@@ -114,15 +121,13 @@ export default function CCEMarkEntryScreen({ onBack, params = {} }) {
   const [editSaving, setEditSaving] = useState(false);
   const reasonInputRef = useRef(null);
 
-  // Tracks mark values that already exist in Firestore (loaded on mount)
+  // savedMarkValues tracks which students already have marks in Firestore
   const savedMarkValues = useRef({});
 
-  const timers  = useRef({});
-  const inputs  = useRef({});
+  const inputs = useRef({});
 
   useEffect(() => {
     loadAll();
-    return () => Object.values(timers.current).forEach(clearTimeout);
   }, []);
 
   const loadAll = async () => {
@@ -137,9 +142,9 @@ export default function CCEMarkEntryScreen({ onBack, params = {} }) {
       setStudents(studs);
 
       const marksMap = {};
+      savedMarkValues.current = {};
       for (const m of (marksRes.marks || [])) {
         marksMap[m.studentId] = String(m.marks ?? '');
-        // Record which students already have saved marks in Firestore
         savedMarkValues.current[m.studentId] = m.marks;
       }
       setMarks(marksMap);
@@ -162,43 +167,37 @@ export default function CCEMarkEntryScreen({ onBack, params = {} }) {
     }
   };
 
-  const autoSave = useCallback((studentId, rawValue) => {
-    clearTimeout(timers.current[studentId]);
-    const n = parseFloat(rawValue);
-    if (rawValue === '' || isNaN(n) || n < 0 || n > maxM) return;
-
-    timers.current[studentId] = setTimeout(() => {
-      const alreadySaved = savedMarkValues.current[studentId] !== undefined;
-
-      if (alreadySaved) {
-        // This is an edit — require a reason
-        setEditModal({
-          visible:       true,
-          studentId,
-          pendingValue:  n,
-          previousValue: savedMarkValues.current[studentId],
-        });
-        setEditReason('');
-        setTimeout(() => reasonInputRef.current?.focus(), 200);
-      } else {
-        // New entry — auto-save silently
-        apiFetch('/cce/marks', {
-          method: 'POST',
-          body: JSON.stringify({ studentId, subjectId, examType, marks: n, academicYear, classId, section: section || '' }),
-        }).then(res => {
-          if (res.ok) {
-            savedMarkValues.current[studentId] = n;
-            setSaveStatus(p => ({ ...p, [studentId]: 'saved' }));
-            setTimeout(() => setSaveStatus(p => { const x = { ...p }; delete x[studentId]; return x; }), 1500);
-          }
-        }).catch(() => {});
+  // Called when user types in a mark field
+  const onChangeMark = (studentId, val) => {
+    const cleaned = val.replace(/[^0-9.]/g, '');
+    const alreadySaved = savedMarkValues.current[studentId] !== undefined;
+    if (alreadySaved) {
+      // Allow editing in the field, then intercept on valid value to show reason modal
+      setMarks(p => ({ ...p, [studentId]: cleaned }));
+      const n = parseFloat(cleaned);
+      if (cleaned !== '' && !isNaN(n) && n >= 0 && n <= maxM) {
+        // Debounce to avoid opening modal mid-typing
+        clearTimeout(inputs.current[`timer_${studentId}`]);
+        inputs.current[`timer_${studentId}`] = setTimeout(() => {
+          setEditModal({
+            visible:       true,
+            studentId,
+            pendingValue:  n,
+            previousValue: savedMarkValues.current[studentId],
+          });
+          setEditReason('');
+          setTimeout(() => reasonInputRef.current?.focus(), 200);
+        }, 800);
       }
-    }, 600);
-  }, [academicYear, classId, section, subjectId, examType, maxM]);
+    } else {
+      // Not yet saved — just update local state. Submit button will send it.
+      setMarks(p => ({ ...p, [studentId]: cleaned }));
+    }
+  };
 
   const cancelEdit = () => {
     const { studentId, previousValue } = editModal;
-    // Revert the mark to previously saved value
+    clearTimeout(inputs.current[`timer_${studentId}`]);
     setMarks(p => ({ ...p, [studentId]: previousValue !== undefined ? String(previousValue) : '' }));
     setEditModal({ visible: false, studentId: null, pendingValue: null, previousValue: null });
     setEditReason('');
@@ -221,25 +220,84 @@ export default function CCEMarkEntryScreen({ onBack, params = {} }) {
       });
       if (res.ok) {
         savedMarkValues.current[studentId] = pendingValue;
-        setSaveStatus(p => ({ ...p, [studentId]: 'saved' }));
-        setTimeout(() => setSaveStatus(p => { const x = { ...p }; delete x[studentId]; return x; }), 1500);
+        setMarks(p => ({ ...p, [studentId]: String(pendingValue) }));
         setEditModal({ visible: false, studentId: null, pendingValue: null, previousValue: null });
         setEditReason('');
+        showToast('Mark updated successfully ✅', 'success');
       } else {
         const data = await res.json().catch(() => ({}));
-        console.warn('Edit marks failed:', data.error);
+        showToast(data.error || 'Failed to update mark', 'error');
       }
     } catch (e) {
-      console.warn('Edit marks error:', e.message);
+      showToast('Network error updating mark', 'error');
     } finally {
       setEditSaving(false);
     }
   };
 
-  const onChangeMark = (studentId, val) => {
-    const cleaned = val.replace(/[^0-9.]/g, '');
-    setMarks(p => ({ ...p, [studentId]: cleaned }));
-    autoSave(studentId, cleaned);
+  // Collect all unsaved marks that are valid
+  const getUnsavedEntries = useCallback(() => {
+    return students.reduce((arr, item) => {
+      const sid = item.studentId || item.id;
+      const val = marks[sid] ?? '';
+      const n   = parseFloat(val);
+      const alreadySaved = savedMarkValues.current[sid] !== undefined;
+      if (!alreadySaved && val !== '' && !isNaN(n) && n >= 0 && n <= maxM) {
+        arr.push({ studentId: sid, marks: n });
+      }
+      return arr;
+    }, []);
+  }, [students, marks, maxM]);
+
+  const handleSubmit = () => {
+    const entries = getUnsavedEntries();
+    if (entries.length === 0) {
+      showToast('No new marks to submit', 'info');
+      return;
+    }
+    Alert.alert(
+      'Submit Marks',
+      `Submit ${entries.length} mark${entries.length > 1 ? 's' : ''} for ${subjectId} — Class ${className}?\n\nOnce submitted, any changes will require a reason.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Submit',
+          style: 'default',
+          onPress: () => doSubmit(entries),
+        },
+      ]
+    );
+  };
+
+  const doSubmit = async (entries) => {
+    setSubmitting(true);
+    try {
+      const res = await apiFetch('/cce/marks/bulk', {
+        method: 'POST',
+        body: JSON.stringify({
+          entries,
+          subjectId, examType, academicYear, classId,
+          section: section || '',
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        // Mark all submitted entries as saved
+        for (const e of entries) {
+          savedMarkValues.current[e.studentId] = e.marks;
+        }
+        // Force re-render to reflect locked state
+        setMarks(p => ({ ...p }));
+        showToast(`Marks submitted successfully ✅ (${data.count ?? entries.length} saved)`, 'success');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showToast(data.error || 'Failed to submit marks', 'error');
+      }
+    } catch (e) {
+      showToast('Network error. Please try again.', 'error');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const gradeFor = (val) => {
@@ -250,13 +308,13 @@ export default function CCEMarkEntryScreen({ onBack, params = {} }) {
   };
 
   const renderStudent = ({ item, index }) => {
-    const sid      = item.studentId || item.id;
-    const name     = item.studentName || item.name || '';
-    const val      = marks[sid] ?? '';
-    const n        = parseFloat(val);
-    const isValid  = val === '' || (!isNaN(n) && n >= 0 && n <= maxM);
-    const grade    = gradeFor(val);
-    const status   = saveStatus[sid];
+    const sid        = item.studentId || item.id;
+    const name       = item.studentName || item.name || '';
+    const val        = marks[sid] ?? '';
+    const n          = parseFloat(val);
+    const isValid    = val === '' || (!isNaN(n) && n >= 0 && n <= maxM);
+    const grade      = gradeFor(val);
+    const isSaved    = savedMarkValues.current[sid] !== undefined;
 
     const fa1 = faMarks[sid]?.[precedingFAs[0]];
     const fa2 = faMarks[sid]?.[precedingFAs[1]];
@@ -287,17 +345,25 @@ export default function CCEMarkEntryScreen({ onBack, params = {} }) {
         )}
 
         <View style={st.inputWrap}>
-          <TextInput
-            ref={r => { inputs.current[sid] = r; }}
-            style={[st.input, !isValid && val !== '' && st.inputErr]}
-            value={val}
-            onChangeText={v => onChangeMark(sid, v)}
-            keyboardType="numeric"
-            placeholder="—"
-            placeholderTextColor={C.muted}
-            maxLength={5}
-          />
-          {status === 'saved' && <Text style={st.saved}>✓</Text>}
+          {isSaved ? (
+            // Saved mark — locked display
+            <View style={st.lockedBadge}>
+              <Text style={st.lockedVal}>{val}</Text>
+              <Text style={st.savedCheck}>✓</Text>
+            </View>
+          ) : (
+            // Unsaved mark — editable
+            <TextInput
+              ref={r => { inputs.current[sid] = r; }}
+              style={[st.input, !isValid && val !== '' && st.inputErr]}
+              value={val}
+              onChangeText={v => onChangeMark(sid, v)}
+              keyboardType="numeric"
+              placeholder="—"
+              placeholderTextColor={C.muted}
+              maxLength={5}
+            />
+          )}
         </View>
 
         {grade && (
@@ -349,7 +415,8 @@ export default function CCEMarkEntryScreen({ onBack, params = {} }) {
     </View>
   ) : null;
 
-  const reasonValid = editReason.trim().length >= MIN_REASON_LEN;
+  const unsavedCount  = getUnsavedEntries().length;
+  const reasonValid   = editReason.trim().length >= MIN_REASON_LEN;
 
   return (
     <KeyboardAvoidingView style={st.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -385,20 +452,34 @@ export default function CCEMarkEntryScreen({ onBack, params = {} }) {
           ListHeaderComponent={tableHeader}
           ListFooterComponent={listFooter}
           stickyHeaderIndices={[0]}
-          contentContainerStyle={{ paddingBottom: 40 }}
+          contentContainerStyle={{ paddingBottom: 120 }}
           keyboardShouldPersistTaps="handled"
         />
       )}
 
-      <View style={st.footer}>
-        <Text style={{ color: C.muted, fontSize: 12 }}>
-          {students.length} students · Auto-saves on entry
-        </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#22d38a' }} />
-          <Text style={{ color: C.muted, fontSize: 12 }}>Auto-save on</Text>
+      {/* ── Submit Marks Bar ── */}
+      {!loading && students.length > 0 && (
+        <View style={st.submitBar}>
+          <View>
+            <Text style={{ color: C.white, fontSize: 13, fontWeight: '700' }}>
+              {unsavedCount > 0 ? `${unsavedCount} unsaved mark${unsavedCount > 1 ? 's' : ''}` : 'All marks saved'}
+            </Text>
+            <Text style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>
+              Tap submit to save · Edits require a reason
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={[st.submitBtn, (unsavedCount === 0 || submitting) && st.submitBtnDisabled]}
+            onPress={handleSubmit}
+            disabled={unsavedCount === 0 || submitting}
+          >
+            {submitting
+              ? <ActivityIndicator size="small" color={C.white} />
+              : <Text style={st.submitBtnText}>Submit Marks</Text>
+            }
+          </TouchableOpacity>
         </View>
-      </View>
+      )}
 
       {/* ── Edit Reason Modal ── */}
       <Modal
@@ -452,33 +533,45 @@ export default function CCEMarkEntryScreen({ onBack, params = {} }) {
           </View>
         </View>
       </Modal>
+
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onHide={() => setToast(t => ({ ...t, visible: false }))}
+      />
     </KeyboardAvoidingView>
   );
 }
 
 const st = StyleSheet.create({
-  container:   { flex: 1, backgroundColor: C.navy },
-  header:      { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, paddingTop: 50, backgroundColor: C.navyMid, borderBottomWidth: 1, borderColor: C.border },
-  backBtn:     { width: 36, height: 36, borderRadius: 10, backgroundColor: C.navy, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: C.white },
-  refreshBtn:  { width: 36, height: 36, borderRadius: 10, backgroundColor: C.navy, alignItems: 'center', justifyContent: 'center' },
-  tableHeader: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0f2957', padding: 10, paddingHorizontal: 12 },
-  th:          { fontSize: 10, fontWeight: '700', color: C.muted, textAlign: 'center', textTransform: 'uppercase' },
-  row:         { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 1, borderColor: C.border + '55' },
-  rowEven:     { backgroundColor: C.navyMid + '66' },
-  rowNum:      { width: 28, fontSize: 12, color: C.muted, textAlign: 'center' },
-  rowName:     { flex: 1, fontSize: 13, color: C.white, fontWeight: '500' },
-  faCol:       { width: 60, alignItems: 'center' },
-  faVal:       { fontSize: 11, color: C.muted, textAlign: 'center' },
-  faTotal:     { width: 40, fontSize: 12, fontWeight: '700', textAlign: 'center' },
-  inputWrap:   { width: 56, flexDirection: 'row', alignItems: 'center', gap: 2 },
-  input:       { flex: 1, backgroundColor: C.navyMid, borderRadius: 8, borderWidth: 1.5, borderColor: C.border, color: C.white, fontSize: 14, fontWeight: '700', textAlign: 'center', paddingVertical: 6 },
-  inputErr:    { borderColor: '#ef4444' },
-  saved:       { color: '#22d38a', fontSize: 14, fontWeight: '700' },
-  badge:       { width: 32, borderRadius: 6, paddingVertical: 3, alignItems: 'center' },
-  badgeText:   { color: '#fff', fontSize: 10, fontWeight: '800' },
-  hyPrev:      { width: 44, fontSize: 12, fontWeight: '700', textAlign: 'center' },
-  footer:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, paddingHorizontal: 16, backgroundColor: C.navyMid, borderTopWidth: 1, borderColor: C.border },
+  container:    { flex: 1, backgroundColor: C.navy },
+  header:       { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, paddingTop: 50, backgroundColor: C.navyMid, borderBottomWidth: 1, borderColor: C.border },
+  backBtn:      { width: 36, height: 36, borderRadius: 10, backgroundColor: C.navy, alignItems: 'center', justifyContent: 'center' },
+  headerTitle:  { fontSize: 16, fontWeight: '700', color: C.white },
+  refreshBtn:   { width: 36, height: 36, borderRadius: 10, backgroundColor: C.navy, alignItems: 'center', justifyContent: 'center' },
+  tableHeader:  { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0f2957', padding: 10, paddingHorizontal: 12 },
+  th:           { fontSize: 10, fontWeight: '700', color: C.muted, textAlign: 'center', textTransform: 'uppercase' },
+  row:          { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 1, borderColor: C.border + '55' },
+  rowEven:      { backgroundColor: C.navyMid + '66' },
+  rowNum:       { width: 28, fontSize: 12, color: C.muted, textAlign: 'center' },
+  rowName:      { flex: 1, fontSize: 13, color: C.white, fontWeight: '500' },
+  faCol:        { width: 60, alignItems: 'center' },
+  faVal:        { fontSize: 11, color: C.muted, textAlign: 'center' },
+  faTotal:      { width: 40, fontSize: 12, fontWeight: '700', textAlign: 'center' },
+  inputWrap:    { width: 56, flexDirection: 'row', alignItems: 'center', gap: 2 },
+  input:        { flex: 1, backgroundColor: C.navyMid, borderRadius: 8, borderWidth: 1.5, borderColor: C.border, color: C.white, fontSize: 14, fontWeight: '700', textAlign: 'center', paddingVertical: 6 },
+  inputErr:     { borderColor: '#ef4444' },
+  lockedBadge:  { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#14532d44', borderRadius: 8, borderWidth: 1.5, borderColor: '#22d38a55', paddingVertical: 6, gap: 3 },
+  lockedVal:    { fontSize: 14, fontWeight: '700', color: '#22d38a', textAlign: 'center' },
+  savedCheck:   { fontSize: 12, color: '#22d38a', fontWeight: '800' },
+  badge:        { width: 32, borderRadius: 6, paddingVertical: 3, alignItems: 'center' },
+  badgeText:    { color: '#fff', fontSize: 10, fontWeight: '800' },
+  hyPrev:       { width: 44, fontSize: 12, fontWeight: '700', textAlign: 'center' },
+  submitBar:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, paddingHorizontal: 16, backgroundColor: '#0f2348', borderTopWidth: 1.5, borderColor: C.teal + '55' },
+  submitBtn:    { backgroundColor: C.teal, paddingVertical: 12, paddingHorizontal: 22, borderRadius: 14, minWidth: 130, alignItems: 'center' },
+  submitBtnDisabled: { backgroundColor: '#1a3c5e', opacity: 0.5 },
+  submitBtnText: { color: C.white, fontWeight: '800', fontSize: 14 },
 });
 
 const modal = StyleSheet.create({

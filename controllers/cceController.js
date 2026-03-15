@@ -750,8 +750,59 @@ async function getStudentSummary(req, res) {
   }
 }
 
+// ── GET /api/cce/marks/class ─────────────────────────────────────────────────
+async function getClassMarks(req, res) {
+  try {
+    const { classId, examType, academicYear } = req.query;
+    if (!classId || !examType || !academicYear) {
+      return res.status(400).json({ error: 'classId, examType, academicYear are required' });
+    }
+
+    const sid = schoolId(req);
+
+    const [marksSnap, studSnap] = await Promise.all([
+      cceColl(sid)
+        .where('classId',      '==', classId)
+        .where('examType',     '==', examType)
+        .where('academicYear', '==', academicYear)
+        .get(),
+      db().collection('students')
+        .where('schoolId', '==', sid)
+        .where('classId',  '==', classId)
+        .get(),
+    ]);
+
+    const marksMap = {};
+    marksSnap.docs.forEach(d => {
+      const m = d.data();
+      if (!marksMap[m.studentId]) marksMap[m.studentId] = {};
+      marksMap[m.studentId][m.subjectId] = m.marks;
+    });
+
+    const students = studSnap.docs
+      .map(d => {
+        const s = d.data();
+        return {
+          studentId:   s.studentId || d.id,
+          studentName: s.studentName || s.full_name || s.name || '',
+          rollNumber:  s.rollNumber || '',
+        };
+      })
+      .sort((a, b) => a.studentName.localeCompare(b.studentName))
+      .map(s => ({ ...s, marks: marksMap[s.studentId] || {} }));
+
+    const { SUBJECTS } = require('../helpers/cceGrading');
+    const maxM = MAX_MARKS[examType] || 0;
+
+    res.json({ success: true, students, subjects: SUBJECTS, examType, classId, academicYear, maxMarks: maxM });
+  } catch (e) {
+    console.error('[cce/marks/class]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
 module.exports = {
-  saveMarks, saveBulkMarks, editMarks, getMarks,
+  saveMarks, saveBulkMarks, editMarks, getMarks, getClassMarks,
   getMyAssignedSubjects, assignTeacherSubject, removeTeacherSubject, getTeacherSubjects,
   getHalfYearResults, getFinalResults, getStudentReport,
   getStudentSummary,
