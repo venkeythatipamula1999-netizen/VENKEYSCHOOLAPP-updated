@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, FlatList, TouchableOpacity,
   StyleSheet, ActivityIndicator, KeyboardAvoidingView,
-  Platform, ScrollView,
+  Platform, ScrollView, Modal,
 } from 'react-native';
 import { C } from '../../theme/colors';
 import { apiFetch } from '../../api/client';
@@ -13,6 +13,7 @@ import {
 
 const GRADE_BG = { A1:'#059669', A2:'#10b981', B1:'#3b82f6', B2:'#6366f1', C1:'#f59e0b', C2:'#f97316', D:'#ef4444', E:'#dc2626' };
 const EXAM_TYPES_ALL = ['FA1', 'FA2', 'FA3', 'FA4', 'SA1', 'SA2'];
+const MIN_REASON_LEN = 10;
 
 function ViewOnlySubjectCard({ subjectId, academicYear, classId, section, students }) {
   const [expanded, setExpanded]   = useState(false);
@@ -101,11 +102,21 @@ export default function CCEMarkEntryScreen({ onBack, params = {} }) {
     return s !== subjectId && !assignedSubjects.includes(s);
   });
 
-  const [students, setStudents] = useState([]);
-  const [marks, setMarks]       = useState({});
-  const [faMarks, setFaMarks]   = useState({});
-  const [loading, setLoading]   = useState(true);
+  const [students, setStudents]     = useState([]);
+  const [marks, setMarks]           = useState({});
+  const [faMarks, setFaMarks]       = useState({});
+  const [loading, setLoading]       = useState(true);
   const [saveStatus, setSaveStatus] = useState({});
+
+  // Edit-reason modal state
+  const [editModal, setEditModal]   = useState({ visible: false, studentId: null, pendingValue: null, previousValue: null });
+  const [editReason, setEditReason] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+  const reasonInputRef = useRef(null);
+
+  // Tracks mark values that already exist in Firestore (loaded on mount)
+  const savedMarkValues = useRef({});
+
   const timers  = useRef({});
   const inputs  = useRef({});
 
@@ -126,7 +137,11 @@ export default function CCEMarkEntryScreen({ onBack, params = {} }) {
       setStudents(studs);
 
       const marksMap = {};
-      for (const m of (marksRes.marks || [])) marksMap[m.studentId] = String(m.marks ?? '');
+      for (const m of (marksRes.marks || [])) {
+        marksMap[m.studentId] = String(m.marks ?? '');
+        // Record which students already have saved marks in Firestore
+        savedMarkValues.current[m.studentId] = m.marks;
+      }
       setMarks(marksMap);
 
       if (isSA && precedingFAs.length) {
@@ -152,19 +167,74 @@ export default function CCEMarkEntryScreen({ onBack, params = {} }) {
     const n = parseFloat(rawValue);
     if (rawValue === '' || isNaN(n) || n < 0 || n > maxM) return;
 
-    timers.current[studentId] = setTimeout(async () => {
-      try {
-        const res = await apiFetch('/cce/marks', {
+    timers.current[studentId] = setTimeout(() => {
+      const alreadySaved = savedMarkValues.current[studentId] !== undefined;
+
+      if (alreadySaved) {
+        // This is an edit — require a reason
+        setEditModal({
+          visible:       true,
+          studentId,
+          pendingValue:  n,
+          previousValue: savedMarkValues.current[studentId],
+        });
+        setEditReason('');
+        setTimeout(() => reasonInputRef.current?.focus(), 200);
+      } else {
+        // New entry — auto-save silently
+        apiFetch('/cce/marks', {
           method: 'POST',
           body: JSON.stringify({ studentId, subjectId, examType, marks: n, academicYear, classId, section: section || '' }),
-        });
-        if (res.ok) {
-          setSaveStatus(p => ({ ...p, [studentId]: 'saved' }));
-          setTimeout(() => setSaveStatus(p => { const x = { ...p }; delete x[studentId]; return x; }), 1500);
-        }
-      } catch (_) {}
+        }).then(res => {
+          if (res.ok) {
+            savedMarkValues.current[studentId] = n;
+            setSaveStatus(p => ({ ...p, [studentId]: 'saved' }));
+            setTimeout(() => setSaveStatus(p => { const x = { ...p }; delete x[studentId]; return x; }), 1500);
+          }
+        }).catch(() => {});
+      }
     }, 600);
   }, [academicYear, classId, section, subjectId, examType, maxM]);
+
+  const cancelEdit = () => {
+    const { studentId, previousValue } = editModal;
+    // Revert the mark to previously saved value
+    setMarks(p => ({ ...p, [studentId]: previousValue !== undefined ? String(previousValue) : '' }));
+    setEditModal({ visible: false, studentId: null, pendingValue: null, previousValue: null });
+    setEditReason('');
+  };
+
+  const confirmEdit = async () => {
+    const { studentId, pendingValue } = editModal;
+    if (!editReason || editReason.trim().length < MIN_REASON_LEN) return;
+
+    setEditSaving(true);
+    try {
+      const res = await apiFetch('/cce/marks', {
+        method: 'PUT',
+        body: JSON.stringify({
+          studentId, subjectId, examType,
+          marks: pendingValue, academicYear, classId,
+          section: section || '',
+          reason: editReason.trim(),
+        }),
+      });
+      if (res.ok) {
+        savedMarkValues.current[studentId] = pendingValue;
+        setSaveStatus(p => ({ ...p, [studentId]: 'saved' }));
+        setTimeout(() => setSaveStatus(p => { const x = { ...p }; delete x[studentId]; return x; }), 1500);
+        setEditModal({ visible: false, studentId: null, pendingValue: null, previousValue: null });
+        setEditReason('');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        console.warn('Edit marks failed:', data.error);
+      }
+    } catch (e) {
+      console.warn('Edit marks error:', e.message);
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   const onChangeMark = (studentId, val) => {
     const cleaned = val.replace(/[^0-9.]/g, '');
@@ -279,6 +349,8 @@ export default function CCEMarkEntryScreen({ onBack, params = {} }) {
     </View>
   ) : null;
 
+  const reasonValid = editReason.trim().length >= MIN_REASON_LEN;
+
   return (
     <KeyboardAvoidingView style={st.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={st.header}>
@@ -327,6 +399,59 @@ export default function CCEMarkEntryScreen({ onBack, params = {} }) {
           <Text style={{ color: C.muted, fontSize: 12 }}>Auto-save on</Text>
         </View>
       </View>
+
+      {/* ── Edit Reason Modal ── */}
+      <Modal
+        visible={editModal.visible}
+        transparent
+        animationType="slide"
+        onRequestClose={cancelEdit}
+      >
+        <View style={modal.overlay}>
+          <View style={modal.sheet}>
+            <View style={modal.handle} />
+
+            <Text style={modal.title}>Why are you editing this mark?</Text>
+            <Text style={modal.subtitle}>
+              {subjectId} · {examType} · Previous: {editModal.previousValue ?? '—'} → New: {editModal.pendingValue ?? '—'}
+            </Text>
+
+            <TextInput
+              ref={reasonInputRef}
+              style={[modal.input, reasonValid && modal.inputValid]}
+              placeholder="Enter reason (min 10 characters)..."
+              placeholderTextColor={C.muted}
+              value={editReason}
+              onChangeText={setEditReason}
+              multiline
+              numberOfLines={3}
+              maxLength={300}
+              autoCapitalize="sentences"
+            />
+
+            <Text style={[modal.counter, { color: reasonValid ? '#22d38a' : C.muted }]}>
+              {editReason.trim().length} / {MIN_REASON_LEN} min characters
+            </Text>
+
+            <View style={modal.actions}>
+              <TouchableOpacity style={modal.cancelBtn} onPress={cancelEdit} disabled={editSaving}>
+                <Text style={modal.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[modal.confirmBtn, !reasonValid && modal.confirmDisabled]}
+                onPress={confirmEdit}
+                disabled={!reasonValid || editSaving}
+              >
+                {editSaving
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <Text style={modal.confirmText}>Confirm Edit</Text>
+                }
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -354,6 +479,23 @@ const st = StyleSheet.create({
   badgeText:   { color: '#fff', fontSize: 10, fontWeight: '800' },
   hyPrev:      { width: 44, fontSize: 12, fontWeight: '700', textAlign: 'center' },
   footer:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, paddingHorizontal: 16, backgroundColor: C.navyMid, borderTopWidth: 1, borderColor: C.border },
+});
+
+const modal = StyleSheet.create({
+  overlay:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },
+  sheet:          { backgroundColor: '#0f2348', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
+  handle:         { width: 40, height: 4, backgroundColor: C.border, borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
+  title:          { fontSize: 18, fontWeight: '800', color: C.white, marginBottom: 6 },
+  subtitle:       { fontSize: 13, color: C.muted, marginBottom: 18 },
+  input:          { backgroundColor: '#162E50', borderWidth: 1.5, borderColor: C.border, borderRadius: 14, padding: 14, color: C.white, fontSize: 14, minHeight: 90, textAlignVertical: 'top' },
+  inputValid:     { borderColor: '#22d38a' },
+  counter:        { fontSize: 12, marginTop: 6, marginBottom: 20, textAlign: 'right' },
+  actions:        { flexDirection: 'row', gap: 12 },
+  cancelBtn:      { flex: 1, paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, borderColor: C.border, alignItems: 'center' },
+  cancelText:     { color: C.muted, fontSize: 15, fontWeight: '700' },
+  confirmBtn:     { flex: 2, paddingVertical: 14, borderRadius: 14, backgroundColor: C.teal, alignItems: 'center' },
+  confirmDisabled:{ backgroundColor: '#1a3c5e', opacity: 0.6 },
+  confirmText:    { color: C.white, fontSize: 15, fontWeight: '700' },
 });
 
 const vst = StyleSheet.create({

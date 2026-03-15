@@ -6,6 +6,11 @@ const {
   getFAGrade, getSAGrade, getFinalGrade,
   MAX_MARKS, VALID_EXAM_TYPES,
 } = require('../helpers/cceGrading');
+const {
+  notifyAdminMarksSubmitted,
+  notifyAdminMarksEdited,
+  notifyParentMarksUpdated,
+} = require('../services/notificationService');
 
 const DEFAULT_SCHOOL_ID = process.env.DEFAULT_SCHOOL_ID || 'school_001';
 const ADMIN_ROLES = ['principal', 'admin', 'staff'];
@@ -78,7 +83,9 @@ async function saveMarks(req, res) {
     const marksN  = Number(marks);
     const id      = docId(studentId, subjectId, examType, academicYear);
 
-    const sid = schoolId(req);
+    const sid       = schoolId(req);
+    const timestamp = new Date().toISOString();
+
     await cceColl(sid).doc(id).set({
       studentId, subjectId, examType,
       marks: marksN, maxMarks: maxM,
@@ -88,13 +95,25 @@ async function saveMarks(req, res) {
       updatedAt:  admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
 
+    // Admin notification
+    notifyAdminMarksSubmitted(sid, {
+      teacherName: req.teacherName || req.userId || '',
+      className:   classId,
+      subjectName: subjectId,
+      examType,
+      studentCount: 1,
+      timestamp,
+    }).catch(() => {});
+
+    // Parent notification (structured) + legacy parent_notifications + WhatsApp
     try {
       const studentQ = await db().collection('students').where('studentId', '==', studentId).limit(1).get();
       if (!studentQ.empty) {
-        const stuData = studentQ.docs[0].data();
+        const stuData     = studentQ.docs[0].data();
         const parentPhone = stuData.parentPhone || '';
-        const marksStr = `${marksN}/${maxM}`;
-        const pct = Math.round(marksN * 100 / maxM);
+        const marksStr    = `${marksN}/${maxM}`;
+        const pct         = Math.round(marksN * 100 / maxM);
+
         await db().collection('parent_notifications').add({
           studentId,
           type: 'marks_updated',
@@ -103,8 +122,18 @@ async function saveMarks(req, res) {
           subjectId, examType, marks: marksN, maxMarks: maxM,
           schoolId: sid,
           read: false,
-          createdAt: new Date().toISOString(),
+          createdAt: timestamp,
         });
+
+        notifyParentMarksUpdated(sid, studentId, {
+          studentName: stuData.full_name || stuData.name || studentId,
+          subjectName: subjectId,
+          examType,
+          marks: marksN,
+          gradeLetter: null,
+          timestamp,
+        }).catch(() => {});
+
         if (parentPhone) {
           sendAndLog(sid, parentPhone, 'vl_exam_result',
             [stuData.name || studentId, subjectId, examType, String(marksN), String(maxM), `${pct}%`],
@@ -119,6 +148,89 @@ async function saveMarks(req, res) {
     res.json({ success: true, message: 'Marks saved' });
   } catch (e) {
     console.error('[cce/marks POST]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+// ── PUT /api/cce/marks (edit with audit trail) ───────────────────────────────
+async function editMarks(req, res) {
+  try {
+    const {
+      studentId, subjectId, examType, marks,
+      academicYear, classId, section,
+      reason, teacherName,
+    } = req.body;
+
+    if (!reason || reason.trim().length === 0) {
+      return res.status(400).json({ error: 'Edit reason is required' });
+    }
+    if (!studentId || !subjectId || !academicYear || !classId) {
+      return res.status(400).json({ error: 'studentId, subjectId, academicYear, classId are required' });
+    }
+
+    const err = validateEntry(examType, marks);
+    if (err) return res.status(400).json({ error: err });
+
+    const allowed = await checkTeacherAssignment(req, subjectId, classId, section || '', academicYear);
+    if (!allowed) {
+      return res.status(403).json({ error: 'You are not assigned to teach this subject for this class' });
+    }
+
+    const maxM      = MAX_MARKS[examType];
+    const marksN    = Number(marks);
+    const id        = docId(studentId, subjectId, examType, academicYear);
+    const sid       = schoolId(req);
+    const ref       = cceColl(sid).doc(id);
+    const timestamp = new Date().toISOString();
+
+    const existing     = await ref.get();
+    const previousMarks = existing.exists ? existing.data().marks : null;
+
+    const historyEntry = {
+      editedBy:      teacherName || req.userId || '',
+      teacherId:     req.userId  || '',
+      previousMarks: previousMarks ?? null,
+      updatedMarks:  marksN,
+      reason:        reason.trim(),
+      timestamp,
+    };
+
+    await ref.set({
+      studentId, subjectId, examType,
+      marks: marksN, maxMarks: maxM,
+      academicYear, classId, section: section || '',
+      schoolId: sid,
+      enteredBy:   req.userId || '',
+      updatedAt:   admin.firestore.FieldValue.serverTimestamp(),
+      editHistory: admin.firestore.FieldValue.arrayUnion(historyEntry),
+    }, { merge: true });
+
+    // Admin notification
+    notifyAdminMarksEdited(sid, {
+      teacherName:   teacherName || req.userId || '',
+      className:     classId,
+      studentName:   studentId,
+      subjectName:   subjectId,
+      previousMarks: previousMarks ?? null,
+      updatedMarks:  marksN,
+      reason:        reason.trim(),
+      timestamp,
+    }).catch(() => {});
+
+    // Parent notification
+    notifyParentMarksUpdated(sid, studentId, {
+      studentName:   studentId,
+      subjectName:   subjectId,
+      examType,
+      marks:         marksN,
+      previousMarks: previousMarks ?? null,
+      gradeLetter:   null,
+      timestamp,
+    }).catch(() => {});
+
+    res.json({ success: true, message: 'Marks updated with audit trail' });
+  } catch (e) {
+    console.error('[cce/marks PUT]', e.message);
     res.status(500).json({ error: e.message });
   }
 }
@@ -639,7 +751,7 @@ async function getStudentSummary(req, res) {
 }
 
 module.exports = {
-  saveMarks, saveBulkMarks, getMarks,
+  saveMarks, saveBulkMarks, editMarks, getMarks,
   getMyAssignedSubjects, assignTeacherSubject, removeTeacherSubject, getTeacherSubjects,
   getHalfYearResults, getFinalResults, getStudentReport,
   getStudentSummary,
