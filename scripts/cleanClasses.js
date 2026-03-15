@@ -68,10 +68,10 @@ function startsWithGrade(name) {
 async function main() {
   console.log(`\n=== Vidhaya Layam — Class Cleanup ===`);
   console.log(`School ID : ${SCHOOL_ID}`);
-  console.log(`Collection: schools/${SCHOOL_ID}/classes\n`);
+  console.log(`Collection: classes (filtered by schoolId == ${SCHOOL_ID})\n`);
 
-  const colRef = db.collection('schools').doc(SCHOOL_ID).collection('classes');
-  const snap = await colRef.get();
+  const colRef = db.collection('classes');
+  const snap = await colRef.where('schoolId', '==', SCHOOL_ID).get();
 
   if (snap.empty) {
     console.log('No documents found. Nothing to do.');
