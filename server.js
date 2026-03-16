@@ -217,6 +217,7 @@ app.get('/_health', (req, res) => {
 const productionOrigins = [
   'https://superadminfinaldeploy.vercel.app',
   'https://super-admin-with-error-tracking-8b9.vercel.app',
+  'https://super-admin-with-error-tracking-8b9d-kl3zi2yuv.vercel.app',
   'https://venkeyschoolapp-updated.replit.app',
   'https://vidyalayam.replit.app',
   process.env.APP_URL,
