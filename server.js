@@ -907,7 +907,10 @@ app.post('/api/fee-reminder/acknowledge', async (req, res) => {
   try {
     const { reminderId } = req.body;
     if (!reminderId) return res.status(400).json({ error: 'reminderId required' });
-    await db.collection('fee_reminders').doc(reminderId).update({
+    const reminderRef = db.collection('fee_reminders').doc(reminderId);
+    const existing = await reminderRef.get();
+    if (!existing.exists) return res.status(404).json({ error: 'Reminder not found' });
+    await reminderRef.update({
       parentAcknowledged: true,
       acknowledgedAt: new Date().toISOString(),
     });
@@ -7442,7 +7445,8 @@ app.post('/api/parent/register', registerLimiter, async (req, res) => {
     const uid = userCredential.uid;
     let pinHash = null;
     if (pin && /^\d{4}$/.test(String(pin).trim())) pinHash = await bcrypt.hash(String(pin).trim(), 10);
-    const accountData = { uid, parentName: parentName.trim(), email, phone: String(phone).replace(/\D/g, ''), studentIds: [sid], activeStudentId: sid, pinHash, emailVerified: false, accountStatus: 'active', failedAttempts: 0, lockUntil: null, createdAt: new Date().toISOString(), lastLogin: null };
+    const studentSchoolId = studentData.schoolId || (req.schoolId || DEFAULT_SCHOOL_ID);
+    const accountData = { uid, parentName: parentName.trim(), email, phone: String(phone).replace(/\D/g, ''), studentIds: [sid], activeStudentId: sid, pinHash, emailVerified: false, accountStatus: 'active', failedAttempts: 0, lockUntil: null, createdAt: new Date().toISOString(), lastLogin: null, schoolId: studentSchoolId };
     await db.collection('parent_accounts').doc(uid).set(accountData);
     try {
       const signInForVerify = await firebaseSignIn(email, password);
@@ -7623,14 +7627,15 @@ app.get('/api/admin/parent-accounts', async (req, res) => {
 app.post('/api/admin/parent-accounts/:uid/status', async (req, res) => {
   try {
     const { uid } = req.params;
-    const { action } = req.body;
+    const { action, status } = req.body;
     const updates = {};
-    if (action === 'activate') updates.accountStatus = 'active';
-    else if (action === 'disable') updates.accountStatus = 'disabled';
-    else if (action === 'reset-attempts') { updates.failedAttempts = 0; updates.lockUntil = null; updates.accountStatus = 'active'; }
-    else return res.status(400).json({ error: 'Invalid action' });
+    const resolved = action || status;
+    if (resolved === 'activate' || resolved === 'active') updates.accountStatus = 'active';
+    else if (resolved === 'disable' || resolved === 'disabled' || resolved === 'suspended') updates.accountStatus = 'suspended';
+    else if (resolved === 'reset-attempts') { updates.failedAttempts = 0; updates.lockUntil = null; updates.accountStatus = 'active'; }
+    else return res.status(400).json({ error: 'Invalid action. Use: active, suspended, or reset-attempts' });
     await db.collection('parent_accounts').doc(uid).update(updates);
-    res.json({ success: true });
+    res.json({ success: true, accountStatus: updates.accountStatus });
   } catch (err) {
     console.error('Admin update parent status error:', err.message);
     res.status(500).json({ error: err.message });
