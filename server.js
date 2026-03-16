@@ -8548,7 +8548,12 @@ app.get('/api/report', (req, res) => {
 
 app.post('/api/super/schools/create', superAdminLimiter, verifySuperAdmin, async (req, res) => {
   try {
-    const { schoolName, location, address, phone, email, principalName, principalEmail, principalPassword, board, subscriptionPlan } = req.body;
+    const {
+      schoolName, location, address, phone, email,
+      principalName, principalEmail, principalPhone, principalPassword,
+      board, subscriptionPlan,
+      district, state, tagline, primaryColor, logoUrl, whatsappConfig
+    } = req.body;
     if (!schoolName || !location || !principalEmail || !principalPassword) {
       return res.status(400).json({ error: 'schoolName, location, principalEmail, principalPassword are required' });
     }
@@ -8561,15 +8566,22 @@ app.post('/api/super/schools/create', superAdminLimiter, verifySuperAdmin, async
 
     await adminDb.collection('schools').doc(schoolId).set({
       schoolId, schoolName, location,
+      district: district || '',
+      state: state || '',
       address: address || '',
       phone: phone || '',
       email: email || '',
       principalName: principalName || '',
       principalEmail,
+      principalPhone: principalPhone || '',
       board: board || 'State Board',
       subscriptionPlan: subscriptionPlan || 'basic',
       subscriptionStatus: 'active',
       status: 'active',
+      primaryColor: primaryColor || '#0D1B2A',
+      tagline: tagline || `Excellence in Education · ${location}`,
+      logoUrl: logoUrl || '',
+      ...(whatsappConfig ? { whatsappConfig } : {}),
       studentCount: 0,
       staffCount: 0,
       createdAt: now,
@@ -8578,12 +8590,17 @@ app.post('/api/super/schools/create', superAdminLimiter, verifySuperAdmin, async
 
     await adminDb.collection('settings').doc(schoolId).set({
       schoolId, schoolName, location,
-      tagline: `Excellence in Education · ${location}`,
+      district: district || '',
+      state: state || '',
+      tagline: tagline || `Excellence in Education · ${location}`,
       principalName: principalName || '',
+      principalPhone: principalPhone || '',
       phone: phone || '',
       email: email || '',
       address: address || '',
       board: board || 'State Board',
+      primaryColor: primaryColor || '#0D1B2A',
+      logoUrl: logoUrl || '',
       createdAt: now
     });
 
@@ -8601,6 +8618,13 @@ app.post('/api/super/schools/create', superAdminLimiter, verifySuperAdmin, async
           uid: principalUid, email: principalEmail,
           full_name: principalName || '', role: 'principal',
           role_id: `PRIN-${schoolId}`,
+          phone: principalPhone || '',
+          schoolId, schoolName, createdAt: now
+        });
+        await adminDb.collection('users').doc(principalUid).set({
+          uid: principalUid, email: principalEmail,
+          name: principalName || '', role: 'principal',
+          phone: principalPhone || '',
           schoolId, schoolName, createdAt: now
         });
       } catch (authErr) {
@@ -8613,9 +8637,9 @@ app.post('/api/super/schools/create', superAdminLimiter, verifySuperAdmin, async
       schoolId,
       schoolName,
       location:     location || '',
-      logoUrl:      '',
-      primaryColor: '#1a3c5e',
-      tagline:      `Excellence in Education`,
+      logoUrl:      logoUrl || '',
+      primaryColor: primaryColor || '#1a3c5e',
+      tagline:      tagline || 'Excellence in Education',
     });
     await adminDb.collection('schools').doc(schoolId).update({ schoolQR });
 
