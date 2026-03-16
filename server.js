@@ -390,7 +390,7 @@ app.post('/api/register', registerLimiter, validate([
       email: email,
       role: String(role),
       role_id: roleId,
-      schoolId: (req.schoolId || DEFAULT_SCHOOL_ID),
+      schoolId: (req.body.schoolId || req.schoolId || DEFAULT_SCHOOL_ID),
       created_at: new Date().toISOString(),
       ...(role === 'parent' ? {
         studentId: roleId,
@@ -594,6 +594,12 @@ app.post('/api/login', loginLimiter, async (req, res) => {
             phone: ld.phone || '',
             status: ld.status || 'active',
           };
+          // Sync schoolId from logistics_staff to user doc if mismatched
+          if (ld.schoolId && ld.schoolId !== user.schoolId) {
+            await db.collection('users').doc(userDoc.id).update({ schoolId: ld.schoolId });
+            user.schoolId = ld.schoolId;
+            console.log(`Synced schoolId for ${roleId}: ${user.schoolId} → ${ld.schoolId}`);
+          }
           console.log('Fetched logistics data for role:', driverData.role);
         }
       } catch (drvErr) {
@@ -7849,12 +7855,13 @@ async function sendEventNotifications(eventId, title, date, time, venue, type, f
 app.get('/api/events', async (req, res) => {
   try {
     const today = new Date().toISOString().slice(0, 10);
-    const snap = await db.collection('events').where('schoolId', '==', (req.schoolId || DEFAULT_SCHOOL_ID)).orderBy('date', 'desc').get();
+    const snap = await db.collection('events').where('schoolId', '==', (req.schoolId || DEFAULT_SCHOOL_ID)).get();
     const events = snap.docs.map(d => {
       const data = d.data();
       const status = data.date && data.date < today ? 'Done' : 'Upcoming';
       return { id: d.id, ...data, status };
     });
+    events.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     res.json({ events });
   } catch (err) {
     console.error('Get events error:', err.message);
