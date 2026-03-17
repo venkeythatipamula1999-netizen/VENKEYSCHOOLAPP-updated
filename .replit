@@ -52,6 +52,7 @@ BACKUP_BUCKET_NAME = "gs://school-app-87900.appspot.com"
 PRINCIPAL_EMAIL = "thatipamulavenkatesh1999@gmail.com"
 ACADEMIC_START = "2025-06-02"
 ACADEMIC_END = "2026-04-30"
+EXPO_TOKEN = "gH0PmutmfrIyZ6OU0jNEIVXB0NHwC1DHLJMC7KQR"
 
 [workflows]
 runButton = "Project"
