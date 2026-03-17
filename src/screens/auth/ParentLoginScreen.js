@@ -11,7 +11,7 @@ import { C } from '../../theme/colors';
 import { S } from '../../theme/styles';
 import { apiFetch } from '../../api/client';
 
-const PRODUCTION_URL = 'https://vidyalayam.replit.app';
+const PRODUCTION_URL = 'https://venkeyschoolapp-updated.replit.app';
 
 export default function ParentLoginScreen({ onLoginSuccess, onBack, onNavigate }) {
   const [email, setEmail]       = useState('');

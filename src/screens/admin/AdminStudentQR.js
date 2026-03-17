@@ -14,7 +14,7 @@ import Icon from '../../components/Icon';
 import { getFriendlyError } from '../../utils/errorMessages';
 import { apiFetch } from '../../api/client';
 
-const PRODUCTION_URL = 'https://vidyalayam.replit.app';
+const PRODUCTION_URL = 'https://venkeyschoolapp-updated.replit.app';
 
 const CLASS_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4'];
 

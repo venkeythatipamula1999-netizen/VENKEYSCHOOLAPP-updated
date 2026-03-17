@@ -10021,7 +10021,7 @@ const https = require('https');
 
 function keepAlive() {
   setInterval(() => {
-    https.get('https://vidyalayam.replit.app/health', (res) => {
+    https.get('https://venkeyschoolapp-updated.replit.app/health', (res) => {
       console.log(`Keep-alive ping: ${res.statusCode}`);
     }).on('error', (err) => {
       console.log(`Keep-alive error: ${err.message}`);

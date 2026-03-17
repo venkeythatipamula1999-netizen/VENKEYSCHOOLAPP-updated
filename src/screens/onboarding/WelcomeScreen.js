@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { C } from '../../theme/colors';
 
-const PRODUCTION_URL = 'https://vidyalayam.replit.app';
+const PRODUCTION_URL = 'https://venkeyschoolapp-updated.replit.app';
 const API_BASE = Platform.OS === 'web' ? '' : PRODUCTION_URL;
 
 export default function WelcomeScreen({ onNavigate }) {
