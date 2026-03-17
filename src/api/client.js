@@ -5,6 +5,35 @@ import { reportError, reportApiError } from '../services/errorReporter';
 const PRODUCTION_URL = 'https://vidyalayam.replit.app';
 const API_BASE = Platform.OS === 'web' ? '/api' : `${PRODUCTION_URL}/api`;
 
+const RETRY_COUNT = 2;
+const RETRY_DELAY = 1500;
+const REQUEST_TIMEOUT = 15000;
+
+function fetchWithTimeout(url, options, timeout = REQUEST_TIMEOUT) {
+  return Promise.race([
+    fetch(url, options),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Request timed out. Please check your internet connection.')), timeout)
+    ),
+  ]);
+}
+
+async function fetchWithRetry(url, options, retries = RETRY_COUNT) {
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetchWithTimeout(url, options);
+      return res;
+    } catch (err) {
+      lastError = err;
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, RETRY_DELAY * (attempt + 1)));
+      }
+    }
+  }
+  throw lastError;
+}
+
 export async function apiFetch(path, options = {}) {
   const token = await AsyncStorage.getItem('authToken');
   const isFormData = options.body instanceof FormData;
@@ -15,7 +44,7 @@ export async function apiFetch(path, options = {}) {
     ...options.headers,
   };
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetchWithRetry(`${API_BASE}${path}`, {
     ...options,
     headers,
   });
@@ -42,7 +71,7 @@ async function handleApiCall(endpoint, method, body) {
       options.body = JSON.stringify(body);
     }
     
-    const res = await fetch(`${API_BASE}${endpoint}`, options);
+    const res = await fetchWithRetry(`${API_BASE}${endpoint}`, options);
     const data = await res.json();
     
     if (!res.ok) {
