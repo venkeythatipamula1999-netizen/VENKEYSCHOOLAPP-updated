@@ -199,8 +199,9 @@ export default function App() {
     navigate('complete-profile');
   }, [navigate]);
 
-  const handleProfileComplete = useCallback((updatedUser) => {
+  const handleProfileComplete = useCallback(async (updatedUser) => {
     setCurrentUser(updatedUser);
+    await AsyncStorage.setItem('userData', JSON.stringify(updatedUser));
     navigateToDashboard(updatedUser.role);
   }, [navigateToDashboard]);
 
