@@ -14,7 +14,9 @@ import Icon from '../../components/Icon';
 import { getFriendlyError } from '../../utils/errorMessages';
 import { apiFetch } from '../../api/client';
 
+import { Platform } from 'react-native';
 const PRODUCTION_URL = 'https://venkeyschoolapp-updated.replit.app';
+const API_BASE = Platform.OS === 'web' ? '' : PRODUCTION_URL;
 
 const CLASS_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4'];
 
@@ -87,7 +89,7 @@ export default function AdminStudentQR({ onBack, currentUser }) {
     try {
       const token = await AsyncStorage.getItem('authToken');
       const classId = encodeURIComponent(selectedClass.id || selectedClass.name);
-      const url = `${PRODUCTION_URL}/api/students/qr-sheet-html/${classId}`;
+      const url = `${API_BASE}/api/students/qr-sheet-html/${classId}`;
       const resp = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });

@@ -10,8 +10,10 @@ import Icon from '../../components/Icon';
 import { C } from '../../theme/colors';
 import { S } from '../../theme/styles';
 import { apiFetch } from '../../api/client';
+import { Platform } from 'react-native';
 
 const PRODUCTION_URL = 'https://venkeyschoolapp-updated.replit.app';
+const API_BASE = Platform.OS === 'web' ? '' : PRODUCTION_URL;
 
 export default function ParentLoginScreen({ onLoginSuccess, onBack, onNavigate }) {
   const [email, setEmail]       = useState('');
@@ -144,7 +146,7 @@ export default function ParentLoginScreen({ onLoginSuccess, onBack, onNavigate }
         setConfirmLoading(false);
         return;
       }
-      const res = await fetch(`${PRODUCTION_URL}/api/students/qr/${encodeURIComponent(parsed.studentId)}`);
+      const res = await fetch(`${API_BASE}/api/students/qr/${encodeURIComponent(parsed.studentId)}`);
       const student = await res.json();
       if (!res.ok || student.error) {
         setConfirmData({ error: student.error || 'Student not found.' });
@@ -189,7 +191,7 @@ export default function ParentLoginScreen({ onLoginSuccess, onBack, onNavigate }
     setIdStudentData(null);
     setIdLookupLoading(true);
     try {
-      const res = await fetch(`${PRODUCTION_URL}/api/students/verify/${encodeURIComponent(sid)}`);
+      const res = await fetch(`${API_BASE}/api/students/verify/${encodeURIComponent(sid)}`);
       const data = await res.json();
       if (!res.ok || data.error) {
         setIdLookupError(data.error || 'Student not found. Please check the ID.');
