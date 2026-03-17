@@ -119,6 +119,6 @@ localPort = 8083
 externalPort = 3002
 
 [deployment]
-deploymentTarget = "autoscale"
+deploymentTarget = "vm"
 run = ["node", "server.js"]
-build = ["echo", "no-build-needed"]
+build = ["echo", "skip"]
