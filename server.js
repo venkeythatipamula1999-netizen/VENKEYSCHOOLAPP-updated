@@ -2229,6 +2229,130 @@ app.get('/api/students/qr-sheet/:classId', verifyAuth, async (req, res) => {
   }
 });
 
+app.get('/api/students/qr-sheet-html/:classId', verifyAuth, async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+
+    const snap = await db.collection('students')
+      .where('schoolId', '==', schoolId)
+      .where('classId', '==', classId)
+      .get();
+
+    const students = snap.docs.map(d => {
+      const s = d.data();
+      return {
+        studentId:       s.studentId || d.id,
+        studentName:     s.studentName || s.name || '',
+        fatherName:      s.fatherName || '',
+        className:       s.className || '',
+        admissionNumber: s.admissionNumber || '',
+        qrData:          s.qrData || s.studentId || d.id,
+      };
+    });
+    students.sort((a, b) => (a.studentName || '').localeCompare(b.studentName || ''));
+
+    let schoolName = 'School';
+    try {
+      const ss = await adminDb.collection('schools').doc(schoolId).get();
+      if (ss.exists) schoolName = ss.data().schoolName || ss.data().name || 'School';
+    } catch (_) {}
+
+    const className = students[0]?.className || classId;
+
+    const cardsJson = JSON.stringify(students.map(s => ({
+      n: s.studentName,
+      f: s.fatherName,
+      c: s.className,
+      a: s.admissionNumber,
+      q: s.qrData,
+    })));
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QR Sheet — ${className} | ${schoolName}</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a2b3c;padding:20px}
+  .top{text-align:center;margin-bottom:24px;padding:16px;background:#1a3c5e;color:#fff;border-radius:12px}
+  .top h1{font-size:20px;font-weight:800;margin-bottom:4px}
+  .top p{font-size:13px;opacity:.8}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .card{background:#fff;border-radius:12px;padding:14px;text-align:center;
+        border:1.5px solid #d1dce8;box-shadow:0 2px 8px rgba(0,0,0,.08);
+        page-break-inside:avoid;break-inside:avoid}
+  .card .qr-wrap{display:flex;justify-content:center;margin-bottom:10px}
+  .card .qr-wrap canvas,.card .qr-wrap img{border-radius:6px}
+  .name{font-size:13px;font-weight:700;color:#1a3c5e;margin-bottom:2px;
+        overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .father{font-size:11px;color:#5a6a7a;margin-bottom:2px;
+          overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .badge{display:inline-flex;gap:6px;margin-top:4px}
+  .chip{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px}
+  .chip-class{background:#e8f4ff;color:#1a6ec7}
+  .chip-adm{background:#e8fff4;color:#0a7a3c}
+  .print-btn{display:block;margin:0 auto 20px;padding:12px 32px;
+             background:#1a3c5e;color:#fff;border:none;border-radius:10px;
+             font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.3px}
+  .print-btn:hover{background:#0d2a45}
+  .count{text-align:center;color:#5a6a7a;font-size:13px;margin-bottom:16px}
+  @media print{
+    body{background:#fff;padding:0}
+    .print-btn,.top button{display:none!important}
+    .grid{grid-template-columns:repeat(3,1fr);gap:10px}
+    .card{box-shadow:none;border-color:#ccc}
+    @page{size:A4;margin:12mm}
+  }
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>${schoolName}</h1>
+  <p>Student QR Code Sheet &nbsp;·&nbsp; Class ${className}</p>
+</div>
+<p class="count" id="cnt"></p>
+<button class="print-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+<div class="grid" id="grid"></div>
+<script>
+const students=${cardsJson};
+document.getElementById('cnt').textContent=students.length+' student'+(students.length!==1?'s':'');
+const grid=document.getElementById('grid');
+students.forEach(function(s,i){
+  const card=document.createElement('div');
+  card.className='card';
+  const qWrap=document.createElement('div');
+  qWrap.className='qr-wrap';
+  const qEl=document.createElement('div');
+  qEl.id='qr'+i;
+  qWrap.appendChild(qEl);
+  card.innerHTML='<div class="name">'+s.n+'</div>'
+    +'<div class="father">S/o '+s.f+'</div>'
+    +'<div class="badge"><span class="chip chip-class">'+s.c+'</span>'
+    +'<span class="chip chip-adm">Adm: '+s.a+'</span></div>';
+  card.insertBefore(qWrap,card.firstChild);
+  grid.appendChild(card);
+  try{
+    new QRCode(qEl,{text:s.q||s.n,width:120,height:120,
+      colorDark:'#1a3c5e',colorLight:'#ffffff',
+      correctLevel:QRCode.CorrectLevel.M});
+  }catch(e){qEl.textContent='QR Error';}
+});
+</script>
+</body>
+</html>`;
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (err) {
+    console.error('[qr-sheet-html]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/students/:classId', async (req, res) => {
   try {
     const { classId } = req.params;
