@@ -2,8 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { reportError, reportApiError } from '../services/errorReporter';
 
+const DEV_URL = 'https://1b59c4a1-d915-4b50-bf44-dacb602b7bf8-00-32892q8c36byf.janeway.replit.dev';
 const PRODUCTION_URL = 'https://vidyalayam.replit.app';
-const API_BASE = Platform.OS === 'web' ? '/api' : `${PRODUCTION_URL}/api`;
+const API_BASE = Platform.OS === 'web' ? '/api' : `${DEV_URL}/api`;
 
 const RETRY_COUNT = 2;
 const RETRY_DELAY = 1500;
