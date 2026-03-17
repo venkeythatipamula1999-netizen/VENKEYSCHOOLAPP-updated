@@ -185,9 +185,14 @@ export default function App() {
     setRole(userRole);
     setCurrentUser(userData);
     registerForPushNotifications(userData.uid, userRole);
-    if (!userData.profileCompleted) {
+    const hasData = !!(userData.mobile && userData.blood_group && userData.emergency_contact && userData.date_of_birth);
+    if (!userData.profileCompleted && !hasData) {
       navigate('complete-profile');
     } else {
+      if (!userData.profileCompleted && hasData) {
+        userData.profileCompleted = true;
+        AsyncStorage.setItem('userData', JSON.stringify(userData)).catch(() => {});
+      }
       navigateToDashboard(userRole);
     }
   }, [navigate, navigateToDashboard]);
@@ -221,7 +226,9 @@ export default function App() {
   const isAdminHome = adminScreens.includes(screen);
 
   const isDashboardScreen = isParentHome || isTeacherHome || isDriverHome || isCleanerHome || isAdminHome;
-  if (currentUser && !currentUser.profileCompleted && isDashboardScreen) {
+  const hasProfileData = !!(currentUser?.mobile && currentUser?.blood_group && currentUser?.emergency_contact && currentUser?.date_of_birth);
+  const needsProfile = currentUser && !currentUser.profileCompleted && !hasProfileData && isDashboardScreen;
+  if (needsProfile) {
     return <CompleteProfileScreen currentUser={currentUser} onComplete={handleProfileComplete} />;
   }
 

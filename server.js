@@ -629,7 +629,12 @@ app.post('/api/login', loginLimiter, async (req, res) => {
 
     console.log('Login success for role:', user.role);
 
-    const responseUser = { id: userDoc.id, uid, full_name: user.full_name, email: user.email, role: user.role, role_id: user.role_id, created_at: user.created_at, profileCompleted: user.profileCompleted === true };
+    const hasProfileData = !!(user.mobile && user.blood_group && user.emergency_contact && user.date_of_birth);
+    const isProfileDone = user.profileCompleted === true || hasProfileData;
+    if (hasProfileData && !user.profileCompleted) {
+      db.collection('users').doc(userDoc.id).update({ profileCompleted: true }).catch(() => {});
+    }
+    const responseUser = { id: userDoc.id, uid, full_name: user.full_name, email: user.email, role: user.role, role_id: user.role_id, created_at: user.created_at, profileCompleted: isProfileDone };
     if (user.mobile) responseUser.mobile = user.mobile;
     if (user.blood_group) responseUser.blood_group = user.blood_group;
     if (user.emergency_contact) responseUser.emergency_contact = user.emergency_contact;
