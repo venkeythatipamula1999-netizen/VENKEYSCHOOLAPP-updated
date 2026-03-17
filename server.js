@@ -2506,16 +2506,20 @@ app.post('/api/students/bulk-upload/:classId', upload.single('file'), async (req
         const parentPhone = String(normalize(row, ['parentphone', 'parent phone', 'phone', 'mobile', 'contact']) || '').trim();
 
         if (!name) { skipped++; continue; }
-        if (rollRaw === '' || rollRaw === null || rollRaw === undefined) {
-          errors.push(`Row ${i + 2}: missing roll number for "${name}"`); skipped++; continue;
-        }
 
-        const rollNumber = Number(rollRaw);
-        if (isNaN(rollNumber) || rollNumber <= 0) {
-          errors.push(`Row ${i + 2}: invalid roll number "${rollRaw}" for "${name}"`); skipped++; continue;
-        }
-        if (existingRolls.has(rollNumber)) {
-          errors.push(`Row ${i + 2}: roll ${rollNumber} already exists — skipped "${name}"`); skipped++; continue;
+        let rollNumber;
+        if (rollRaw === '' || rollRaw === null || rollRaw === undefined) {
+          let autoRoll = 1;
+          while (existingRolls.has(autoRoll)) autoRoll++;
+          rollNumber = autoRoll;
+        } else {
+          rollNumber = Number(rollRaw);
+          if (isNaN(rollNumber) || rollNumber <= 0) {
+            errors.push(`Row ${i + 2}: invalid roll number "${rollRaw}" for "${name}"`); skipped++; continue;
+          }
+          if (existingRolls.has(rollNumber)) {
+            errors.push(`Row ${i + 2}: roll ${rollNumber} already exists — skipped "${name}"`); skipped++; continue;
+          }
         }
 
         const studentId = 'STU' + Date.now() + Math.floor(Math.random() * 9000 + 1000);
