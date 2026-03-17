@@ -71,7 +71,8 @@ export default function ParentLoginScreen({ onLoginSuccess, onBack, onNavigate }
       if (!res.ok) { setErrorMsg(data.error || 'Login failed. Please try again.'); return; }
       if (data.token) {
         await AsyncStorage.setItem('authToken', data.token);
-        await AsyncStorage.setItem('schoolId', data.user?.schoolId || 'SP-GOPA');
+        const storedSchoolId = await AsyncStorage.getItem('schoolId');
+        await AsyncStorage.setItem('schoolId', data.user?.schoolId || storedSchoolId || '');
         await AsyncStorage.setItem('userData', JSON.stringify(data.user));
       }
       onLoginSuccess(data.user, false, data.token);

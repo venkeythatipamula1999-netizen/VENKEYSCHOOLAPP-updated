@@ -49,7 +49,7 @@ function ReceiptModal({ receipt, onClose }) {
           <View style={{ alignItems: 'center', marginBottom: 20 }}>
             <Text style={{ fontSize: 28, marginBottom: 6 }}>{'\uD83C\uDFEB'}</Text>
             <Text style={{ fontWeight: '800', fontSize: 16, color: C.white }}>VIDYALAYAM</Text>
-            <Text style={{ color: C.muted, fontSize: 12 }}>{receipt.schoolName || 'SP-GOPA School'}</Text>
+            <Text style={{ color: C.muted, fontSize: 12 }}>{receipt.schoolName || 'School'}</Text>
             <View style={{ marginTop: 12, paddingVertical: 4, paddingHorizontal: 16, borderRadius: 8, backgroundColor: C.teal + '22', borderWidth: 1, borderColor: C.teal + '44' }}>
               <Text style={{ color: C.teal, fontWeight: '700', fontSize: 11, letterSpacing: 1 }}>PAYMENT RECEIPT</Text>
             </View>

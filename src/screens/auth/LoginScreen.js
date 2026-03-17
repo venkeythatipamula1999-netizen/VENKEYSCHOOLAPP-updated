@@ -48,7 +48,8 @@ export default function LoginScreen({ role, onLoginSuccess, onBack, onNavigate }
       const data = await loginUser({ email: user, password: pass });
       if (data.token) {
         await AsyncStorage.setItem('authToken', data.token);
-        await AsyncStorage.setItem('schoolId', data.user?.schoolId || 'SP-GOPA');
+        const storedSchoolId = await AsyncStorage.getItem('schoolId');
+        await AsyncStorage.setItem('schoolId', data.user?.schoolId || storedSchoolId || '');
         await AsyncStorage.setItem('userData', JSON.stringify(data.user));
       }
       const userData = data.user;

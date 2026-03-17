@@ -240,7 +240,6 @@ const productionOrigins = [
   'https://super-admin-with-error-tracking-8b9.vercel.app',
   'https://super-admin-with-error-tracking-8b9d-kl3zi2yuv.vercel.app',
   'https://venkeyschoolapp-updated.replit.app',
-  'https://vidyalayam.replit.app',
   process.env.APP_URL,
   process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null,
 ].filter(Boolean);
@@ -634,7 +633,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
     if (hasProfileData && !user.profileCompleted) {
       db.collection('users').doc(userDoc.id).update({ profileCompleted: true }).catch(() => {});
     }
-    const responseUser = { id: userDoc.id, uid, full_name: user.full_name, email: user.email, role: user.role, role_id: user.role_id, created_at: user.created_at, profileCompleted: isProfileDone };
+    const responseUser = { id: userDoc.id, uid, full_name: user.full_name, email: user.email, role: user.role, role_id: user.role_id, created_at: user.created_at, profileCompleted: isProfileDone, schoolId: user.schoolId || req.schoolId || DEFAULT_SCHOOL_ID };
     if (user.mobile) responseUser.mobile = user.mobile;
     if (user.blood_group) responseUser.blood_group = user.blood_group;
     if (user.emergency_contact) responseUser.emergency_contact = user.emergency_contact;
@@ -7472,7 +7471,7 @@ app.get('/api/student/bus-tracking', async (req, res) => {
     let events = [];
 
     try {
-      const studentSnap = await db.collection('users').doc(String(studentId).get());
+      const studentSnap = await db.collection('users').doc(String(studentId)).get();
       if (studentSnap.exists) {
         studentData = studentSnap.data();
         busRoute = studentData.bus_route || '';
