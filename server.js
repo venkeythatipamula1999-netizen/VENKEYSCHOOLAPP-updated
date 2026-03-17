@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
+const compression = require('compression');
 const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
@@ -10,6 +11,18 @@ const validate = require('./middleware/validate');
 const jwt = require('jsonwebtoken');
 const PDFDocument = require('pdfkit');
 const cron = require('node-cron');
+
+const _cache = new Map();
+function cacheGet(key, ttlMs = 5 * 60 * 1000) {
+  const entry = _cache.get(key);
+  if (entry && Date.now() - entry.ts < ttlMs) return entry.data;
+  _cache.delete(key);
+  return null;
+}
+function cacheSet(key, data) { _cache.set(key, { data, ts: Date.now() }); }
+function cacheDel(prefix) {
+  for (const k of _cache.keys()) { if (k.startsWith(prefix)) _cache.delete(k); }
+}
 const { runDailyBackup } = require('./src/services/firestoreBackup');
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error('[FATAL] JWT_SECRET environment variable is not set');
@@ -131,10 +144,16 @@ const checkSchoolActive = async (req, res, next) => {
   try {
     const schoolId = req.schoolId;
     if (!schoolId || schoolId === DEFAULT_SCHOOL_ID) return next();
-
     if (!adminDb) return next();
-    const schoolSnap = await adminDb.collection('schools').doc(schoolId).get();
-    if (schoolSnap.exists && schoolSnap.data().status === 'suspended') {
+
+    const ck = `school_status:${schoolId}`;
+    let status = cacheGet(ck, 60000);
+    if (status === null) {
+      const schoolSnap = await adminDb.collection('schools').doc(schoolId).get();
+      status = schoolSnap.exists ? (schoolSnap.data().status || 'active') : 'active';
+      cacheSet(ck, status);
+    }
+    if (status === 'suspended') {
       return res.status(403).json({
         error: 'School account suspended. Please contact Vidhaya Layam support.',
         code: 'SCHOOL_SUSPENDED'
@@ -188,6 +207,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 
 const app = express();
 app.set('trust proxy', 1);
+app.use(compression({ level: 6, threshold: 1024 }));
 const PORT = 5000;
 
 async function firebaseSignIn(email, password) {
@@ -1903,9 +1923,14 @@ cron.schedule('0 8 * * *', async () => {
 
 app.get('/api/classes', async (req, res) => {
   try {
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    const ck = `classes:${schoolId}`;
+    const cached = cacheGet(ck, 30000);
+    if (cached) return res.json(cached);
+
     const [classesSnap, studentsSnap] = await Promise.all([
-      db.collection('classes').where('schoolId', '==', (req.schoolId || DEFAULT_SCHOOL_ID)).get(),
-      db.collection('students').where('schoolId', '==', (req.schoolId || DEFAULT_SCHOOL_ID)).get(),
+      db.collection('classes').where('schoolId', '==', schoolId).get(),
+      db.collection('students').where('schoolId', '==', schoolId).get(),
     ]);
 
     const countByClass = {};
@@ -1920,7 +1945,9 @@ app.get('/api/classes', async (req, res) => {
       studentCount: countByClass[d.id] || 0,
     }));
 
-    res.json({ success: true, classes });
+    const result = { success: true, classes };
+    cacheSet(ck, result);
+    res.json(result);
   } catch (err) {
     console.error('Get classes error:', err.message);
     res.status(500).json({ error: 'Failed to fetch classes' });
@@ -1964,6 +1991,7 @@ app.post('/api/classes/add', verifyAuth, async (req, res) => {
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
+    cacheDel('classes:');
     console.log('Class added successfully with ID:', classId);
     res.json({ success: true, id: classId });
   } catch (err) {
@@ -1980,6 +2008,7 @@ app.delete('/api/classes/:id', async (req, res) => {
     const { id } = req.params;
     if (!id) return res.status(400).json({ error: 'Class ID required' });
     await db.collection('classes').doc(id).delete();
+    cacheDel('classes:');
     res.json({ success: true });
   } catch (err) {
     console.error('Delete class by ID error:', err.message);
@@ -2003,6 +2032,7 @@ app.post('/api/classes/delete', verifyAuth, async (req, res) => {
       await db.collection('classes').doc(d.id).delete();
     }
     
+    cacheDel('classes:');
     res.json({ success: true });
   } catch (err) {
     console.error('Delete class error:', err.message);
@@ -6574,12 +6604,15 @@ app.post('/api/students/generate-qr', verifyAuth, async (req, res) => {
 
 app.get('/api/school-info', async (req, res) => {
   try {
-    const docSnap = await adminDb.collection('settings').doc(req.schoolId || DEFAULT_SCHOOL_ID).get();
-    if (docSnap.exists) {
-      res.json({ success: true, info: docSnap.data() });
-    } else {
-      res.json({ success: true, info: null });
-    }
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    const ck = `school_info:${schoolId}`;
+    const cached = cacheGet(ck, 120000);
+    if (cached) return res.json(cached);
+
+    const docSnap = await adminDb.collection('settings').doc(schoolId).get();
+    const result = { success: true, info: docSnap.exists ? docSnap.data() : null };
+    cacheSet(ck, result);
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -6591,7 +6624,9 @@ app.post('/api/school-info', verifyAuth, async (req, res) => {
       return res.status(403).json({ error: 'Admin access required' });
     }
     const info = req.body;
-    await adminDb.collection('settings').doc(req.schoolId || DEFAULT_SCHOOL_ID).set(info, { merge: true });
+    const sid = req.schoolId || DEFAULT_SCHOOL_ID;
+    await adminDb.collection('settings').doc(sid).set(info, { merge: true });
+    cacheDel('school_info:');
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

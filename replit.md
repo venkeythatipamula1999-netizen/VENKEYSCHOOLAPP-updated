@@ -9,11 +9,12 @@ A comprehensive school management system with React Native (Expo) frontend servi
 
 ## Technology Stack
 - **Frontend**: React Native (Expo SDK 52) with web output, Metro bundler
-- **Backend**: Express.js API server (Node.js)
+- **Backend**: Express.js API server (Node.js) with gzip compression
 - **Database**: Firebase Firestore (project: school-app-87900) — **Admin SDK only** (no client SDK on server)
 - **Authentication**: Firebase Auth — Admin SDK (`adminAuth`) for create/update; REST API for sign-in and password reset
 - **Google Sheets**: Auto-sync for attendance, marks, payroll, and master timetable
 - **Error Tracking**: Automatic error reporting to Firestore "alerts" collection
+- **Performance**: In-memory TTL cache for hot Firestore reads (classes 30s, school-info 2m, school-status 1m), gzip compression on all API responses > 1KB, useCallback/useMemo in App.js to prevent unnecessary re-renders
 
 ## Directory Structure
 ```

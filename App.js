@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Platform, SafeAreaView, StatusBar } from 'react-native';
+import React, { useState, useRef, useEffect, useCallback, useMemo, Suspense } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, Platform, SafeAreaView, StatusBar, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { C } from './src/theme/colors';
 import { S } from './src/theme/styles';
@@ -162,25 +162,25 @@ export default function App() {
   }, []);
 
   const [navParams, setNavParams] = useState({});
-  const navigate = (s, params = {}) => {
+  const navigate = useCallback((s, params = {}) => {
     setNavParams(params);
     setScreen(s);
     if (scrollRef.current && scrollRef.current.scrollTo) {
       scrollRef.current.scrollTo({ y: 0, animated: false });
     }
-  };
+  }, []);
 
-  const adminScreens = ['admin-home', 'admin-users', 'admin-classes', 'admin-buses', 'admin-reports', 'admin-alerts', 'admin-notifications', 'admin-settings', 'admin-activities', 'admin-leaves', 'admin-fees', 'admin-salary', 'admin-profile', 'admin-promotion', 'admin-fee-status', 'admin-send-document'];
+  const adminScreens = useMemo(() => ['admin-home', 'admin-users', 'admin-classes', 'admin-buses', 'admin-reports', 'admin-alerts', 'admin-notifications', 'admin-settings', 'admin-activities', 'admin-leaves', 'admin-fees', 'admin-salary', 'admin-profile', 'admin-promotion', 'admin-fee-status', 'admin-send-document'], []);
 
-  const navigateToDashboard = (userRole) => {
+  const navigateToDashboard = useCallback((userRole) => {
     if (userRole === 'principal') navigate('admin-home');
     else if (userRole === 'driver') navigate('driver-home');
     else if (userRole === 'cleaner') navigate('cleaner-home');
     else if (userRole === 'teacher' || userRole === 'staff') navigate('teacher-home');
     else navigate('parent-home');
-  };
+  }, [navigate]);
 
-  const handleLoginSuccess = (userData, _requiresPIN, _token) => {
+  const handleLoginSuccess = useCallback((userData, _requiresPIN, _token) => {
     const userRole = userData.role;
     setRole(userRole);
     setCurrentUser(userData);
@@ -190,29 +190,29 @@ export default function App() {
     } else {
       navigateToDashboard(userRole);
     }
-  };
+  }, [navigate, navigateToDashboard]);
 
-  const handleSignupSuccess = (data) => {
+  const handleSignupSuccess = useCallback((data) => {
     const user = data.user || data;
     setCurrentUser(user);
     setRole(user.role);
     navigate('complete-profile');
-  };
+  }, [navigate]);
 
-  const handleProfileComplete = (updatedUser) => {
+  const handleProfileComplete = useCallback((updatedUser) => {
     setCurrentUser(updatedUser);
     navigateToDashboard(updatedUser.role);
-  };
+  }, [navigateToDashboard]);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     await AsyncStorage.multiRemove(['authToken', 'userData']);
     setCurrentUser(null);
     setRole(null);
     navigate('school-splash');
-  };
+  }, [navigate]);
 
-  const driverScreens = ['driver-home', 'driver-scans', 'driver-locations', 'driver-duration', 'driver-profile', 'driver-leave', 'driver-proximity'];
-  const cleanerScreens = ['cleaner-home', 'cleaner-scanner', 'cleaner-duration', 'cleaner-alerts', 'cleaner-profile', 'cleaner-leave'];
+  const driverScreens = useMemo(() => ['driver-home', 'driver-scans', 'driver-locations', 'driver-duration', 'driver-profile', 'driver-leave', 'driver-proximity'], []);
+  const cleanerScreens = useMemo(() => ['cleaner-home', 'cleaner-scanner', 'cleaner-duration', 'cleaner-alerts', 'cleaner-profile', 'cleaner-leave'], []);
   const isParentHome = ['parent-home', 'attendance', 'marks', 'bus', 'notifications', 'activities', 'fee', 'leave', 'digital-folder'].includes(screen);
   const isTeacherHome = ['teacher-home', 'teacher-attendance', 'teacher-marks', 'teacher-class-marks', 'teacher-schedule', 'teacher-bus', 'teacher-alerts', 'teacher-personal', 'teacher-profile', 'teacher-send-document', 'cce-home', 'cce-mark-entry', 'cce-halfyear', 'cce-final', 'marks-cce'].includes(screen);
   const isDriverHome = driverScreens.includes(screen);
@@ -272,48 +272,48 @@ export default function App() {
     );
   }
 
-  const parentTabs = [
+  const parentTabs = useMemo(() => [
     { id: 'home', label: 'Home', icon: 'home', screen: 'parent-home' },
     { id: 'marks', label: 'Marks', icon: 'chart', screen: 'marks' },
     { id: 'activities', label: 'Activities', icon: 'star', screen: 'activities' },
     { id: 'bus', label: 'Bus', icon: 'bus', screen: 'bus' },
     { id: 'alerts', label: 'Alerts', icon: 'bell', screen: 'notifications' },
-  ];
+  ], []);
 
-  const teacherTabs = [
+  const teacherTabs = useMemo(() => [
     { id: 'home', label: 'Dashboard', icon: 'home', screen: 'teacher-home' },
     { id: 'attend', label: 'Attendance', icon: 'check', screen: 'teacher-attendance' },
     { id: 'marks', label: 'Marks', icon: 'chart', screen: 'cce-home' },
     { id: 'alerts', label: 'Alerts', icon: 'bell', screen: 'teacher-alerts' },
     { id: 'personal', label: 'My Leave', icon: 'star', screen: 'teacher-personal' },
     { id: 'profile', label: 'Profile', icon: 'user', screen: 'teacher-profile' },
-  ];
+  ], []);
 
-  const adminTabs = [
+  const adminTabs = useMemo(() => [
     { id: 'home', label: 'Overview', icon: 'home', screen: 'admin-home' },
     { id: 'users', label: 'Users', icon: 'users', screen: 'admin-users' },
     { id: 'leaves', label: 'Leaves', icon: 'check', screen: 'admin-leaves' },
     { id: 'fees', label: 'Fees', icon: 'fee', screen: 'admin-fees' },
     { id: 'salary', label: 'Payroll', icon: 'chart', screen: 'admin-salary' },
-  ];
+  ], []);
 
-  const driverTabs = [
+  const driverTabs = useMemo(() => [
     { id: 'home', label: 'Home', icon: 'home', screen: 'driver-home' },
     { id: 'scans', label: 'Scans', icon: 'scan', screen: 'driver-scans' },
     { id: 'locations', label: 'Locations', icon: 'navigate', screen: 'driver-locations' },
     { id: 'duration', label: 'Trips', icon: 'clock', screen: 'driver-duration' },
     { id: 'profile', label: 'Profile', icon: 'user', screen: 'driver-profile' },
     { id: 'leave', label: 'Leave', icon: 'leave', screen: 'driver-leave' },
-  ];
+  ], []);
 
-  const cleanerTabs = [
+  const cleanerTabs = useMemo(() => [
     { id: 'home', label: 'Home', icon: 'home', screen: 'cleaner-home' },
     { id: 'scanner', label: 'Scanner', icon: 'scan', screen: 'cleaner-scanner' },
     { id: 'duration', label: 'Trips', icon: 'clock', screen: 'cleaner-duration' },
     { id: 'alerts', label: 'Alerts', icon: 'bell', screen: 'cleaner-alerts' },
     { id: 'profile', label: 'Profile', icon: 'user', screen: 'cleaner-profile' },
     { id: 'leave', label: 'Leave', icon: 'leave', screen: 'cleaner-leave' },
-  ];
+  ], []);
 
   const renderScreen = () => {
     switch (screen) {
