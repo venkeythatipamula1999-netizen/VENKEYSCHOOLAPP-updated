@@ -52,16 +52,37 @@ async function checkTeacherAssignment(req, subjectId, classId, section, academic
     .where('academicYear', '==', academicYear)
     .get();
 
-  if (snap.empty) return false;
-
-  if (section) {
-    const matchSection = snap.docs.some(d => {
-      const s = d.data().section;
-      return !s || s === section;
-    });
-    return matchSection;
+  if (!snap.empty) {
+    if (section) {
+      const matchSection = snap.docs.some(d => {
+        const s = d.data().section;
+        return !s || s === section;
+      });
+      return matchSection;
+    }
+    return true;
   }
-  return true;
+
+  const userDoc = await db().collection('users').doc(req.userId || '').get();
+  if (!userDoc.exists) return false;
+  const userData = userDoc.data();
+  const teacherSubject = (userData.subject || '').toLowerCase();
+  const assignedClasses = (userData.assignedClasses || []).map(c => c.trim().toLowerCase());
+  const timetable = userData.timetable || [];
+
+  const subjectMatch = teacherSubject === subjectId.toLowerCase() ||
+    timetable.some(t => (t.subject || '').toLowerCase() === subjectId.toLowerCase());
+
+  const classNorm = classId.replace(/^Grade\s*/i, '').trim().toLowerCase();
+  const classMatch = assignedClasses.some(ac => ac.replace(/^Grade\s*/i, '').trim() === classNorm) ||
+    timetable.some(t => (t.className || '').replace(/^Grade\s*/i, '').trim().toLowerCase() === classNorm);
+
+  if (subjectMatch && classMatch) {
+    console.log(`[cce] Fallback assignment check passed for ${req.userId}: ${subjectId} in ${classId}`);
+    return true;
+  }
+
+  return false;
 }
 
 // ── POST /api/cce/marks ──────────────────────────────────────────────────────
@@ -346,7 +367,31 @@ async function getMyAssignedSubjects(req, res) {
       docs = docs.filter(d => !d.section || d.section === section);
     }
 
-    const subjects = [...new Set(docs.map(d => d.subjectId).filter(Boolean))];
+    let subjects = [...new Set(docs.map(d => d.subjectId).filter(Boolean))];
+
+    if (subjects.length === 0) {
+      const userDoc = await db().collection('users').doc(req.userId || '').get();
+      if (userDoc.exists) {
+        const userData = userDoc.data();
+        const assignedClasses = (userData.assignedClasses || []).map(c => c.trim().toLowerCase());
+        const timetable = userData.timetable || [];
+        const classNorm = classId.replace(/^Grade\s*/i, '').trim().toLowerCase();
+        const hasClass = assignedClasses.some(ac => ac.replace(/^Grade\s*/i, '').trim() === classNorm) ||
+          timetable.some(t => (t.className || '').replace(/^Grade\s*/i, '').trim().toLowerCase() === classNorm);
+
+        if (hasClass) {
+          const fallbackSubjects = new Set();
+          if (userData.subject) fallbackSubjects.add(userData.subject);
+          for (const t of timetable) {
+            if (t.subject && (t.className || '').replace(/^Grade\s*/i, '').trim().toLowerCase() === classNorm) {
+              fallbackSubjects.add(t.subject);
+            }
+          }
+          subjects = [...fallbackSubjects];
+        }
+      }
+    }
+
     res.json({ success: true, subjects });
   } catch (e) {
     console.error('[cce/my-assigned-subjects]', e.message);

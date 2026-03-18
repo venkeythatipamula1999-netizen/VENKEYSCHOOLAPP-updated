@@ -41,25 +41,44 @@ async function teacherSubjectGuard(req, res, next) {
       .where('academicYear', '==', academicYear)
       .get();
 
-    if (snap.empty) {
-      return res.status(403).json({
-        error: 'You are not assigned to this subject/class',
-      });
+    if (!snap.empty) {
+      if (section) {
+        const sectionMatch = snap.docs.some(d => {
+          const s = d.data().section;
+          return !s || s === 'ALL' || s === section;
+        });
+        if (!sectionMatch) {
+          return res.status(403).json({
+            error: 'You are not assigned to this subject/class',
+          });
+        }
+      }
+      return next();
     }
 
-    if (section) {
-      const sectionMatch = snap.docs.some(d => {
-        const s = d.data().section;
-        return !s || s === 'ALL' || s === section;
-      });
-      if (!sectionMatch) {
-        return res.status(403).json({
-          error: 'You are not assigned to this subject/class',
-        });
+    const userDoc = await admin.firestore().collection('users').doc(teacherId).get();
+    if (userDoc.exists) {
+      const userData = userDoc.data();
+      const teacherSubject = (userData.subject || '').toLowerCase();
+      const assignedClasses = (userData.assignedClasses || []).map(c => c.trim().toLowerCase());
+      const timetable = userData.timetable || [];
+
+      const subjectMatch = teacherSubject === subjectId.toLowerCase() ||
+        timetable.some(t => (t.subject || '').toLowerCase() === subjectId.toLowerCase());
+
+      const classNorm = classId.replace(/^Grade\s*/i, '').trim().toLowerCase();
+      const classMatch = assignedClasses.some(ac => ac.replace(/^Grade\s*/i, '').trim() === classNorm) ||
+        timetable.some(t => (t.className || '').replace(/^Grade\s*/i, '').trim().toLowerCase() === classNorm);
+
+      if (subjectMatch && classMatch) {
+        console.log(`[teacherSubjectGuard] Fallback passed for ${teacherId}: ${subjectId} in ${classId}`);
+        return next();
       }
     }
 
-    next();
+    return res.status(403).json({
+      error: 'You are not assigned to this subject/class',
+    });
   } catch (err) {
     console.error('[teacherSubjectGuard]', err.message);
     return res.status(500).json({ error: 'Authorization check failed' });
