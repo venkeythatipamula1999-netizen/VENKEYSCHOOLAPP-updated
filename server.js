@@ -4604,7 +4604,7 @@ app.post('/api/attendance/save', validate([
         className: record.className || '',
         schoolId: record.schoolId,
         date: record.date,
-        month: record.month,
+        month: record.month || (record.date ? record.date.substring(0, 7) : date.substring(0, 7)),
         status: record.status,
         markedBy,
         submittedAt,
