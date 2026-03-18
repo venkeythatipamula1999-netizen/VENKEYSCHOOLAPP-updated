@@ -4129,6 +4129,46 @@ app.get('/api/onboarded-users', async (req, res) => {
   }
 });
 
+app.post('/api/admin/fix-missing-auth', async (req, res) => {
+  try {
+    if (req.userRole !== 'principal' && req.userRole !== 'admin') {
+      return res.status(403).json({ error: 'Only admin or principal can fix auth accounts' });
+    }
+    const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
+    const usersRef = db.collection('users');
+    const snap = await usersRef.where('schoolId', '==', schoolId).get();
+    const fixed = [];
+    const skipped = [];
+    const errors = [];
+    for (const doc of snap.docs) {
+      const u = doc.data();
+      if (u.uid || !u.email) { skipped.push(u.role_id || doc.id); continue; }
+      const phone = u.phone || u.mobile || '000000';
+      const defaultPassword = `${phone.slice(-4)}@Vidyalayam`;
+      try {
+        let fbUser;
+        try {
+          fbUser = await adminAuth.createUser({ email: u.email.trim().toLowerCase(), password: defaultPassword });
+        } catch (authErr) {
+          if (authErr.code === 'auth/email-already-exists') {
+            fbUser = await adminAuth.getUserByEmail(u.email.trim().toLowerCase());
+          } else { throw authErr; }
+        }
+        await usersRef.doc(doc.id).update({ uid: fbUser.uid, status: 'onboarded' });
+        fixed.push({ roleId: u.role_id, email: u.email, defaultPassword });
+        console.log(`[FixAuth] Created auth for ${u.email} (${u.role_id})`);
+      } catch (e) {
+        errors.push({ roleId: u.role_id, email: u.email, error: e.message });
+        console.error(`[FixAuth] Failed for ${u.email}:`, e.message);
+      }
+    }
+    res.json({ success: true, fixed, skipped: skipped.length, errors });
+  } catch (err) {
+    console.error('Fix auth error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/onboard-teacher', async (req, res) => {
   try {
     if (req.userRole !== 'principal' && req.userRole !== 'admin') {
