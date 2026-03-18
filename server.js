@@ -530,11 +530,12 @@ app.post('/api/login', loginLimiter, async (req, res) => {
         'auth/user-not-found': 'Invalid email or password',
         'auth/wrong-password': 'Invalid email or password',
         'auth/invalid-credential': 'Invalid email or password',
+        'auth/invalid-login-credentials': 'Invalid email or password',
         'auth/too-many-requests': 'Too many attempts. Please try again later.',
         'auth/operation-not-allowed': 'Email/Password sign-in is NOT enabled. Go to Firebase Console > Authentication > Sign-in method > Enable it.',
         'auth/configuration-not-found': 'Firebase Auth not configured. Enable Email/Password in Firebase Console > Authentication.',
       };
-      const friendlyMsg = errorMap[authErr.code] || `Login error [${authErr.code}]: ${authErr.message}`;
+      const friendlyMsg = errorMap[authErr.code] || 'Invalid email or password';
       return res.status(401).json({ error: friendlyMsg });
     }
 
@@ -4169,6 +4170,28 @@ app.post('/api/onboard-teacher', async (req, res) => {
       return res.status(500).json({ error: 'Could not generate unique Teacher ID. Please try again.' });
     }
 
+    const defaultPassword = `${phone.slice(-4)}@Vidyalayam`;
+    let uid = null;
+    let authCreated = false;
+    if (email) {
+      try {
+        const fbUser = await adminAuth.createUser({ email: email.trim().toLowerCase(), password: defaultPassword });
+        uid = fbUser.uid;
+        authCreated = true;
+        console.log(`Firebase Auth account created for ${email} (uid: ${uid})`);
+      } catch (authErr) {
+        if (authErr.code === 'auth/email-already-exists') {
+          try {
+            const existing = await adminAuth.getUserByEmail(email.trim().toLowerCase());
+            uid = existing.uid;
+            console.log(`Firebase Auth account already exists for ${email} (uid: ${uid})`);
+          } catch (e2) { console.error('Could not fetch existing auth user:', e2.message); }
+        } else {
+          console.error('Firebase Auth create failed for teacher:', authErr.code, authErr.message);
+        }
+      }
+    }
+
     const userData = {
       full_name: fullName,
       email: email || '',
@@ -4176,12 +4199,13 @@ app.post('/api/onboard-teacher', async (req, res) => {
       role_id: teacherId,
       subject: subject || '',
       phone: phone || '',
-      status: 'pending_registration',
+      status: authCreated ? 'onboarded' : 'pending_registration',
       join_date: joinDate || new Date().toISOString().split('T')[0],
       schoolId: (req.schoolId || DEFAULT_SCHOOL_ID),
       created_at: new Date().toISOString(),
       onboarded_by: 'principal',
     };
+    if (uid) userData.uid = uid;
 
     const docRef = await usersRef.add(userData);
     console.log(`Onboarded ${role}: ${fullName} | ID: ${teacherId} | Firestore doc: ${docRef.id}`);
@@ -4195,7 +4219,7 @@ app.post('/api/onboard-teacher', async (req, res) => {
         subject: subject || '',
         email: email || '',
         phone: phone || '',
-        status: 'Pending Registration',
+        status: authCreated ? 'Active' : 'Pending Registration',
         onboardedDate: joinDate || new Date().toISOString().split('T')[0],
       });
     } catch (syncErr) {
@@ -4206,6 +4230,7 @@ app.post('/api/onboard-teacher', async (req, res) => {
     res.status(201).json({
       success: true,
       teacherId,
+      defaultPassword: authCreated ? defaultPassword : undefined,
       user: {
         id: docRef.id,
         full_name: fullName,
@@ -4214,7 +4239,7 @@ app.post('/api/onboard-teacher', async (req, res) => {
         subject: subject || '',
         email: email || '',
         phone: phone || '',
-        status: 'pending_registration',
+        status: authCreated ? 'onboarded' : 'pending_registration',
       },
       sheetSync: sheetSync.success,
     });
@@ -4267,6 +4292,28 @@ app.post('/api/add-logistics-staff', async (req, res) => {
       return res.status(500).json({ error: 'Could not generate unique Staff ID. Please try again.' });
     }
 
+    const defaultPassword = `${phone.slice(-4)}@Vidyalayam`;
+    let uid = null;
+    let authCreated = false;
+    if (email) {
+      try {
+        const fbUser = await adminAuth.createUser({ email: email.trim().toLowerCase(), password: defaultPassword });
+        uid = fbUser.uid;
+        authCreated = true;
+        console.log(`Firebase Auth account created for ${type} ${email} (uid: ${uid})`);
+      } catch (authErr) {
+        if (authErr.code === 'auth/email-already-exists') {
+          try {
+            const existing = await adminAuth.getUserByEmail(email.trim().toLowerCase());
+            uid = existing.uid;
+            console.log(`Firebase Auth account already exists for ${email} (uid: ${uid})`);
+          } catch (e2) { console.error('Could not fetch existing auth user:', e2.message); }
+        } else {
+          console.error('Firebase Auth create failed for logistics staff:', authErr.code, authErr.message);
+        }
+      }
+    }
+
     const staffData = {
       full_name: fullName,
       type: type,
@@ -4284,9 +4331,27 @@ app.post('/api/add-logistics-staff', async (req, res) => {
       created_at: new Date().toISOString(),
       added_by: 'principal',
     };
+    if (uid) staffData.uid = uid;
 
     const docRef = await logisticsRef.add(staffData);
     console.log(`Added ${type}: ${fullName} | ID: ${staffId} | Firestore doc: ${docRef.id}`);
+
+    if (uid && email) {
+      const usersRef = db.collection('users');
+      await usersRef.add({
+        uid: uid,
+        full_name: fullName,
+        email: email.trim().toLowerCase(),
+        role: type,
+        role_id: staffId,
+        phone: phone || '',
+        schoolId: (req.schoolId || DEFAULT_SCHOOL_ID),
+        status: 'onboarded',
+        created_at: new Date().toISOString(),
+        onboarded_by: 'principal',
+      });
+      console.log(`Created users doc for ${type} ${staffId} so they can log in`);
+    }
 
     let sheetSync = { success: false };
     try {
@@ -4311,6 +4376,7 @@ app.post('/api/add-logistics-staff', async (req, res) => {
     res.status(201).json({
       success: true,
       staffId,
+      defaultPassword: authCreated ? defaultPassword : undefined,
       staff: {
         id: docRef.id,
         full_name: fullName,

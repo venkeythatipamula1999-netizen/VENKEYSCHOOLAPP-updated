@@ -1316,12 +1316,20 @@ export default function AdminUsers({ onBack, onNavigate }) {
               {staffResult?.staff?.type === 'driver' ? 'Driver Added!' : 'Cleaner Added!'}
             </Text>
             <Text style={{ color: C.muted, fontSize: 13, textAlign: 'center', marginBottom: 20 }}>
-              {staffResult?.staff?.full_name || 'Staff member'} has been registered. Share the ID below so they can use it to sign up.
+              {staffResult?.staff?.full_name || 'Staff member'} has been registered. {staffResult?.defaultPassword ? 'They can log in with the credentials below.' : 'Share the ID below so they can use it to sign up.'}
             </Text>
             <Text style={{ color: C.muted, fontSize: 11, fontWeight: '600', marginBottom: 6 }}>STAFF ID</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.navy, borderWidth: 1.5, borderColor: C.teal + '66', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 18, marginBottom: 8, width: '100%' }}>
               <Text style={{ flex: 1, fontWeight: '800', fontSize: 20, color: C.teal, letterSpacing: 1, textAlign: 'center' }}>{staffResult?.staffId || ''}</Text>
             </View>
+            {staffResult?.defaultPassword ? (
+              <View style={{ width: '100%', marginBottom: 8 }}>
+                <Text style={{ color: C.muted, fontSize: 11, fontWeight: '600', marginBottom: 6 }}>DEFAULT PASSWORD</Text>
+                <View style={{ backgroundColor: C.navy, borderWidth: 1.5, borderColor: '#f59e0b66', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 18 }}>
+                  <Text style={{ fontWeight: '800', fontSize: 18, color: '#f59e0b', letterSpacing: 1, textAlign: 'center' }}>{staffResult.defaultPassword}</Text>
+                </View>
+              </View>
+            ) : null}
             <TouchableOpacity onPress={handleCopyStaffId} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: staffCopied ? '#22d38a' : C.teal, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 24, width: '100%', marginBottom: 16 }}>
               <Text style={{ fontWeight: '700', fontSize: 14, color: C.white }}>{staffCopied ? '\u2713 Copied!' : '\uD83D\uDCCB Copy ID'}</Text>
             </TouchableOpacity>
@@ -1349,12 +1357,20 @@ export default function AdminUsers({ onBack, onNavigate }) {
             </View>
             <Text style={{ fontWeight: '800', fontSize: 20, color: C.white, marginBottom: 6, textAlign: 'center' }}>Teacher Onboarded!</Text>
             <Text style={{ color: C.muted, fontSize: 13, textAlign: 'center', marginBottom: 20 }}>
-              {onboardResult?.fullName || 'Staff member'} has been issued a unique system ID. Share it with them for sign-up.
+              {onboardResult?.fullName || 'Staff member'} has been registered. {onboardResult?.defaultPassword ? 'They can log in with the credentials below.' : 'Share the ID below so they can use it to sign up.'}
             </Text>
             <Text style={{ color: C.muted, fontSize: 11, fontWeight: '600', marginBottom: 6 }}>SYSTEM ID</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.navy, borderWidth: 1.5, borderColor: '#22d38a66', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 18, marginBottom: 8, width: '100%' }}>
               <Text style={{ flex: 1, fontWeight: '800', fontSize: 20, color: '#22d38a', letterSpacing: 1, textAlign: 'center' }}>{onboardResult?.teacherId || ''}</Text>
             </View>
+            {onboardResult?.defaultPassword ? (
+              <View style={{ width: '100%', marginBottom: 8 }}>
+                <Text style={{ color: C.muted, fontSize: 11, fontWeight: '600', marginBottom: 6 }}>DEFAULT PASSWORD</Text>
+                <View style={{ backgroundColor: C.navy, borderWidth: 1.5, borderColor: '#f59e0b66', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 18 }}>
+                  <Text style={{ fontWeight: '800', fontSize: 18, color: '#f59e0b', letterSpacing: 1, textAlign: 'center' }}>{onboardResult.defaultPassword}</Text>
+                </View>
+              </View>
+            ) : null}
             <TouchableOpacity onPress={handleCopyId} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: copied ? '#22d38a' : C.teal, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 24, width: '100%', marginBottom: 16 }}>
               <Text style={{ fontWeight: '700', fontSize: 14, color: C.white }}>{copied ? '\u2713 Copied!' : '\uD83D\uDCCB Copy ID'}</Text>
             </TouchableOpacity>
