@@ -97,6 +97,7 @@ const verifyAuth = async (req, res, next) => {
     req.schoolId = decoded.schoolId || DEFAULT_SCHOOL_ID;
     req.userId   = decoded.userId;
     req.userRole = decoded.role;
+    req.teacherName = decoded.fullName || '';
     return next();
 
   } catch (err) {
@@ -664,7 +665,8 @@ app.post('/api/login', loginLimiter, async (req, res) => {
       role: user.role,
       schoolId: user.schoolId || DEFAULT_SCHOOL_ID,
       roleId: user.role_id,
-      email: user.email
+      email: user.email,
+      fullName: user.full_name || ''
     });
 
     res.json({ token: jwtToken, user: responseUser });
@@ -4203,7 +4205,7 @@ app.post('/api/onboard-teacher', async (req, res) => {
       join_date: joinDate || new Date().toISOString().split('T')[0],
       schoolId: (req.schoolId || DEFAULT_SCHOOL_ID),
       created_at: new Date().toISOString(),
-      onboarded_by: 'principal',
+      onboarded_by: req.userRole || 'principal',
     };
     if (uid) userData.uid = uid;
 
@@ -6399,7 +6401,7 @@ app.post('/api/trip/scan', scanLimiter, validate([
     const prevScansQ = db.collection('trip_scans').where('studentId', '==', studentId).where('date', '==', today);
     const prevScansSnap = await prevScansQ.get();
     const scanCount = prevScansSnap.size;
-    const isBoarding = scanCount === 0;
+    const isBoarding = scanCount % 2 === 0;
     const scanType = isBoarding ? 'board' : 'alight';
 
     const scanDoc = {
@@ -6810,7 +6812,7 @@ app.get('/api/bus/route-students', async (req, res) => {
     if (assignedStudentIds.length > 0) {
       for (const studentId of assignedStudentIds) {
         try {
-          const studentSnap = await db.collection('students').doc(studentId).get();
+          const studentSnap = await db.collection('students').doc(String(studentId)).get();
           if (studentSnap.exists) {
             const sData = studentSnap.data();
             students.push({
@@ -7542,6 +7544,20 @@ app.get('/api/student/bus-tracking', async (req, res) => {
         studentData = studentSnap.data();
         busRoute = studentData.bus_route || '';
         busNumber = studentData.bus_number || '';
+      } else {
+        const byFieldQ = await db.collection('users').where('studentId', '==', String(studentId)).limit(1).get();
+        if (!byFieldQ.empty) {
+          studentData = byFieldQ.docs[0].data();
+          busRoute = studentData.bus_route || '';
+          busNumber = studentData.bus_number || '';
+        } else {
+          const studentsQ = await db.collection('students').where('studentId', '==', String(studentId)).limit(1).get();
+          if (!studentsQ.empty) {
+            studentData = studentsQ.docs[0].data();
+            busRoute = studentData.busRoute || studentData.bus_route || '';
+            busNumber = studentData.busNumber || studentData.bus_number || '';
+          }
+        }
       }
     } catch (e) {
       console.warn('Could not fetch student data:', e.message);

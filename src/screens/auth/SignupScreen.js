@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from '../../components/Icon';
 import { C } from '../../theme/colors';
 import { S } from '../../theme/styles';
@@ -16,9 +17,15 @@ export default function SignupScreen({ onBack, onSignup }) {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [schoolId, setSchoolId] = useState('');
+
+  useEffect(() => {
+    AsyncStorage.getItem('schoolId').then(id => { if (id) setSchoolId(id); });
+  }, []);
 
   const isTeacher = role === 'teacher';
   const isDriver = role === 'driver';
+  const isCleaner = role === 'cleaner';
 
   const showAlert = (title, msg) => {
     if (Platform.OS === 'web') {
@@ -49,7 +56,7 @@ export default function SignupScreen({ onBack, onSignup }) {
     setLoading(true);
     try {
       console.log('Registering user:', { fullName, email, role, roleId });
-      const data = await registerUser({ fullName, email, password, role, roleId });
+      const data = await registerUser({ fullName, email, password, role, roleId, schoolId });
       console.log('Registration response:', JSON.stringify(data));
       setSuccessMsg('Registration successful!');
       showAlert('Success', 'Registration successful!');
@@ -90,6 +97,7 @@ export default function SignupScreen({ onBack, onSignup }) {
               { id: 'teacher', label: 'Teacher' },
               { id: 'parent', label: 'Parent' },
               { id: 'driver', label: 'Driver' },
+              { id: 'cleaner', label: 'Cleaner' },
             ].map(r => (
               <TouchableOpacity
                 key={r.id}
@@ -98,14 +106,14 @@ export default function SignupScreen({ onBack, onSignup }) {
                   paddingVertical: 10,
                   borderRadius: 9,
                   alignItems: 'center',
-                  backgroundColor: role === r.id ? (r.id === 'driver' ? C.teal : C.gold) : C.navyMid,
+                  backgroundColor: role === r.id ? (r.id === 'driver' || r.id === 'cleaner' ? C.teal : C.gold) : C.navyMid,
                 }}
                 onPress={() => setRole(r.id)}
               >
                 <Text style={{
                   fontSize: 13,
                   fontWeight: '600',
-                  color: role === r.id ? (r.id === 'driver' ? C.white : C.navy) : C.muted,
+                  color: role === r.id ? (r.id === 'driver' || r.id === 'cleaner' ? C.white : C.navy) : C.muted,
                 }}>{r.label}</Text>
               </TouchableOpacity>
             ))}
@@ -169,10 +177,10 @@ export default function SignupScreen({ onBack, onSignup }) {
               />
             </View>
             <View>
-              <Text style={S.label}>{isTeacher ? 'Employee ID' : isDriver ? 'Driver ID' : 'Parent ID'}</Text>
+              <Text style={S.label}>{isTeacher ? 'Employee ID' : isDriver ? 'Driver ID' : isCleaner ? 'Cleaner ID' : 'Parent ID'}</Text>
               <TextInput
                 style={S.inputField}
-                placeholder={isTeacher ? 'e.g. TCH-2026-1234' : isDriver ? 'e.g. DRV-1234' : 'e.g. VISPAR001'}
+                placeholder={isTeacher ? 'e.g. TCH-2026-1234' : isDriver ? 'e.g. DRV-1234' : isCleaner ? 'e.g. CLN-1234' : 'e.g. VISPAR001'}
                 placeholderTextColor={C.muted}
                 value={roleId}
                 onChangeText={setRoleId}

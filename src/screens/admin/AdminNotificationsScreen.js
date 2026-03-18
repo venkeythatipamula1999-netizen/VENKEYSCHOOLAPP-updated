@@ -28,6 +28,9 @@ function fmtTime(ts) {
 function typeInfo(type) {
   if (type === 'MARKS_SUBMITTED') return { icon: '📝', label: 'Marks Submitted', color: '#22d38a', bg: '#14532d' };
   if (type === 'MARKS_EDITED')    return { icon: '✏️', label: 'Marks Edited',    color: '#60a5fa', bg: '#1e3a5f' };
+  if (type === 'ATTENDANCE')      return { icon: '📋', label: 'Attendance',      color: '#f59e0b', bg: '#78350f' };
+  if (type === 'BUS_ALERT')       return { icon: '🚌', label: 'Bus Alert',       color: '#06b6d4', bg: '#164e63' };
+  if (type === 'FEE_UPDATE')      return { icon: '💰', label: 'Fee Update',      color: '#a78bfa', bg: '#4c1d95' };
   return                                   { icon: '🔔', label: 'Notification',   color: C.gold,   bg: C.card   };
 }
 
@@ -103,9 +106,26 @@ export default function AdminNotificationsScreen({ onBack }) {
   const fetchNotifs = useCallback(async () => {
     setLoading(true);
     try {
-      const res  = await apiFetch('/school-notifications');
-      const data = await res.json();
-      setNotifs(data.notifications || []);
+      const [res1, res2] = await Promise.all([
+        apiFetch('/school-notifications'),
+        apiFetch('/admin/notifications').catch(() => ({ json: () => ({ notifications: [] }) })),
+      ]);
+      const data1 = await res1.json();
+      const data2 = await res2.json();
+      const schoolNotifs = (data1.notifications || []).map(n => ({ ...n, _source: 'school' }));
+      const adminNotifs = (data2.notifications || []).map(n => ({
+        ...n,
+        _source: 'admin',
+        type: n.type || 'ATTENDANCE',
+        teacherName: n.teacherName || n.markedBy || '',
+        className: n.className || '',
+      }));
+      const merged = [...schoolNotifs, ...adminNotifs].sort((a, b) => {
+        const ta = a.createdAt || a.timestamp || '';
+        const tb = b.createdAt || b.timestamp || '';
+        return new Date(tb) - new Date(ta);
+      });
+      setNotifs(merged);
     } catch (e) {
       console.warn('AdminNotificationsScreen fetch error', e.message);
     } finally {
@@ -118,7 +138,8 @@ export default function AdminNotificationsScreen({ onBack }) {
   const markRead = async (notif) => {
     if (notif.read) return;
     setNotifs(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
-    apiFetch('/school-notifications/mark-read', {
+    const endpoint = notif._source === 'admin' ? '/admin/notifications/mark-read' : '/school-notifications/mark-read';
+    apiFetch(endpoint, {
       method: 'POST',
       body: JSON.stringify({ ids: [notif.id] }),
     }).catch(() => {});
@@ -128,10 +149,10 @@ export default function AdminNotificationsScreen({ onBack }) {
     if (unreadCount === 0) return;
     setMarkingAll(true);
     try {
-      await apiFetch('/school-notifications/mark-read', {
-        method: 'POST',
-        body: JSON.stringify({ ids: [] }),
-      });
+      await Promise.all([
+        apiFetch('/school-notifications/mark-read', { method: 'POST', body: JSON.stringify({ ids: [] }) }),
+        apiFetch('/admin/notifications/mark-read', { method: 'POST', body: JSON.stringify({ ids: [] }) }),
+      ]);
       setNotifs(prev => prev.map(n => ({ ...n, read: true })));
     } catch (e) {
       console.warn('Mark all read error', e.message);

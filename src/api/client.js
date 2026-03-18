@@ -96,8 +96,8 @@ async function handleApiCall(endpoint, method, body) {
   }
 }
 
-export async function registerUser({ fullName, email, password, role, roleId }) {
-  return handleApiCall('/register', 'POST', { fullName, email, password, role, roleId });
+export async function registerUser({ fullName, email, password, role, roleId, schoolId }) {
+  return handleApiCall('/register', 'POST', { fullName, email, password, role, roleId, schoolId });
 }
 
 export async function loginUser({ email, password }) {

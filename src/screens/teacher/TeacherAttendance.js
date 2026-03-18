@@ -272,7 +272,7 @@ export default function TeacherAttendance({ onBack, currentUser }) {
         rollNumber: s.roll || 0,
         classId: selectedClass,
         className: classInfo?.grade || '',
-        schoolId: 'school_001',
+        schoolId: currentUser?.schoolId || 'school_001',
         date,
         month: date.substring(0, 7),
         status: absentSet.has(s.id) ? 'Absent' : 'Present',

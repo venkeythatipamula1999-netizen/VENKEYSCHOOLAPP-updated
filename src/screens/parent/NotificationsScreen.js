@@ -27,10 +27,12 @@ export default function NotificationsScreen({ onBack, currentUser }) {
           const isFile = n.type === 'file_upload' || (n.message && n.message.includes('New File'));
           const isAck = n.type === 'payment_acknowledgement';
           const isEvent = n.type === 'event';
+          const isMarks = n.type === 'MARKS_UPDATED' || n.type === 'MARKS_SUBMITTED' || n.type === 'MARKS_EDITED';
+          const isAttendance = n.type === 'attendance' || n.type === 'ATTENDANCE';
           return {
             ...n,
-            icon: isProximity ? '\uD83D\uDE8C' : isFee ? '\uD83D\uDD14' : isFile ? '\uD83D\uDCC1' : isAck ? '\u2705' : isEvent ? '\uD83D\uDCC5' : '\uD83D\uDCE2',
-            title: isProximity ? 'Bus Approaching!' : isFee ? 'Fee Reminder' : isFile ? 'New Document' : isAck ? 'Payment Acknowledged' : (n.title || 'Notification'),
+            icon: isProximity ? '\uD83D\uDE8C' : isFee ? '\uD83D\uDD14' : isFile ? '\uD83D\uDCC1' : isAck ? '\u2705' : isEvent ? '\uD83D\uDCC5' : isMarks ? '\uD83D\uDCDD' : isAttendance ? '\uD83D\uDCCB' : '\uD83D\uDCE2',
+            title: isProximity ? 'Bus Approaching!' : isFee ? 'Fee Reminder' : isFile ? 'New Document' : isAck ? 'Payment Acknowledged' : isMarks ? 'Marks Updated' : isAttendance ? 'Attendance' : (n.title || 'Notification'),
             desc: n.message || '',
             time: new Date(n.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
             color: isProximity ? C.teal : isFee ? C.coral : isFile ? C.purple : isAck ? '#34D399' : isEvent ? '#60A5FA' : C.gold,
