@@ -4136,13 +4136,17 @@ app.post('/api/admin/fix-missing-auth', async (req, res) => {
     }
     const schoolId = req.schoolId || DEFAULT_SCHOOL_ID;
     const usersRef = db.collection('users');
-    const snap = await usersRef.where('schoolId', '==', schoolId).get();
+    const snap1 = await usersRef.where('schoolId', '==', schoolId).get();
+    const snap2 = await usersRef.where('schoolId', '==', null).get();
+    const snap3 = await usersRef.where('onboarded_by', 'in', ['principal', 'admin']).get();
+    const allDocs = new Map();
+    [...snap1.docs, ...snap2.docs, ...snap3.docs].forEach(d => allDocs.set(d.id, d));
     const fixed = [];
     const skipped = [];
     const errors = [];
-    for (const doc of snap.docs) {
+    for (const [docId, doc] of allDocs) {
       const u = doc.data();
-      if (u.uid || !u.email) { skipped.push(u.role_id || doc.id); continue; }
+      if (u.uid || !u.email) { skipped.push(u.role_id || docId); continue; }
       const phone = u.phone || u.mobile || '000000';
       const defaultPassword = `${phone.slice(-4)}@Vidyalayam`;
       try {
@@ -4154,7 +4158,9 @@ app.post('/api/admin/fix-missing-auth', async (req, res) => {
             fbUser = await adminAuth.getUserByEmail(u.email.trim().toLowerCase());
           } else { throw authErr; }
         }
-        await usersRef.doc(doc.id).update({ uid: fbUser.uid, status: 'onboarded' });
+        const updateData = { uid: fbUser.uid, status: 'onboarded' };
+        if (!u.schoolId) updateData.schoolId = schoolId;
+        await usersRef.doc(doc.id).update(updateData);
         fixed.push({ roleId: u.role_id, email: u.email, defaultPassword });
         console.log(`[FixAuth] Created auth for ${u.email} (${u.role_id})`);
       } catch (e) {
@@ -4165,6 +4171,39 @@ app.post('/api/admin/fix-missing-auth', async (req, res) => {
     res.json({ success: true, fixed, skipped: skipped.length, errors });
   } catch (err) {
     console.error('Fix auth error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/reset-user-password', async (req, res) => {
+  try {
+    if (req.userRole !== 'principal' && req.userRole !== 'admin') {
+      return res.status(403).json({ error: 'Only admin or principal can reset passwords' });
+    }
+    const { email, newPassword } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+    const password = newPassword || `${Date.now().toString().slice(-4)}@Vidyalayam`;
+    try {
+      const fbUser = await adminAuth.getUserByEmail(email.trim().toLowerCase());
+      await adminAuth.updateUser(fbUser.uid, { password });
+      console.log(`[AdminReset] Password reset for ${email}`);
+      res.json({ success: true, email, newPassword: password });
+    } catch (authErr) {
+      if (authErr.code === 'auth/user-not-found') {
+        const fbUser = await adminAuth.createUser({ email: email.trim().toLowerCase(), password });
+        const usersRef = db.collection('users');
+        const userSnap = await usersRef.where('email', '==', email.trim().toLowerCase()).limit(1).get();
+        if (!userSnap.empty) {
+          await usersRef.doc(userSnap.docs[0].id).update({ uid: fbUser.uid, status: 'onboarded' });
+        }
+        console.log(`[AdminReset] Created new auth account for ${email}`);
+        res.json({ success: true, email, newPassword: password, created: true });
+      } else {
+        throw authErr;
+      }
+    }
+  } catch (err) {
+    console.error('Admin reset password error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
