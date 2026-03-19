@@ -97,6 +97,7 @@ const verifyAuth = async (req, res, next) => {
     req.schoolId = decoded.schoolId || DEFAULT_SCHOOL_ID;
     req.userId   = decoded.userId;
     req.userRole = decoded.role;
+    req.roleId   = decoded.roleId || '';
     req.teacherName = decoded.fullName || '';
     return next();
 
@@ -342,6 +343,9 @@ app.use((req, res, next) => {
 });
 
 async function safeSync(operation, syncFn, payload) {
+  if (!process.env.GOOGLE_SPREADSHEET_ID) {
+    return { success: false, error: 'GOOGLE_SPREADSHEET_ID not set — skipped' };
+  }
   try {
     const result = await syncFn();
     if (!result.success) {
@@ -2641,7 +2645,7 @@ app.post('/api/assign-classes', async (req, res) => {
 
 app.get('/api/teacher-classes', async (req, res) => {
   try {
-    const { roleId } = req.query;
+    const roleId = req.query.roleId || req.roleId;
     if (!roleId) {
       return res.status(400).json({ error: 'roleId query param is required' });
     }
@@ -2664,7 +2668,7 @@ app.get('/api/teacher-classes', async (req, res) => {
 
 app.get('/api/teacher/profile', async (req, res) => {
   try {
-    const { roleId } = req.query;
+    const roleId = req.query.roleId || req.roleId;
     if (!roleId) return res.status(400).json({ error: 'roleId is required' });
     const usersRef = db.collection('users');
     const q = usersRef.where('role_id', '==', roleId);
@@ -2687,7 +2691,7 @@ app.get('/api/teacher/profile', async (req, res) => {
 
 app.get('/api/teacher/permissions', async (req, res) => {
   try {
-    const { roleId } = req.query;
+    const roleId = req.query.roleId || req.roleId;
     if (!roleId) return res.status(400).json({ error: 'roleId is required' });
 
     const usersRef = db.collection('users');
@@ -2740,7 +2744,7 @@ app.get('/api/teacher/permissions', async (req, res) => {
 
 app.get('/api/teacher/classes', async (req, res) => {
   try {
-    const { roleId } = req.query;
+    const roleId = req.query.roleId || req.roleId;
     if (!roleId) return res.status(400).json({ error: 'roleId is required' });
 
     const usersRef = db.collection('users');
@@ -2936,7 +2940,7 @@ app.post('/api/save-timetable', async (req, res) => {
 
 app.get('/api/teacher-notifications', async (req, res) => {
   try {
-    const { roleId } = req.query;
+    const roleId = req.query.roleId || req.roleId;
     if (!roleId) return res.status(400).json({ error: 'roleId required' });
 
     const notifsRef = db.collection('teacher_notifications');
@@ -2971,7 +2975,7 @@ app.post('/api/teacher-notifications/mark-read', async (req, res) => {
 
 app.get('/api/teacher-timetable', async (req, res) => {
   try {
-    const { roleId } = req.query;
+    const roleId = req.query.roleId || req.roleId;
     if (!roleId) return res.status(400).json({ error: 'roleId required' });
 
     const usersRef = db.collection('users');
@@ -2989,7 +2993,8 @@ app.get('/api/teacher-timetable', async (req, res) => {
 
 app.get('/api/teacher-calendar', async (req, res) => {
   try {
-    const { roleId, month, year } = req.query;
+    const roleId = req.query.roleId || req.roleId;
+    const { month, year } = req.query;
     if (!roleId) return res.status(400).json({ error: 'roleId required' });
 
     const calRef = db.collection('teacher_calendar');
@@ -7280,7 +7285,7 @@ app.post('/api/duty/update-status', async (req, res) => {
 
 app.get('/api/duty/status', async (req, res) => {
   try {
-    const { roleId } = req.query;
+    const roleId = req.query.roleId || req.roleId;
     if (!roleId) return res.status(400).json({ error: 'roleId required' });
     const now = new Date();
     const docId = `duty_${roleId}_${now.toISOString().slice(0, 10)}`;
@@ -7326,7 +7331,8 @@ app.post('/api/duty/mark-area-complete', verifyAuth, validate([
 
 app.get('/api/duty/week-log', async (req, res) => {
   try {
-    const { roleId, date } = req.query;
+    const roleId = req.query.roleId || req.roleId;
+    const { date } = req.query;
     if (!roleId || !date) return res.status(400).json({ error: 'roleId and date required' });
     const docId = `duty_${roleId}_${date}`;
     const snap = await db.collection('staff_duty').doc(docId).get();
@@ -9267,7 +9273,7 @@ function calcSalarySummary(salary, attByDate, workingDays) {
 
 app.get('/api/payroll/my-salary', async (req, res) => {
   try {
-    const { roleId } = req.query;
+    const roleId = req.query.roleId || req.roleId;
     if (!roleId) return res.status(400).json({ error: 'roleId required' });
     const [salSnap, userSnap, onbSnap, balSnap] = await Promise.all([
       db.collection('salary_settings').doc(roleId).get(),
@@ -9278,7 +9284,8 @@ app.get('/api/payroll/my-salary', async (req, res) => {
     const salary = salSnap.exists ? salSnap.data() : {};
     const userData = !userSnap.empty ? userSnap.docs[0].data() : (!onbSnap.empty ? onbSnap.docs[0].data() : {});
     const balance = balSnap.exists ? balSnap.data() : { casual: 12, sick: 12, earned: 6 };
-    res.json({ salary, user: userData, balance });
+    const configured = salSnap.exists && (salary.basicSalary || salary.grossSalary || salary.monthlySalary);
+    res.json({ salary, user: userData, balance, configured: !!configured });
   } catch (err) {
     console.error('My salary error:', err.message);
     res.status(500).json({ error: err.message });
@@ -9287,7 +9294,8 @@ app.get('/api/payroll/my-salary', async (req, res) => {
 
 app.get('/api/payroll/my-payslip', async (req, res) => {
   try {
-    const { roleId, month } = req.query;
+    const roleId = req.query.roleId || req.roleId;
+    const { month } = req.query;
     if (!roleId || !month) return res.status(400).json({ error: 'roleId and month required' });
     const [year, mon] = month.split('-').map(Number);
     const workingDaysList = getWorkingDays(year, mon);
@@ -9350,7 +9358,8 @@ app.get('/api/payroll/my-payslip', async (req, res) => {
 
 app.get('/api/payroll/my-year', async (req, res) => {
   try {
-    const { roleId, year } = req.query;
+    const roleId = req.query.roleId || req.roleId;
+    const { year } = req.query;
     if (!roleId || !year) return res.status(400).json({ error: 'roleId and year required' });
     const y = parseInt(year);
     const months = Array.from({ length: 12 }, (_, i) => `${y}-${String(i + 1).padStart(2, '0')}`);
@@ -9403,7 +9412,8 @@ app.get('/api/payroll/my-year', async (req, res) => {
 
 app.get('/api/payroll/payslip-html', async (req, res) => {
   try {
-    const { roleId, month } = req.query;
+    const roleId = req.query.roleId || req.roleId;
+    const { month } = req.query;
     if (!roleId || !month) return res.status(400).json({ error: 'roleId and month required' });
     const [year, mon] = month.split('-').map(Number);
     const workingDaysList = getWorkingDays(year, mon);
@@ -9535,7 +9545,7 @@ app.post('/api/payroll/mark-credited', async (req, res) => {
 
 app.get('/api/leave-balance', async (req, res) => {
   try {
-    const { roleId } = req.query;
+    const roleId = req.query.roleId || req.roleId;
     if (!roleId) return res.status(400).json({ error: 'roleId required' });
     const balSnap = await db.collection('leave_balance').doc(roleId).get();
     const balance = balSnap.exists ? balSnap.data() : { casual: 12, sick: 12, earned: 6 };
@@ -9624,7 +9634,8 @@ app.get('/api/payroll/employees', async (req, res) => {
 
 app.get('/api/payroll/attendance', async (req, res) => {
   try {
-    const { roleId, month } = req.query;
+    const roleId = req.query.roleId || req.roleId;
+    const { month } = req.query;
     if (!roleId || !month) return res.status(400).json({ error: 'roleId and month required' });
     const [year, mon] = month.split('-').map(Number);
     const workingDays = getWorkingDays(year, mon);
@@ -9770,6 +9781,7 @@ app.get('/api/admin/sync-status', async (req, res) => {
 });
 
 async function retrySyncErrors() {
+  if (!process.env.GOOGLE_SPREADSHEET_ID) return;
   try {
     const errSnap = await db.collection('sync_errors').where('status', '==', 'pending').get();
     if (errSnap.empty) return;
