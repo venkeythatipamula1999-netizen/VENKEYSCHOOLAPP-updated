@@ -1,0 +1,83 @@
+Fix Hardcoded Student Data in Driver Screens
+Part A — DriverProximityAlerts.js
+Open src/screens/driver/DriverProximityAlerts.js. Find where ADMIN_DATA or ADMIN_CLASS_STUDENTS is used to build the student list. Replace that hardcoded data source with a real API call.
+Find the data loading section and replace it with:
+// Load real students from API
+const loadStudents = async () => {
+  try {
+    const driverId = currentUser?.roleId || currentUser?.role_id || '';
+    const res = await fetch(`/api/bus/route-students?driverId=${encodeURIComponent(driverId)}`);
+    const data = await res.json();
+    if (data.success && data.students) {
+      setStudents(data.students);
+    }
+  } catch (err) {
+    console.error('Failed to load route students:', err.message);
+  }
+};
+Call loadStudents() inside the existing useEffect that currently loads data.
+Part B — DriverStudentLocations.js
+Open src/screens/driver/DriverStudentLocations.js. Do the same replacement — find where ADMIN_DATA or hardcoded student arrays are used and replace with:
+const loadStudents = async () => {
+  try {
+    const driverId = currentUser?.roleId || currentUser?.role_id || '';
+    const res = await fetch(`/api/bus/route-students?driverId=${encodeURIComponent(driverId)}`);
+    const data = await res.json();
+    if (data.success && data.students) {
+      setStudents(data.students);
+    }
+  } catch (err) {
+    console.error('Failed to load route students:', err.message);
+  }
+};
+Part C — Verify /api/bus/route-students exists
+In server.js, check if GET /api/bus/route-students exists and returns students assigned to a driver's bus. If it does NOT exist, create it:
+app.get('/api/bus/route-students', async (req, res) => {
+  try {
+    const { driverId } = req.query;
+    if (!driverId) return res.status(400).json({ error: 'driverId required' });
+
+    // Find bus assigned to this driver
+    const busQ = query(
+      collection(db, 'buses'),
+      where('driverId', '==', driverId)
+    );
+    const busSnap = await getDocs(busQ);
+    if (busSnap.empty) return res.json({ success: true, students: [] });
+
+    const busData = busSnap.docs[0].data();
+    const busId = busSnap.docs[0].id;
+    const assignedStudentIds = busData.studentIds || [];
+
+    if (assignedStudentIds.length === 0) return res.json({ success: true, students: [] });
+
+    // Fetch each student
+    const students = [];
+    for (const studentId of assignedStudentIds) {
+      try {
+        const studentSnap = await getDocFS(doc(db, 'students', studentId));
+        if (studentSnap.exists()) {
+          students.push({
+            id: studentId,
+            ...studentSnap.data()
+          });
+        }
+      } catch (e) {
+        console.warn('Could not fetch student:', studentId);
+      }
+    }
+
+    res.json({ success: true, students, busId, busNumber: busData.busNumber || '' });
+  } catch (err) {
+    console.error('Route students error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+After all changes rebuild and restart:
+npx expo export --platform web --output-dir dist
+kill $(lsof -t -i:5000) 2>/dev/null; node server.js
+Show me:
+Confirmation Firestore rules deployed successfully
+Both updated driver screen files
+The /api/bus/route-students route (existing or newly created)
+Server running confirmation

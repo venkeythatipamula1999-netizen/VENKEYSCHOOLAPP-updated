@@ -1,0 +1,414 @@
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Image, ActivityIndicator, Platform } from 'react-native';
+import { C } from '../../theme/colors';
+import Icon from '../../components/Icon';
+import { apiFetch } from '../../api/client';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import Toast from '../../components/Toast';
+import { getFriendlyError } from '../../utils/errorMessages';
+import SideDrawer from '../../components/SideDrawer';
+const ROLE_COLORS = { teacher: C.gold, driver: C.teal, cleaner: C.coral };
+const STATUS_COLORS = {
+  'Class in Progress': C.purple,
+  'In Transit': C.teal,
+  'In Transit/Student Pickup': C.teal,
+  'Available': '#34D399',
+  'On Duty': '#34D399',
+  'Off Duty': C.muted,
+  'Auto Clock-Out': C.coral,
+};
+
+export default function AdminOverview({ onNavigate, currentUser, onLogout, currentScreen }) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [realStats, setRealStats] = useState({ teachers: 0, drivers: 0, cleaners: 0, classes: 0 });
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+
+  useEffect(() => {
+    const fetchUnread = () => {
+      apiFetch('/school-notifications?unreadOnly=true&t=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.json())
+        .then(data => setUnreadNotifCount(data.count || 0))
+        .catch(() => {});
+    };
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    apiFetch('/onboarded-users?t=' + Date.now(), { cache: 'no-store' })
+      .then(r => r.json())
+      .then(data => {
+        const users = data.users || [];
+        setRealStats(prev => ({
+          ...prev,
+          teachers: users.filter(u => u.role === 'teacher').length,
+          drivers: users.filter(u => u.role === 'driver').length,
+          cleaners: users.filter(u => u.role === 'cleaner').length,
+        }));
+      })
+      .catch(() => {});
+    apiFetch('/classes?t=' + Date.now(), { cache: 'no-store' })
+      .then(r => r.json())
+      .then(d => setRealStats(prev => ({ ...prev, classes: (d.classes || []).length })))
+      .catch(() => {});
+  }, []);
+
+  const [staffDuty, setStaffDuty] = useState([]);
+  const [staffLoading, setStaffLoading] = useState(false);
+  const [locationRequests, setLocationRequests] = useState([]);
+  const [approvingId, setApprovingId] = useState(null);
+  const [rejectingId, setRejectingId] = useState(null);
+  const [locationMsg, setLocationMsg] = useState('');
+
+  useEffect(() => {
+    const fetchStaff = (showLoader) => {
+      if (showLoader) setStaffLoading(true);
+      apiFetch('/duty/all-staff?t=' + Date.now(), { cache: 'no-store' })
+        .then(res => res.json())
+        .then(data => {
+          const sorted = (data.staff || []).sort((a, b) => (b.onDuty ? 1 : 0) - (a.onDuty ? 1 : 0));
+          setStaffDuty(sorted);
+        })
+        .catch(() => {})
+        .finally(() => { if (showLoader) setStaffLoading(false); });
+    };
+    fetchStaff(true);
+    const interval = setInterval(() => fetchStaff(false), 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const fetchRequests = () => {
+      apiFetch('/bus/location-change-requests?t=' + Date.now(), { cache: 'no-store' })
+        .then(res => res.json())
+        .then(data => { setLocationRequests(data.requests || []); })
+        .catch(() => {});
+    };
+    fetchRequests();
+    const interval = setInterval(fetchRequests, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleApproveLocation = (request) => {
+    setApprovingId(request.id);
+    setLocationMsg('');
+    apiFetch('/bus/approve-location-change', {
+      method: 'POST',
+      body: JSON.stringify({ requestId: request.id }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setLocationRequests(prev => prev.filter(r => r.id !== request.id));
+          setLocationMsg(`Approved location for ${request.studentName}`);
+          setTimeout(() => setLocationMsg(''), 3000);
+        } else {
+          setLocationMsg(data.error || 'Failed to approve');
+          setTimeout(() => setLocationMsg(''), 4000);
+        }
+      })
+      .catch((err) => { setLocationMsg(getFriendlyError(err, 'Network error approving request')); setTimeout(() => setLocationMsg(''), 4000); })
+      .finally(() => setApprovingId(null));
+  };
+
+  const handleRejectLocation = (request) => {
+    setRejectingId(request.id);
+    setLocationMsg('');
+    apiFetch('/bus/reject-location-change', {
+      method: 'POST',
+      body: JSON.stringify({ requestId: request.id }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setLocationRequests(prev => prev.filter(r => r.id !== request.id));
+          setLocationMsg(`Rejected location change for ${request.studentName}`);
+          setTimeout(() => setLocationMsg(''), 3000);
+        } else {
+          setLocationMsg(data.error || 'Failed to reject');
+          setTimeout(() => setLocationMsg(''), 4000);
+        }
+      })
+      .catch((err) => { setLocationMsg(getFriendlyError(err, 'Network error rejecting request')); setTimeout(() => setLocationMsg(''), 4000); })
+      .finally(() => setRejectingId(null));
+  };
+
+  const statGrid = [
+    { icon: '\uD83D\uDC69\u200D\uD83C\uDFEB', val: String(realStats.teachers), lbl: 'Teachers', color: C.gold },
+    { icon: '\uD83C\uDFEB', val: String(realStats.classes), lbl: 'Classes', color: C.purple },
+    { icon: '\uD83D\uDE8C', val: String(realStats.drivers), lbl: 'Drivers', color: C.coral },
+    { icon: '\uD83E\uDDF9', val: String(realStats.cleaners), lbl: 'Cleaners', color: C.teal },
+  ];
+
+  const [auditLoading, setAuditLoading] = useState(false);
+  const handleDownloadAudit = async () => {
+    setAuditLoading(true);
+    try {
+      const resp = await apiFetch('/report/master-audit');
+      if (!resp.ok) throw new Error('Failed to generate report');
+      if (Platform.OS === 'web') {
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Sree-Pragathi-Master-Audit-Report.pdf';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('Audit report downloaded!', 'success');
+      } else {
+        showToast('PDF downloaded', 'success');
+      }
+    } catch (e) {
+      showToast(getFriendlyError(e, 'Failed to download audit report'), 'error');
+    }
+    setAuditLoading(false);
+  };
+
+  const quickNav = [
+    { icon: '\uD83D\uDC65', label: 'Manage Users', screen: 'admin-users', color: C.teal },
+    { icon: '\uD83C\uDFEB', label: 'Classes', screen: 'admin-classes', color: C.gold },
+    { icon: '\uD83D\uDE8C', label: 'Bus & Routes', screen: 'admin-buses', color: C.coral },
+    { icon: '\uD83D\uDCCA', label: 'Reports', screen: 'admin-reports', color: C.purple },
+    { icon: '\uD83D\uDCC5', label: 'Leave Requests', screen: 'admin-leaves', color: '#34D399' },
+    { icon: '\uD83D\uDCB0', label: 'Fee Management', screen: 'admin-fees', color: '#60A5FA' },
+    { icon: '\uD83D\uDCCB', label: 'Fee Status', screen: 'admin-fee-status', color: '#38BDF8' },
+    { icon: '\uD83D\uDCB8', label: 'Payroll', screen: 'admin-salary', color: '#FB923C' },
+    { icon: '\uD83C\uDF93', label: 'Activities', screen: 'admin-activities', color: C.gold },
+    { icon: '\uD83D\uDCE4', label: 'Promotion', screen: 'admin-promotion', color: '#A78BFA' },
+  ];
+
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  return (
+    <>
+    <ScrollView style={styles.container}>
+      <View style={{ padding: 20, paddingBottom: 0 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+            <TouchableOpacity
+              onPress={() => setDrawerOpen(true)}
+              style={{ width: 38, height: 38, alignItems: 'center', justifyContent: 'center', backgroundColor: C.card, borderRadius: 11, borderWidth: 1, borderColor: C.border, flexShrink: 0, marginTop: 2 }}
+              activeOpacity={0.7}
+            >
+              <Text style={{ fontSize: 17, color: C.white }}>☰</Text>
+            </TouchableOpacity>
+            <View>
+              <Text style={{ color: C.muted, fontSize: 12, marginBottom: 4 }}>Master Admin · {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
+              <Text style={{ fontSize: 22, fontWeight: '700', color: C.white }}>School Overview</Text>
+            </View>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <TouchableOpacity onPress={() => onNavigate('admin-notifications')} style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: 20 }}>{'\uD83D\uDD14'}</Text>
+              {unreadNotifCount > 0 && (
+                <View style={{ position: 'absolute', top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: C.coral, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3, borderWidth: 2, borderColor: C.navy }}>
+                  <Text style={{ color: C.white, fontSize: 10, fontWeight: '700' }}>{unreadNotifCount > 99 ? '99+' : String(unreadNotifCount)}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => onNavigate('admin-profile')} style={styles.adminAvatar}>
+              {currentUser?.profileImage ? (
+                <Image source={{ uri: currentUser.profileImage }} style={{ width: 42, height: 42, borderRadius: 13 }} />
+              ) : (
+                <Text style={{ fontSize: 22 }}>{'\uD83D\uDC68\u200D\uD83D\uDCBC'}</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
+          {statGrid.map((st) => (
+            <View key={st.lbl} style={[styles.statCard, { borderTopColor: st.color, borderTopWidth: 3 }]}>
+              <Text style={{ fontSize: 20, marginBottom: 4 }}>{st.icon}</Text>
+              <Text style={{ fontSize: 17, fontWeight: '800', color: st.color }}>{st.val}</Text>
+              <Text style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>{st.lbl}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
+        <Text style={styles.secTitle}>Manage</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
+          {quickNav.map((q) => (
+            <TouchableOpacity key={q.label} onPress={() => onNavigate(q.screen)}
+              style={[styles.navCard, { borderColor: q.color + '44' }]}>
+              <View style={[styles.navIcon, { backgroundColor: q.color + '22' }]}>
+                <Text style={{ fontSize: 22 }}>{q.icon}</Text>
+              </View>
+              <Text style={{ color: C.white, fontWeight: '700', fontSize: 13, flex: 1 }}>{q.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <TouchableOpacity
+          onPress={handleDownloadAudit}
+          disabled={auditLoading}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#1E293B', borderWidth: 1, borderColor: C.gold + '44', borderRadius: 14, paddingVertical: 14, marginBottom: 20, opacity: auditLoading ? 0.6 : 1 }}
+        >
+          {auditLoading ? (
+            <ActivityIndicator size="small" color={C.gold} />
+          ) : (
+            <Icon name="download" size={18} color={C.gold} />
+          )}
+          <Text style={{ fontWeight: '700', fontSize: 14, color: C.gold }}>
+            {auditLoading ? 'Generating Report...' : 'Download Master Audit Report'}
+          </Text>
+        </TouchableOpacity>
+
+        <Text style={styles.secTitle}>Live Staff Board</Text>
+        {staffLoading ? (
+          <View style={[styles.card, { marginBottom: 20, alignItems: 'center', padding: 24 }]}>
+            <LoadingSpinner message="Loading staff..." size="small" />
+          </View>
+        ) : staffDuty.length === 0 ? (
+          <View style={[styles.card, { marginBottom: 20, alignItems: 'center', padding: 24 }]}>
+            <Text style={{ fontSize: 22, marginBottom: 8 }}>{'\uD83D\uDCCB'}</Text>
+            <Text style={{ color: C.muted, fontSize: 13 }}>No staff activity today</Text>
+          </View>
+        ) : (
+          <View style={{ marginBottom: 20 }}>
+            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
+              <View style={{ backgroundColor: '#34D399' + '22', paddingVertical: 4, paddingHorizontal: 12, borderRadius: 50, borderWidth: 1, borderColor: '#34D399' + '44' }}>
+                <Text style={{ color: '#34D399', fontSize: 12, fontWeight: '700' }}>{staffDuty.filter(s => s.onDuty).length} On Duty</Text>
+              </View>
+              <View style={{ backgroundColor: C.coral + '22', paddingVertical: 4, paddingHorizontal: 12, borderRadius: 50, borderWidth: 1, borderColor: C.coral + '44' }}>
+                <Text style={{ color: C.coral, fontSize: 12, fontWeight: '700' }}>{staffDuty.filter(s => !s.onDuty).length} Off Duty</Text>
+              </View>
+            </View>
+            {staffDuty.slice(0, 8).map((member, idx) => (
+              <View key={member.roleId || idx} style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 14, padding: 12, marginBottom: 8, flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: member.onDuty ? '#34D399' : C.coral, marginRight: 12 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontWeight: '600', fontSize: 13, color: C.white }}>{member.name}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                    <Text style={{ fontSize: 11, color: ROLE_COLORS[member.role] || C.muted, fontWeight: '600' }}>{member.role ? member.role.charAt(0).toUpperCase() + member.role.slice(1) : ''}</Text>
+                    <Text style={{ fontSize: 11, color: STATUS_COLORS[member.currentStatus] || C.muted }}>{member.currentStatus || 'Off Duty'}</Text>
+                  </View>
+                </View>
+                {member.clockIn ? (
+                  <Text style={{ fontSize: 10, color: C.muted }}>{member.clockIn}</Text>
+                ) : null}
+              </View>
+            ))}
+            {staffDuty.length > 8 && (
+              <TouchableOpacity 
+                style={{ alignItems: 'center', paddingVertical: 6 }}
+                onPress={() => onNavigate('admin-users')}
+              >
+                <Text style={{ fontSize: 12, color: C.teal }}>View All ({staffDuty.length})</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
+        {locationMsg ? (
+          <View style={{ backgroundColor: locationMsg.includes('Approved') ? '#34D39922' : locationMsg.includes('Rejected') ? C.gold + '22' : C.coral + '22', borderRadius: 10, padding: 10, marginBottom: 12 }}>
+            <Text style={{ color: locationMsg.includes('Approved') ? '#34D399' : locationMsg.includes('Rejected') ? C.gold : C.coral, fontSize: 12, fontWeight: '600' }}>{locationMsg}</Text>
+          </View>
+        ) : null}
+
+        {locationRequests.length > 0 && (
+          <View style={{ marginBottom: 20 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <Text style={styles.secTitle}>Location Change Requests</Text>
+              <View style={{ backgroundColor: C.coral + '22', paddingVertical: 2, paddingHorizontal: 10, borderRadius: 50, borderWidth: 1, borderColor: C.coral + '44' }}>
+                <Text style={{ color: C.coral, fontSize: 12, fontWeight: '700' }}>{locationRequests.length}</Text>
+              </View>
+            </View>
+            {locationRequests.map((req) => (
+              <View key={req.id} style={[styles.card, { marginBottom: 10 }]}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontWeight: '700', fontSize: 13, color: C.white }}>{req.studentName}</Text>
+                    <Text style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>{req.className}</Text>
+                  </View>
+                  <View style={{ backgroundColor: C.teal + '22', paddingVertical: 2, paddingHorizontal: 10, borderRadius: 50 }}>
+                    <Text style={{ color: C.teal, fontSize: 11, fontWeight: '600' }}>{req.route}</Text>
+                  </View>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <Text style={{ color: C.muted, fontSize: 11 }}>{req.oldLat?.toFixed(4)}, {req.oldLng?.toFixed(4)}</Text>
+                  <Text style={{ color: C.gold, fontSize: 11 }}>{'→'}</Text>
+                  <Text style={{ color: C.gold, fontSize: 11, fontWeight: '600' }}>{req.newLat?.toFixed(4)}, {req.newLng?.toFixed(4)}</Text>
+                </View>
+                <Text style={{ color: C.muted, fontSize: 11, marginBottom: 10 }}>Requested by: {req.requestedBy}</Text>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  {approvingId === req.id ? (
+                    <ActivityIndicator color="#34D399" />
+                  ) : (
+                    <TouchableOpacity onPress={() => handleApproveLocation(req)} style={{ backgroundColor: '#34D399', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10 }}>
+                      <Text style={{ color: C.white, fontWeight: '700', fontSize: 12 }}>Approve</Text>
+                    </TouchableOpacity>
+                  )}
+                  {rejectingId === req.id ? (
+                    <ActivityIndicator color={C.coral} />
+                  ) : (
+                    <TouchableOpacity onPress={() => handleRejectLocation(req)} style={{ backgroundColor: C.coral + '22', borderWidth: 1, borderColor: C.coral + '44', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10 }}>
+                      <Text style={{ color: C.coral, fontWeight: '700', fontSize: 12 }}>Reject</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+        <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 14, padding: 16, marginBottom: 20, alignItems: 'center' }}>
+          <Text style={{ fontSize: 13, color: C.muted, textAlign: 'center' }}>Attendance analytics will appear here as teachers record daily attendance.</Text>
+        </View>
+
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <Text style={styles.secTitle}>Leave Requests</Text>
+          <TouchableOpacity onPress={() => onNavigate('admin-leaves')}>
+            <Text style={{ fontSize: 12, color: C.teal }}>View All</Text>
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity onPress={() => onNavigate('admin-leaves')} style={[styles.card, { marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 14 }]}>
+          <Text style={{ fontSize: 28 }}>{'\uD83D\uDCC5'}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontWeight: '700', fontSize: 14, color: C.white }}>Staff Leave Applications</Text>
+            <Text style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>Tap to review and approve or reject pending leave requests.</Text>
+          </View>
+          <Text style={{ fontSize: 16, color: C.muted }}>{'\u203A'}</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+    <SideDrawer
+      visible={drawerOpen}
+      onClose={() => setDrawerOpen(false)}
+      currentUser={currentUser}
+      onNavigate={(scr) => { setDrawerOpen(false); onNavigate(scr); }}
+      onLogout={onLogout}
+      role="principal"
+      currentScreen={currentScreen}
+    />
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { 
+    flex: 1, 
+    backgroundColor: C.navy,
+    ...(Platform.OS === 'web' ? {
+      maxWidth: 1000,
+      alignSelf: 'center',
+      width: '100%',
+      borderLeftWidth: 1,
+      borderRightWidth: 1,
+      borderColor: C.border,
+    } : {})
+  },
+  adminAvatar: { width: 44, height: 44, borderRadius: 14, backgroundColor: C.purple + '22', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.purple + '44' },
+  statCard: { width: '31%', backgroundColor: C.card, borderRadius: 14, padding: 14, paddingHorizontal: 10, alignItems: 'center', borderWidth: 1, borderColor: C.border },
+  secTitle: { fontWeight: '700', fontSize: 15, color: C.white, marginBottom: 14 },
+  navCard: { width: '48%', backgroundColor: C.card, borderWidth: 1, borderRadius: 16, padding: 16, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  navIcon: { width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  card: { backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 14, padding: 14 },
+  progressTrack: { flex: 1, height: 6, backgroundColor: C.border, borderRadius: 3, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 3 },
+});

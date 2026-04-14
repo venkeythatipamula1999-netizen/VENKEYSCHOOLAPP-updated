@@ -1,0 +1,121 @@
+Still old. Replit AI is not saving the files to disk. The `cat >` commands aren't being executed. Let's force it differently.
+
+Paste this into Replit AI:
+
+---
+
+**FIX — Force overwrite report files directly**
+
+Run these commands one at a time and show me the output of each:
+
+**Step 1 — Find the exact file names:**
+```bash
+ls -la *.md && grep -n "sendFile\|readFile\|SAAS\|PRODUCTION\|audit-report\|production-report" server.js | head -15
+```
+
+**Step 2 — Write the audit report file** (copy and run this entire block):
+```bash
+node -e "
+const fs = require('fs');
+const content = \`# SaaS Migration — Master Audit Report
+
+**Project**: Vidhaya Layam — Sree Pragathi High School
+**Date**: March 10, 2026
+**Status**: All 6 steps + 5 security fixes COMPLETE
+
+## SaaS Migration (All 6 Steps Done)
+- Step 1: DEFAULT_SCHOOL_ID replacing hardcoded school_001
+- Step 2: generateSchoolCode + verifySuperAdmin middleware
+- Step 3: 10 Super Admin routes
+- Step 4: schoolId filter on 67 queries + 195 writes
+- Step 5: Rate limiting, security headers, CORS
+- Step 6: Super Admin Dashboard API wired
+
+## Security Hardening (All Done)
+- JWT issued on all 3 login routes
+- Frontend stores token in AsyncStorage
+- apiFetch sends Bearer token on every request
+- 170 raw fetch() migrated to apiFetch (45 files, 7 batches)
+- x-role-id fallback removed from verifyAuth
+- Global auth guard at line 292 (146 routes protected)
+- 13 public routes allowlisted
+- checkSchoolActive wired globally
+- Firestore 19 composite indexes deployed
+- JWT_SECRET enforced, no fallback
+
+## Live Tests
+- GET /api/classes no token: 401
+- GET /api/classes x-role-id only: 401
+- GET /api/school-info: 200
+- GET /api/super/stats: 1 school, 243 students, 12 staff
+
+## Remaining
+- Input validation (Medium)
+- Request logging (Medium)
+- Password policy (Medium)
+- Remove localhost from CORS (Low)
+- Remove download routes (Low)
+- Multi-school login selector (Low)
+\`;
+fs.writeFileSync('SAAS_MIGRATION_AUDIT_REPORT.md', content);
+console.log('Audit report written:', fs.statSync('SAAS_MIGRATION_AUDIT_REPORT.md').size, 'bytes');
+"
+```
+
+**Step 3 — Write the production report file:**
+```bash
+node -e "
+const fs = require('fs');
+const content = \`# Production Readiness Report
+
+**Project**: Vidhaya Layam — Sree Pragathi High School
+**Date**: March 10, 2026
+**App Completion**: 95%
+
+## Complete
+- 5 Role Portals (56 screens)
+- Firebase Auth + JWT fully wired
+- 146 API Routes
+- Global auth guard (146 routes protected)
+- JWT issued on login + AsyncStorage storage
+- apiFetch Bearer token (170 calls, 45 files)
+- x-role-id fallback removed
+- Attendance, Marks, Leave, Bus, Fee, Timetable
+- Events, Payroll, Notifications, Error Tracking
+- Multi-Tenant SaaS (schoolId 201 refs)
+- Super Admin Dashboard (10 routes)
+- Rate Limiting (5 limiters, 24 applications)
+- Firestore Indexes deployed (19)
+- checkSchoolActive suspended school blocking
+- Google Sheets Sync
+
+## Remaining
+- Input validation (Medium, 3-4 hrs)
+- Request logging (Medium, 1-2 hrs)
+- Password policy (Medium, 1 hr)
+- Remove localhost from CORS (Low, 5 min)
+- Remove download routes (Low, 5 min)
+- Multi-school login selector (Low, 2-3 hrs)
+- Firestore scheduled backup (Low, 1-2 hrs)
+
+## Bottom Line
+Production-ready for single-school deployment.
+All security hardening complete.
+\`;
+fs.writeFileSync('PRODUCTION_READINESS_REPORT.md', content);
+console.log('Production report written:', fs.statSync('PRODUCTION_READINESS_REPORT.md').size, 'bytes');
+"
+```
+
+**Step 4 — Restart server:**
+```bash
+kill $(lsof -t -i:5000) 2>/dev/null; node server.js
+```
+
+**Step 5 — Verify:**
+```bash
+curl -s https://0aef3a1a-91c2-459e-b2e1-1a737f7e6855-00-qub2w262x06f.picard.replit.dev/download/audit-report | head -4
+curl -s https://0aef3a1a-91c2-459e-b2e1-1a737f7e6855-00-qub2w262x06f.picard.replit.dev/download/production-report | head -4
+```
+
+Show me output of every step.

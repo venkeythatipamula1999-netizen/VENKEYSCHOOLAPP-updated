@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "252163179307",
+    "project_id": "vidyalayam-288fd",
+    "storage_bucket": "vidyalayam-288fd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:252163179307:android:02e5dc91aeed94c904fb6e",
+        "android_client_info": {
+          "package_name": "com.vidyalayaam"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCpJN6rP699bCYMzrDm-m-RlH0Gyll1L90"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
