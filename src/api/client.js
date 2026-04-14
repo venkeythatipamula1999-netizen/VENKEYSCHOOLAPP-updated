@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { reportError, reportApiError } from '../services/errorReporter';
 
 // Production and Local API URLs
-const PROD_API_URL = 'https://venkey-admin-backend.onrender.com/api'; 
+const PROD_API_URL = 'https://vidyalayam-one.vercel.app/api'; 
 const LOCAL_API_URL = 'http://localhost:5001/api';
 
 const API_BASE = (typeof __DEV__ !== 'undefined' && __DEV__ && typeof window !== 'undefined' && window.location.hostname === 'localhost')

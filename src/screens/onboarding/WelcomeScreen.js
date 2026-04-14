@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { C } from '../../theme/colors';
 
-const PRODUCTION_URL = 'https://venkey-admin-backend.onrender.com';
+const PRODUCTION_URL = 'https://vidyalayam-one.vercel.app';
 const LOCAL_API_URL = 'http://localhost:5001';
 const API_BASE = Platform.OS === 'web'
   ? (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
