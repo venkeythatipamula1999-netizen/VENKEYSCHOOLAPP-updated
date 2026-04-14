@@ -10536,49 +10536,51 @@ function keepAlive() {
 
 keepAlive();
 
-const server = app.listen(PORT, '0.0.0.0', async () => {
-  console.log(`Vidyalayam server running on port ${PORT}`);
-  console.log('Database: Firebase Firestore (project: ' + firebaseConfig.projectId + ')');
-  console.log('Auth: Firebase Authentication (Email/Password) — NO FALLBACK');
-  console.log('✅ CORS configured for ' + (process.env.NODE_ENV === 'production' ? 'production (no localhost)' : 'development (localhost allowed)'));
-  console.log('✅ Validation middleware ready');
-  console.log('✅ WhatsApp webhook token ' + (process.env.WHATSAPP_VERIFY_TOKEN ? 'loaded' : 'NOT SET — set WHATSAPP_VERIFY_TOKEN in secrets'));
-  console.log('✅ Rate limiting active');
-  console.log('✅ Security headers enabled (helmet + manual headers)');
-  scheduleAutoClockout();
-  console.log('Auto clock-out scheduled: 7:00 PM daily');
-  scheduleDailyBackup();
-  console.log('[Backup] Scheduler started — next backup at 2 AM IST');
+// If not running as a Vercel function, start the server
+if (!process.env.VERCEL) {
+  const server = app.listen(PORT, '0.0.0.0', async () => {
+    console.log(`Vidyalayam server running on port ${PORT}`);
+    console.log('Database: Firebase Firestore (project: ' + firebaseConfig.projectId + ')');
+    console.log('Auth: Firebase Authentication (Email/Password) — NO FALLBACK');
+    console.log('✅ CORS configured for ' + (process.env.NODE_ENV === 'production' ? 'production' : 'development'));
+    console.log('✅ Validation middleware ready');
+    console.log('✅ Rate limiting active');
+    console.log('✅ Security headers enabled');
+    
+    scheduleAutoClockout();
+    console.log('Auto clock-out scheduled: 7:00 PM daily');
+    scheduleDailyBackup();
+    console.log('[Backup] Scheduler started — next backup at 2 AM IST');
 
-  try {
-    const principalEmail = process.env.PRINCIPAL_EMAIL || 'thatipamulavenkatesh1999@gmail.com';
-    const snapshot = await adminDb.collection('users')
-      .where('email', '==', principalEmail)
-      .get();
-    if (!snapshot.empty) {
-      const userDoc = snapshot.docs[0];
-      if (userDoc.data().role !== 'principal') {
-        await adminDb.collection('users').doc(userDoc.id).update({ role: 'principal' });
-        console.log(`Updated ${principalEmail} role to principal`);
-      } else {
-        console.log(`${principalEmail} already has role principal`);
+    try {
+      const principalEmail = process.env.PRINCIPAL_EMAIL || 'thatipamulavenkatesh1999@gmail.com';
+      const snapshot = await adminDb.collection('users')
+        .where('email', '==', principalEmail)
+        .get();
+      if (!snapshot.empty) {
+        const userDoc = snapshot.docs[0];
+        if (userDoc.data().role !== 'principal') {
+          await adminDb.collection('users').doc(userDoc.id).update({ role: 'principal' });
+          console.log(`Updated ${principalEmail} role to principal`);
+        }
       }
-    } else {
-      console.log(`User ${principalEmail} not found — will be set on next login`);
+    } catch (err) {
+      console.warn('Principal role setup warning:', err.message);
     }
-  } catch (err) {
-    console.error('Principal role setup error:', err.message);
-  }
-});
+  });
 
-server.on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    console.error(`Port ${PORT} is already in use. Retrying in 3 seconds...`);
-    setTimeout(() => {
-      server.close();
-      server.listen(PORT, '0.0.0.0');
-    }, 3000);
-  } else {
-    console.error('Server error:', err.message);
-  }
-});
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`Port ${PORT} is already in use. Retrying in 3 seconds...`);
+      setTimeout(() => {
+        server.close();
+        server.listen(PORT, '0.0.0.0');
+      }, 3000);
+    } else {
+      console.error('Server error:', err.message);
+    }
+  });
+}
+
+// Export for Vercel Serverless
+module.exports = app;
