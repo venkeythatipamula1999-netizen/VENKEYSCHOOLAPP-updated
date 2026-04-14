@@ -236,6 +236,8 @@ app.use(cors({
 
 app.use(compression({ level: 6, threshold: 1024 }));
 
+app.get('/', (req, res) => res.json({ status: 'ok', service: 'Vidyalayam API', version: '2.0.0' }));
+
 async function firebaseSignIn(email, password) {
   const apiKey = process.env.FIREBASE_API_KEY;
   const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`;
