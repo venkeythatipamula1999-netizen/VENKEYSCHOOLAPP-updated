@@ -8,7 +8,7 @@ const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
 const { body } = require('express-validator');
-const validate = require('./middleware/validate');
+const validate = require('../middleware/validate');
 const jwt = require('jsonwebtoken');
 const PDFDocument = require('pdfkit');
 const cron = require('node-cron');
@@ -24,7 +24,7 @@ function cacheSet(key, data) { _cache.set(key, { data, ts: Date.now() }); }
 function cacheDel(prefix) {
   for (const k of _cache.keys()) { if (k.startsWith(prefix)) _cache.delete(k); }
 }
-const { runDailyBackup } = require('./src/services/firestoreBackup');
+const { runDailyBackup } = require('../src/services/firestoreBackup');
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
   console.warn('[WARNING] JWT_SECRET environment variable is not set. Auth will fail.');
@@ -124,7 +124,7 @@ const verifySuperAdmin = (req, res, next) => {
 };
 
 const admin = require('firebase-admin');
-const { sendAndLog } = require('./services/whatsappService');
+const { sendAndLog } = require('../services/whatsappService');
 
 let adminAuth = null;
 try {
@@ -180,7 +180,7 @@ const multer = require('multer');
 const csvParser = require('csv-parser');
 const ExcelJS = require('exceljs');
 const { Readable } = require('stream');
-const { syncAttendance, syncMarks, syncUserDirectory, updateUserDirectoryOnRegistration, syncLogisticsStaff, updateUserDirectoryClasses, updateProfileInSheets, markUserInactiveInSheets, syncMasterTimetable, removeMasterTimetableEntries, syncStudentFile, syncBusTripHistory, syncStudentStop, syncStaffAttendance, syncStudent, syncTeacher, syncLeaveRequest, syncParentAccount, syncPayroll, syncNotification, resetDocCache } = require('./src/services/googleSheets');
+const { syncAttendance, syncMarks, syncUserDirectory, updateUserDirectoryOnRegistration, syncLogisticsStaff, updateUserDirectoryClasses, updateProfileInSheets, markUserInactiveInSheets, syncMasterTimetable, removeMasterTimetableEntries, syncStudentFile, syncBusTripHistory, syncStudentStop, syncStaffAttendance, syncStudent, syncTeacher, syncLeaveRequest, syncParentAccount, syncPayroll, syncNotification, resetDocCache } = require('../src/services/googleSheets');
 
 function generateSchoolCode(schoolName, location) {
   const skipWords = ['THE','AND','OF','A','AN','HIGH','SCHOOL','SR','JR','HIGHER','SECONDARY','PUBLIC','PRIVATE','CENTRAL','CONVENT','ENGLISH','MEDIUM'];
@@ -345,8 +345,8 @@ app.use((req, res, next) => {
   next();
 });
 app.use('/api/', apiLimiter);
-app.use('/api/whatsapp', require('./routes/whatsapp'));
-app.use('/api/healthcheck', require('./routes/healthcheck'));
+app.use('/api/whatsapp', require('../routes/whatsapp'));
+app.use('/api/healthcheck', require('../routes/healthcheck'));
 
 // ── GLOBAL AUTH GUARD ──────────────────────────────────────────
 const PUBLIC_ROUTES = [
@@ -381,7 +381,7 @@ app.use((req, res, next) => {
 });
 // ── END GLOBAL AUTH GUARD ───────────────────────────────────────
 
-app.use('/api/cce', require('./routes/cce'));
+app.use('/api/cce', require('../routes/cce'));
 
 app.use((req, res, next) => {
   res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
