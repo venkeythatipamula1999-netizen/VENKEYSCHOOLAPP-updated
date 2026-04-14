@@ -7,8 +7,8 @@
     "node": ">=20.x"
   },
   "scripts": {
-    "start": "node server.js",
-    "start:backend": "node server.js",
+    "start": "node api/index.js",
+    "start:backend": "node api/index.js",
     "start:app": "npx expo start --web --port 5000",
     "start:admin": "npm --prefix admin-dashboard run dev",
     "start:all": "concurrently --names \"BACKEND,APP,ADMIN\" --prefix-colors \"cyan,green,magenta\" \"npm run start:backend\" \"npm run start:app\" \"npm run start:admin\"",
